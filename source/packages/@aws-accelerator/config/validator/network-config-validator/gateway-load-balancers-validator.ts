@@ -31,7 +31,12 @@ import { NetworkValidatorFunctions } from './network-validator-functions';
  * Class to validate Gateway LoadBalancers
  */
 export class GatewayLoadBalancersValidator {
-  constructor(values: NetworkConfig, configDir: string, helpers: NetworkValidatorFunctions, errors: string[]) {
+  constructor(
+    values: NetworkConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+    customizationsConfig?: CustomizationsConfig,
+  ) {
     //
     // Validate gateway load balancers deployment account names
     //
@@ -40,7 +45,7 @@ export class GatewayLoadBalancersValidator {
     //
     // Validate GWLB configuration
     //
-    this.validateGwlbConfiguration(values, configDir, helpers, errors);
+    this.validateGwlbConfiguration(values, helpers, errors, customizationsConfig);
   }
 
   /**
@@ -93,12 +98,15 @@ export class GatewayLoadBalancersValidator {
   /**
    * Validate Gateway Load Balancer configuration
    * @param values
+   * @param helpers
+   * @param errors
+   * @param customizationsConfig
    */
   private validateGwlbConfiguration(
     values: NetworkConfig,
-    configDir: string,
     helpers: NetworkValidatorFunctions,
     errors: string[],
+    customizationsConfig?: CustomizationsConfig,
   ) {
     for (const gwlb of values.centralNetworkServices?.gatewayLoadBalancers ?? []) {
       const vpc = helpers.getVpc(gwlb.vpc);
@@ -115,7 +123,7 @@ export class GatewayLoadBalancersValidator {
       this.validateGwlbEndpoints(gwlb, helpers, errors);
       // Validate target groups
       if (gwlb.targetGroup) {
-        this.validateGwlbTargetGroup(gwlb, configDir, errors);
+        this.validateGwlbTargetGroup(gwlb, errors, customizationsConfig);
       }
     }
   }
@@ -175,7 +183,7 @@ export class GatewayLoadBalancersValidator {
     // Validate subnets are in different AZs
     if (validSubnets.length === gwlb.subnets.length) {
       const azs = validSubnets.map(item => {
-        return item.availabilityZone;
+        return item.availabilityZone ? item.availabilityZone : '';
       });
 
       if (helpers.hasDuplicates(azs)) {
@@ -189,15 +197,14 @@ export class GatewayLoadBalancersValidator {
   /**
    * Validate Gateway Load Balancer target group
    * @param gwlb
-   * @param configDir
    * @param errors
+   * @param customizationsConfig
    */
-  private validateGwlbTargetGroup(gwlb: GwlbConfig, configDir: string, errors: string[]) {
+  private validateGwlbTargetGroup(gwlb: GwlbConfig, errors: string[], customizationsConfig?: CustomizationsConfig) {
     // Pull values from customizations config
-    const customizationsConfig = CustomizationsConfig.load(configDir);
-    const firewallInstances = customizationsConfig.firewalls?.instances;
-    const autoscalingGroups = customizationsConfig.firewalls?.autoscalingGroups;
-    const targetGroups = customizationsConfig.firewalls?.targetGroups;
+    const firewallInstances = customizationsConfig?.firewalls?.instances;
+    const autoscalingGroups = customizationsConfig?.firewalls?.autoscalingGroups;
+    const targetGroups = customizationsConfig?.firewalls?.targetGroups;
 
     // Fetch target group from customizations config
     let targetGroup: TargetGroupItemConfig | undefined = undefined;
@@ -224,7 +231,7 @@ export class GatewayLoadBalancersValidator {
     }
 
     if (targetGroup && !targetGroup.targets) {
-      this.validateTargetGroupAsg(gwlb, targetGroup, autoscalingGroups!, errors);
+      this.validateTargetGroupAsg(gwlb, targetGroup, errors, autoscalingGroups);
     }
   }
 
@@ -288,23 +295,30 @@ export class GatewayLoadBalancersValidator {
   private validateTargetGroupAsg(
     gwlb: GwlbConfig,
     targetGroup: TargetGroupItemConfig,
-    autoscalingGroups: Ec2FirewallAutoScalingGroupConfig[],
     errors: string[],
+    autoscalingGroups?: Ec2FirewallAutoScalingGroupConfig[],
   ) {
-    const asg = autoscalingGroups.find(
-      group => group.autoscaling.targetGroups && group.autoscaling.targetGroups[0] === targetGroup.name,
-    );
-
-    if (!asg) {
+    // Validate ASGs exist in customizations-config
+    if (!autoscalingGroups) {
       errors.push(
-        `[Gateway Load Balancer ${gwlb.name} target group ${targetGroup.name}]: firewall ASG for target group not found in customizations-config.yaml`,
+        `[Gateway Load Balancer ${gwlb.name} target group ${targetGroup.name}]: target group contains no targets and is not referenced in a firewall ASG. Either define instance targets or reference this target group in an ASG in customizations-config.yaml`,
       );
-    }
+    } else {
+      const asg = autoscalingGroups.find(
+        group => group.autoscaling.targetGroups && group.autoscaling.targetGroups[0] === targetGroup.name,
+      );
 
-    if (asg && asg.vpc !== gwlb.vpc) {
-      errors.push(
-        `[Gateway Load Balancer ${gwlb.name} target group ${targetGroup.name}]: targets do not exist in the same VPC as the load balancer`,
-      );
+      if (!asg) {
+        errors.push(
+          `[Gateway Load Balancer ${gwlb.name} target group ${targetGroup.name}]: firewall ASG for target group not found in customizations-config.yaml`,
+        );
+      }
+
+      if (asg && asg.vpc !== gwlb.vpc) {
+        errors.push(
+          `[Gateway Load Balancer ${gwlb.name} target group ${targetGroup.name}]: targets do not exist in the same VPC as the load balancer`,
+        );
+      }
     }
   }
 }

@@ -17,6 +17,7 @@ import {
   RouteTableEntryConfig,
   SecurityGroupConfig,
   SecurityGroupRuleConfig,
+  SubnetConfig,
   TransitGatewayAttachmentConfig,
   TransitGatewayConfig,
   VpcConfig,
@@ -661,14 +662,15 @@ export class VpcValidator {
     if (vpcItem.dhcpOptions) {
       const optSet = values.dhcpOptions?.find(item => item.name === vpcItem.dhcpOptions);
       const vpcAccountNames = helpers.getVpcAccountNames(vpcItem);
+      const targetComparison = optSet ? helpers.compareTargetAccounts(vpcAccountNames, optSet.accounts) : [];
 
       if (!optSet) {
         errors.push(`[VPC ${vpcItem.name}]: DHCP options set ${vpcItem.dhcpOptions} does not exist`);
       }
       // Validate DHCP options set exists in the same account and region
-      if (optSet && helpers.hasTargetMismatch(vpcAccountNames, optSet.accounts)) {
+      if (optSet && targetComparison.length > 0) {
         errors.push(
-          `[VPC ${vpcItem.name}]: DHCP options set "${vpcItem.dhcpOptions}" is not deployed to one or more VPC deployment target accounts`,
+          `[VPC ${vpcItem.name}]: DHCP options set "${vpcItem.dhcpOptions}" is not deployed to one or more VPC deployment target accounts. Missing accounts: ${targetComparison}`,
         );
       }
       if (optSet && !optSet.regions.includes(vpcItem.region)) {
@@ -722,9 +724,10 @@ export class VpcValidator {
       } else {
         // Validate accounts and regions
         const groupAccountNames = helpers.getDelegatedAdminShareTargets(group.shareTargets);
-        if (helpers.hasTargetMismatch(vpcAccountNames, groupAccountNames)) {
+        const targetComparison = helpers.compareTargetAccounts(vpcAccountNames, groupAccountNames);
+        if (targetComparison.length > 0) {
           errors.push(
-            `[VPC ${vpcItem.name}]: DNS firewall rule group "${name}" is not shared to one or more VPC deployment target accounts`,
+            `[VPC ${vpcItem.name}]: DNS firewall rule group "${name}" is not shared to one or more VPC deployment target accounts. Missing accounts: ${targetComparison}`,
           );
         }
         if (!group.regions.includes(vpcItem.region)) {
@@ -841,7 +844,7 @@ export class VpcValidator {
       if (!subnet) {
         errors.push(`[VPC ${vpcItem.name}]: interfaceEndpoints target subnet "${subnetName}" does not exist in VPC`);
       } else {
-        azs.push(subnet.availabilityZone);
+        azs.push(subnet.availabilityZone ? subnet.availabilityZone : '');
       }
     });
     // Validate there are no duplicate AZs
@@ -1243,9 +1246,10 @@ export class VpcValidator {
         // Validate query log share targets
         const vpcAccountNames = helpers.getVpcAccountNames(vpcItem);
         const queryLogAccountNames = helpers.getDelegatedAdminShareTargets(queryLogs.shareTargets);
-        if (helpers.hasTargetMismatch(vpcAccountNames, queryLogAccountNames)) {
+        const targetComparison = helpers.compareTargetAccounts(vpcAccountNames, queryLogAccountNames);
+        if (targetComparison.length > 0) {
           errors.push(
-            `[VPC ${vpcItem.name}]: DNS query logging configuration "${name}" is not shared to one or more VPC deployment target accounts`,
+            `[VPC ${vpcItem.name}]: DNS query logging configuration "${name}" is not shared to one or more VPC deployment target accounts. Missing accounts: ${targetComparison}`,
           );
         }
       }
@@ -1284,10 +1288,11 @@ export class VpcValidator {
         const resolverEndpoint = values.centralNetworkServices?.route53Resolver?.endpoints?.find(endpointItem =>
           endpointItem.rules?.find(ruleItem => rule.name === ruleItem.name),
         );
+        const targetComparison = helpers.compareTargetAccounts(vpcAccountNames, ruleAccountNames);
 
-        if (helpers.hasTargetMismatch(vpcAccountNames, ruleAccountNames)) {
+        if (targetComparison.length > 0) {
           errors.push(
-            `[VPC ${vpcItem.name}]: Resolver rule "${name}" is not shared to one or more VPC deployment target accounts`,
+            `[VPC ${vpcItem.name}]: Resolver rule "${name}" is not shared to one or more VPC deployment target accounts. Missing accounts: ${targetComparison}`,
           );
         }
         // Validate target region
@@ -1591,10 +1596,22 @@ export class VpcValidator {
             } else {
               // Validate subnets
               source.subnets.forEach(subnet => {
-                if (!helpers.getSubnet(vpc, subnet)) {
+                const subnetItem = helpers.getSubnet(vpc, subnet);
+                if (!subnetItem) {
                   errors.push(
                     `[VPC ${vpcItem.name} security group ${group.name}]: subnet "${subnet}" does not exist in source VPC "${source.vpc}"`,
                   );
+                } else {
+                  // Check cross-account IPAM subnet condition
+                  const sourceVpcAccountNames = helpers.getVpcAccountNames(vpcItem);
+                  if (
+                    (!sourceVpcAccountNames.includes(source.account) || vpc.region !== vpcItem.region) &&
+                    subnetItem.ipamAllocation
+                  ) {
+                    errors.push(
+                      `[VPC ${vpcItem.name} security group ${group.name}]: accelerator does not currently support cross-account/cross-region IPAM subnets as security group references (source VPC: ${source.vpc}, source subnet: ${subnet}, source account: ${source.account})`,
+                    );
+                  }
                 }
               });
 
@@ -1636,10 +1653,22 @@ export class VpcValidator {
             } else {
               // Validate subnets
               source.subnets.forEach(subnet => {
-                if (!helpers.getSubnet(vpc, subnet)) {
+                const subnetItem = helpers.getSubnet(vpc, subnet);
+                if (!subnetItem) {
                   errors.push(
                     `[VPC ${vpcItem.name} security group ${group.name}]: subnet "${subnet}" does not exist in source VPC "${source.vpc}"`,
                   );
+                } else {
+                  // Check cross-account IPAM subnet condition
+                  const sourceVpcAccountNames = helpers.getVpcAccountNames(vpcItem);
+                  if (
+                    (!sourceVpcAccountNames.includes(source.account) || vpc.region !== vpcItem.region) &&
+                    subnetItem.ipamAllocation
+                  ) {
+                    errors.push(
+                      `[VPC ${vpcItem.name} security group ${group.name}]: accelerator does not currently support cross-account/cross-region IPAM subnets as security group references (source VPC: ${source.vpc}, source subnet: ${subnet}, source account: ${source.account})`,
+                    );
+                  }
                 }
               });
 
@@ -1712,6 +1741,9 @@ export class VpcValidator {
     helpers: NetworkValidatorFunctions,
     errors: string[],
   ) {
+    // Get accounts for RAM shared subnets
+    const sharedAccounts = vpcItem.subnets ? this.getSharedSubnetAccounts(vpcItem.subnets, helpers) : [];
+
     vpcItem.securityGroups?.forEach(group => {
       group.inboundRules.forEach(inbound => {
         // Validate inbound rules
@@ -1723,11 +1755,22 @@ export class VpcValidator {
                 errors.push(
                   `[VPC ${vpcItem.name} security group ${group.name}]: inboundRule source prefix list "${listName}" does not exist`,
                 );
-              } else {
-                const vpcAccountNames = helpers.getVpcAccountNames(vpcItem);
-                if (helpers.hasTargetMismatch(vpcAccountNames, prefixList.accounts)) {
+                return;
+              }
+              if (prefixList.accounts || prefixList.deploymentTargets) {
+                // Prefix lists must be deployed to all deployment target accounts, including subnet shares
+                const accounts = [];
+                if (prefixList.accounts && prefixList.accounts.length > 0) {
+                  accounts.push(...prefixList.accounts);
+                }
+                if (prefixList.deploymentTargets) {
+                  accounts.push(...helpers.getAccountNamesFromTarget(prefixList.deploymentTargets));
+                }
+                const vpcAccountNames = [...new Set([...helpers.getVpcAccountNames(vpcItem), ...sharedAccounts])];
+                const targetComparison = helpers.compareTargetAccounts(vpcAccountNames, accounts);
+                if (targetComparison.length > 0) {
                   errors.push(
-                    `[VPC ${vpcItem.name} security group ${group.name}]: inboundRule source prefix list "${listName}" is not deployed to one or more VPC deployment target accounts`,
+                    `[VPC ${vpcItem.name} security group ${group.name}]: inboundRule source prefix list "${listName}" is not deployed to one or more VPC deployment target or subnet share target accounts. Missing accounts: ${targetComparison}`,
                   );
                 }
               }
@@ -1745,11 +1788,24 @@ export class VpcValidator {
                 errors.push(
                   `[VPC ${vpcItem.name} security group ${group.name}]: outboundRule source prefix list "${listName}" does not exist`,
                 );
-              } else {
-                const vpcAccountNames = helpers.getVpcAccountNames(vpcItem);
-                if (helpers.hasTargetMismatch(vpcAccountNames, prefixList.accounts)) {
+                return;
+              }
+
+              if (prefixList.accounts || prefixList.deploymentTargets) {
+                // Prefix lists must be deployed to all deployment target accounts, including subnet shares
+                const accounts = [];
+                if (prefixList.accounts && prefixList.accounts.length > 0) {
+                  accounts.push(...prefixList.accounts);
+                }
+
+                if (prefixList.deploymentTargets) {
+                  accounts.push(...helpers.getAccountNamesFromTarget(prefixList.deploymentTargets));
+                }
+                const vpcAccountNames = [...new Set([...helpers.getVpcAccountNames(vpcItem), ...sharedAccounts])];
+                const targetComparison = helpers.compareTargetAccounts(vpcAccountNames, accounts);
+                if (targetComparison.length > 0) {
                   errors.push(
-                    `[VPC ${vpcItem.name} security group ${group.name}]: outboundRule source prefix list "${listName}" is not deployed to one or more VPC deployment target accounts`,
+                    `[VPC ${vpcItem.name} security group ${group.name}]: outboundRule source prefix list "${listName}" is not deployed to one or more VPC deployment target or subnet share target accounts. Missing accounts: ${targetComparison}`,
                   );
                 }
               }
@@ -1758,6 +1814,22 @@ export class VpcValidator {
         });
       });
     });
+  }
+
+  /**
+   * Retrieve shared account names for a subnet's share targets
+   * @param subnetConfig
+   * @param helpers
+   * @returns
+   */
+  private getSharedSubnetAccounts(subnetConfig: SubnetConfig[], helpers: NetworkValidatorFunctions): string[] {
+    const sharedAccounts: string[] = [];
+
+    for (const subnet of subnetConfig) {
+      const subnetSharedAccounts = subnet.shareTargets ? helpers.getAccountNamesFromTarget(subnet.shareTargets) : [];
+      sharedAccounts.push(...subnetSharedAccounts);
+    }
+    return [...new Set(sharedAccounts)];
   }
 
   /**
@@ -1918,6 +1990,7 @@ export class VpcValidator {
    */
   private validateSubnetStructure(vpcItem: VpcConfig | VpcTemplatesConfig, errors: string[]) {
     vpcItem.subnets?.forEach(subnet => {
+      // Validate a CIDR or IPAM allocation is defined
       if (subnet.ipv4CidrBlock && subnet.ipamAllocation) {
         errors.push(
           `[VPC ${vpcItem.name} subnet ${subnet.name}]: cannot define both ipv4CidrBlock and ipamAllocation properties`,
@@ -1926,6 +1999,17 @@ export class VpcValidator {
       if (!subnet.ipv4CidrBlock && !subnet.ipamAllocation) {
         errors.push(
           `[VPC ${vpcItem.name} subnet ${subnet.name}]: must define either ipv4CidrBlock or ipamAllocation property`,
+        );
+      }
+      // Validate an AZ is assigned
+      if (subnet.availabilityZone && subnet.outpost) {
+        errors.push(
+          `[VPC ${vpcItem.name} subnet ${subnet.name}]: cannot define both availabilityZone and outpost properties`,
+        );
+      }
+      if (!subnet.availabilityZone && !subnet.outpost) {
+        errors.push(
+          `[VPC ${vpcItem.name} subnet ${subnet.name}]: must define either availabilityZone or outpost property`,
         );
       }
     });
@@ -2128,7 +2212,7 @@ export class VpcValidator {
           `[VPC ${vpcItem.name} TGW attachment ${attach.name}]: target subnet "${subnetName}" does not exist in VPC "${vpcItem.name}"`,
         );
       } else {
-        subnetAzs.push(subnet.availabilityZone);
+        subnetAzs.push(subnet.availabilityZone ? subnet.availabilityZone : '');
       }
     });
 

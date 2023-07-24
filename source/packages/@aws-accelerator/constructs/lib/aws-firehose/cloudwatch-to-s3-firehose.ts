@@ -13,6 +13,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { pascalCase } from 'change-case';
+import { NagSuppressions } from 'cdk-nag';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -67,6 +68,18 @@ export interface CloudWatchToS3FirehoseProps {
    * Config directory path
    */
   configDir: string;
+  /**
+   * Firehose prefix processing lambda function name
+   */
+  readonly prefixProcessingFunctionName: string;
+  /**
+   * Glue database name, where table will be created store AWS Accelerator CloudWatch logs
+   */
+  readonly glueDatabaseName: string;
+  /**
+   * Glue table name to store AWS Accelerator CloudWatch logs
+   */
+  readonly transformationTableName: string;
 }
 /**
  * Class to configure CloudWatch replication on logs receiving account
@@ -92,68 +105,10 @@ export class CloudWatchToS3Firehose extends Construct {
     } else {
       logsStorageBucket = props.bucket!;
     }
-    const glueDatabase = new cdk.aws_glue.CfnDatabase(this, 'FirehoseCloudWatchDb', {
-      catalogId: cdk.Stack.of(this).account,
-      databaseInput: {
-        description: 'Glue database to store AWS Accelerator CloudWatch logs',
-      },
-    });
-
-    const glueTable = new cdk.aws_glue.CfnTable(this, 'FirehoseCloudWatchTable', {
-      catalogId: cdk.Stack.of(this).account,
-      databaseName: glueDatabase.ref,
-      tableInput: {
-        description: 'Glue table to store AWS Accelerator CloudWatch logs',
-        name: 'aws-accelerator-firehose-transformation-table',
-        tableType: 'EXTERNAL_TABLE',
-        storageDescriptor: {
-          // Ref: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/ValidateLogEventFlow.html
-          columns: [
-            {
-              name: 'messagetype',
-              comment:
-                'Data messages use the "DATA_MESSAGE" type. Sometimes CloudWatch Logs may emit Kinesis records with a "CONTROL_MESSAGE" type, mainly for checking if the destination is reachable.',
-              type: 'string',
-            },
-            {
-              name: 'owner',
-              comment: 'The AWS Account ID of the originating log data',
-              type: 'string',
-            },
-            {
-              name: 'loggroup',
-              comment: 'The log group name of the originating log data.',
-              type: 'string',
-            },
-            {
-              name: 'subscriptionfilters',
-              comment:
-                'The list of comma delimited subscription filter names that matched with the originating log data.',
-              type: 'string',
-            },
-            {
-              name: 'logeventsid',
-              comment: 'The ID property is a unique identifier for every log event.',
-              type: 'string',
-            },
-            {
-              name: 'logeventstimestamp',
-              comment: 'Timestamp of the log event',
-              type: 'timestamp',
-            },
-            {
-              name: 'logeventsmessage',
-              comment: 'Actual message of the log event which is in json string',
-              type: 'string',
-            },
-          ],
-        },
-      },
-    });
 
     const firehosePrefixProcessingLambda = new cdk.aws_lambda.Function(this, 'FirehosePrefixProcessingLambda', {
-      runtime: cdk.aws_lambda.Runtime.NODEJS_14_X,
-      functionName: 'AWSAccelerator-FirehoseRecordsProcessor',
+      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
+      functionName: props.prefixProcessingFunctionName,
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, 'firehose-record-processing/dist')),
       handler: 'index.handler',
       memorySize: 2048,
@@ -198,26 +153,10 @@ export class CloudWatchToS3Firehose extends Construct {
             `${firehosePrefixProcessingLambda.functionArn}`,
           ],
         }),
-        // granting firehose access to glue for record conversion
-        // Ref: https://docs.aws.amazon.com/firehose/latest/dev/controlling-access.html#using-iam-glue
-        new cdk.aws_iam.PolicyStatement({
-          actions: ['glue:GetTable', 'glue:GetTableVersion', 'glue:GetTableVersions'],
-          resources: [
-            `arn:${cdk.Stack.of(this).partition}:glue:${cdk.Stack.of(this).region}:${
-              cdk.Stack.of(this).account
-            }:catalog`,
-            `arn:${cdk.Stack.of(this).partition}:glue:${cdk.Stack.of(this).region}:${
-              cdk.Stack.of(this).account
-            }:database/${glueDatabase.ref}`,
-            `arn:${cdk.Stack.of(this).partition}:glue:${cdk.Stack.of(this).region}:${
-              cdk.Stack.of(this).account
-            }:table/${glueDatabase.ref}/${glueTable.ref}`,
-          ],
-        }),
       ],
     });
 
-    const firehoseServiceRole = new cdk.aws_iam.Role(this, 'FirehoseS3ServiceRole', {
+    const firehoseServiceRole = new cdk.aws_iam.Role(this, 'FirehoseServiceRole', {
       assumedBy: new cdk.aws_iam.ServicePrincipal('firehose.amazonaws.com'),
       description: 'Role used by Kinesis Firehose to place Kinesis records in the central bucket.',
       // placing inline policy as firehose needs this from get-go or there might be a few initial failures
@@ -258,7 +197,7 @@ export class CloudWatchToS3Firehose extends Construct {
       },
     });
 
-    new cdk.aws_kinesisfirehose.CfnDeliveryStream(this, 'Kinesis-Firehose-Stream-Dynamic-Partitioning', {
+    const firehose = new cdk.aws_kinesisfirehose.CfnDeliveryStream(this, 'FirehoseStream', {
       deliveryStreamType: 'KinesisStreamAsSource',
       kinesisStreamSourceConfiguration: {
         kinesisStreamArn: props.kinesisStream.streamArn,
@@ -268,9 +207,12 @@ export class CloudWatchToS3Firehose extends Construct {
         bucketArn: logsStorageBucket.bucketArn,
         bufferingHints: {
           intervalInSeconds: 60,
-          sizeInMBs: 128, // Maximum possible value
+          sizeInMBs: 64, // Minimum value that this can take
         },
         compressionFormat: 'UNCOMPRESSED',
+        dataFormatConversionConfiguration: {
+          enabled: false,
+        },
         roleArn: firehoseServiceRole.roleArn,
         dynamicPartitioningConfiguration: {
           enabled: true,
@@ -296,34 +238,56 @@ export class CloudWatchToS3Firehose extends Construct {
                   parameterName: 'NumberOfRetries',
                   parameterValue: '3',
                 },
+                {
+                  // The AWS Lambda function has a 6 MB invocation payload quota. Your data can expand in size after it's processed by the AWS Lambda function. A smaller buffer size allows for more room should the data expand after processing.
+                  // Minimum: 0.2 MB, maximum: 3 MB.
+                  // setting to minimum to allow for large spikes in log traffic to firehose
+                  parameterName: 'BufferSizeInMBs',
+                  parameterValue: '0.2',
+                },
+                {
+                  // The period of time during which Kinesis Data Firehose buffers incoming data before invoking the AWS Lambda function. The AWS Lambda function is invoked once the value of the buffer size or the buffer interval is reached.
+                  // Minimum: 60 seconds, maximum: 900 seconds
+                  // setting minimum so that lambda function is invoked frequently
+                  parameterName: 'BufferIntervalInSeconds',
+                  parameterValue: '60',
+                },
               ],
             },
           ],
         },
-        dataFormatConversionConfiguration: {
-          enabled: true,
-          inputFormatConfiguration: {
-            deserializer: {
-              openXJsonSerDe: {
-                caseInsensitive: true,
-              },
-            },
-          },
-          outputFormatConfiguration: {
-            serializer: {
-              parquetSerDe: {
-                compression: 'SNAPPY',
-              },
-            },
-          },
-          schemaConfiguration: {
-            databaseName: glueDatabase.ref,
-            roleArn: firehoseServiceRole.roleArn,
-            tableName: glueTable.ref,
-          },
-        },
       },
     });
+
+    const stack = cdk.Stack.of(scope);
+
+    // FirehosePrefixProcessingLambda/ServiceRole AwsSolutions-IAM4: The IAM user, role, or group uses AWS managed policies.
+    NagSuppressions.addResourceSuppressionsByPath(
+      stack,
+      `${firehosePrefixProcessingLambda.node.path}/ServiceRole/Resource`,
+      [
+        {
+          id: 'AwsSolutions-IAM4',
+          reason: 'AWS Managed policy for Lambda basic execution attached.',
+        },
+      ],
+    );
+
+    NagSuppressions.addResourceSuppressionsByPath(stack, `${firehoseServiceRole.node.path}/Resource`, [
+      {
+        id: 'AwsSolutions-IAM5',
+        reason:
+          'Bucket permissions are wildcards to abort downloads and clean up objects. KMS permissions are wildcards to re-encrypt entities.',
+      },
+    ]);
+
+    // Kinesis-Firehose-Stream-Dynamic-Partitioning AwsSolutions-KDF1: The Kinesis Data Firehose delivery stream does have server-side encryption enabled.
+    NagSuppressions.addResourceSuppressionsByPath(stack, `${firehose.node.path}`, [
+      {
+        id: 'AwsSolutions-KDF1',
+        reason: 'Customer managed key is used to encrypt firehose delivery stream.',
+      },
+    ]);
   }
   private packageDynamicPartitionInDeployment(configDirPath: string, dynamicPartitionPath: string) {
     const deploymentPackagePath = path.join(__dirname, 'firehose-record-processing/dist');

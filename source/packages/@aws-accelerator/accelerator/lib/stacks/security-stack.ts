@@ -19,7 +19,6 @@ import { NagSuppressions } from 'cdk-nag';
 import { Region } from '@aws-accelerator/config';
 import {
   AcceleratorMetadata,
-  CentralLogsBucket,
   EbsDefaultEncryption,
   GuardDutyPublishingDestination,
   KeyLookup,
@@ -47,7 +46,7 @@ export class SecurityStack extends AcceleratorStack {
   constructor(scope: Construct, id: string, props: AcceleratorStackProps) {
     super(scope, id, props);
     const elbLogBucketName = `${
-      AcceleratorStack.ACCELERATOR_ELB_LOGS_BUCKET_PREFIX
+      this.acceleratorResourceNames.bucketPrefixes.elbLogs
     }-${this.props.accountsConfig.getLogArchiveAccountId()}-${this.props.centralizedLoggingRegion}`;
     this.auditAccountName = props.securityConfig.getDelegatedAccountName();
     this.auditAccountId = props.accountsConfig.getAuditAccountId();
@@ -62,15 +61,16 @@ export class SecurityStack extends AcceleratorStack {
       );
     }
     this.centralLogsBucketName = `${
-      AcceleratorStack.ACCELERATOR_CENTRAL_LOGS_BUCKET_NAME_PREFIX
+      this.acceleratorResourceNames.bucketPrefixes.centralLogs
     }-${this.props.accountsConfig.getLogArchiveAccountId()}-${this.props.centralizedLoggingRegion}`;
 
     this.centralLogsBucketKey = new KeyLookup(this, 'CentralLogsBucketKey', {
       accountId: props.accountsConfig.getLogArchiveAccountId(),
       keyRegion: props.centralizedLoggingRegion,
-      roleName: CentralLogsBucket.CROSS_ACCOUNT_SSM_PARAMETER_ACCESS_ROLE_NAME,
-      keyArnParameterName: CentralLogsBucket.KEY_ARN_PARAMETER_NAME,
+      roleName: this.acceleratorResourceNames.roles.crossAccountCentralLogBucketCmkArnSsmParameterAccess,
+      keyArnParameterName: this.acceleratorResourceNames.parameters.centralLogBucketCmkArn,
       logRetentionInDays: props.globalConfig.cloudwatchLogRetentionInDays,
+      acceleratorPrefix: props.prefixes.accelerator,
     }).getKey();
 
     this.cloudwatchKey = cdk.aws_kms.Key.fromKeyArn(
@@ -78,7 +78,7 @@ export class SecurityStack extends AcceleratorStack {
       'AcceleratorGetCloudWatchKey',
       cdk.aws_ssm.StringParameter.valueForStringParameter(
         this,
-        AcceleratorStack.ACCELERATOR_CLOUDWATCH_LOG_KEY_ARN_PARAMETER_NAME,
+        this.acceleratorResourceNames.parameters.cloudWatchLogCmkArn,
       ),
     ) as cdk.aws_kms.Key;
 
@@ -116,6 +116,7 @@ export class SecurityStack extends AcceleratorStack {
       elbLogBucketName,
       this.cloudwatchKey,
     );
+
     //
     // Create SSM Parameters
     //
@@ -197,11 +198,28 @@ export class SecurityStack extends AcceleratorStack {
       ) === -1
     ) {
       if (this.props.accountsConfig.containsAccount(this.auditAccountName)) {
-        new SecurityHubStandards(this, 'SecurityHubStandards', {
-          standards: this.props.securityConfig.centralSecurityServices.securityHub.standards,
-          kmsKey: this.cloudwatchKey,
-          logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
-        });
+        const standards: { name: string; enable: boolean; controlsToDisable: string[] }[] = [];
+        for (const standard of this.props.securityConfig.centralSecurityServices.securityHub.standards) {
+          if (standard.deploymentTargets) {
+            if (!this.isIncluded(standard.deploymentTargets)) {
+              this.logger.info(`Item excluded`);
+              continue;
+            }
+          }
+          // add to standards list
+          standards.push({
+            name: standard.name,
+            enable: standard.enable,
+            controlsToDisable: standard.controlsToDisable,
+          });
+        }
+        if (standards.length > 0) {
+          new SecurityHubStandards(this, 'SecurityHubStandards', {
+            standards,
+            kmsKey: this.cloudwatchKey,
+            logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+          });
+        }
       } else {
         this.logger.error(`SecurityHub audit delegated admin account name "${this.auditAccountName}" not found.`);
         throw new Error(`Configuration validation failed at runtime.`);
@@ -227,13 +245,13 @@ export class SecurityStack extends AcceleratorStack {
           pascalCase(this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.kmsKey) + `-KmsKey`,
           cdk.aws_ssm.StringParameter.valueForStringParameter(
             this,
-            `/accelerator/kms/${this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.kmsKey}/key-arn`,
+            `${this.props.prefixes.ssmParamName}/kms/${this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.kmsKey}/key-arn`,
           ),
         ) as cdk.aws_kms.Key;
       } else {
         ebsEncryptionKey = new cdk.aws_kms.Key(this, 'EbsEncryptionKey', {
-          alias: AcceleratorStack.ACCELERATOR_EBS_DEFAULT_KEY_ALIAS,
-          description: AcceleratorStack.ACCELERATOR_EBS_DEFAULT_KEY_DESCRIPTION,
+          alias: this.acceleratorResourceNames.customerManagedKeys.ebsDefault.alias,
+          description: this.acceleratorResourceNames.customerManagedKeys.ebsDefault.description,
           removalPolicy: cdk.RemovalPolicy.RETAIN,
           enableKeyRotation: true,
         });
@@ -287,7 +305,7 @@ export class SecurityStack extends AcceleratorStack {
             conditions: {
               StringEquals: {
                 'kms:CallerAccount': cdk.Stack.of(this).account,
-                'kms:ViaService': `ec2.${cdk.Stack.of(this).account}.${cdk.Aws.URL_SUFFIX}`,
+                'kms:ViaService': `ec2.${cdk.Stack.of(this).region}.${cdk.Aws.URL_SUFFIX}`,
               },
             },
           }),
@@ -334,7 +352,7 @@ export class SecurityStack extends AcceleratorStack {
 
       this.ssmParameters.push({
         logicalId: 'EbsDefaultVolumeEncryptionParameter',
-        parameterName: `/accelerator/security-stack/ebsDefaultVolumeEncryptionKeyArn`,
+        parameterName: `${this.props.prefixes.ssmParamName}/security-stack/ebsDefaultVolumeEncryptionKeyArn`,
         stringValue: ebsEncryptionKey.keyArn,
       });
     }
@@ -344,13 +362,17 @@ export class SecurityStack extends AcceleratorStack {
    * Function to update IAM password policy
    */
   private updateIamPasswordPolicy() {
-    if (this.props.globalConfig.homeRegion === cdk.Stack.of(this).region) {
-      this.logger.info(`Setting the IAM Password policy`);
-      new PasswordPolicy(this, 'IamPasswordPolicy', {
-        ...this.props.securityConfig.iamPasswordPolicy,
-        kmsKey: this.cloudwatchKey,
-        logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
-      });
+    if (this.props.enableSingleAccountMode) {
+      return;
+    } else {
+      if (this.props.globalConfig.homeRegion === cdk.Stack.of(this).region) {
+        this.logger.info(`Setting the IAM Password policy`);
+        new PasswordPolicy(this, 'IamPasswordPolicy', {
+          ...this.props.securityConfig.iamPasswordPolicy,
+          kmsKey: this.cloudwatchKey,
+          logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+        });
+      }
     }
   }
 
@@ -360,7 +382,7 @@ export class SecurityStack extends AcceleratorStack {
   private enableConfigAggregation() {
     this.logger.info('Enabling Config Aggregation');
     new ConfigAggregation(this, 'EnableConfigAggregation', {
-      acceleratorPrefix: 'AWSAccelerator',
+      acceleratorPrefix: this.props.prefixes.accelerator,
     });
 
     // AwsSolutions-IAM4: The IAM user, role, or group uses AWS managed policies
@@ -394,14 +416,15 @@ export class SecurityStack extends AcceleratorStack {
       return;
     }
     const metadataLogBucketName = `${
-      AcceleratorStack.ACCELERATOR_METADATA_BUCKET_NAME_PREFIX
+      this.acceleratorResourceNames.bucketPrefixes.metadata
     }-${this.props.accountsConfig.getAccountId(acceleratorProps.globalConfig.acceleratorMetadata?.account)}-${
       this.props.globalConfig.homeRegion
     }`;
 
     return new AcceleratorMetadata(this, 'AcceleratorMetadata', {
       acceleratorConfigRepositoryName: acceleratorProps.configRepositoryName,
-      acceleratorPrefix: 'AWSAccelerator',
+      acceleratorPrefix: this.props.prefixes.accelerator,
+      acceleratorSsmParamPrefix: this.props.prefixes.ssmParamName,
       assumeRole: acceleratorProps.globalConfig.managementAccountAccessRole,
       centralLogBucketName,
       elbLogBucketName,
@@ -411,7 +434,7 @@ export class SecurityStack extends AcceleratorStack {
       ),
       logRetentionInDays: acceleratorProps.globalConfig.cloudwatchLogRetentionInDays,
       metadataLogBucketName: metadataLogBucketName,
-      organizationId: acceleratorProps.organizationConfig.getOrganizationalUnitId('Root'),
+      organizationId: this.organizationId ?? '',
       globalRegion: acceleratorProps.globalRegion,
     });
   }

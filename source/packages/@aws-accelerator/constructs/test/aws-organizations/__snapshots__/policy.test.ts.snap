@@ -58,7 +58,7 @@ exports[`Policy Construct(Policy):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -114,8 +114,12 @@ exports[`Policy Construct(Policy):  Snapshot Test 1`] = `
                 {
                   "Action": [
                     "organizations:CreatePolicy",
+                    "organizations:DeletePolicy",
+                    "organizations:DetachPolicy",
                     "organizations:ListPolicies",
+                    "organizations:ListTargetsForPolicy",
                     "organizations:UpdatePolicy",
+                    "organizations:TagResource",
                   ],
                   "Effect": "Allow",
                   "Resource": "*",
@@ -170,6 +174,8 @@ exports[`Policy Construct(Policy):  Snapshot Test 1`] = `
         "key": "REPLACED-GENERATED-NAME.zip",
         "name": "TestPolicy",
         "partition": "aws",
+        "policyTagKey": "AWSAcceleratorManaged",
+        "strategy": "deny-list",
         "tags": [
           {
             "Key": "name",

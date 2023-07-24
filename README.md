@@ -8,6 +8,9 @@
     - [Security Configuration](#security-configuration)
     - [Customization Configuration](#customization-configuration)
     - [Other Services and Features](#other-services-and-features)
+  - [Centralized Logging](#centralized-logging)
+    - [Supported Log Types](#supported-log-types)
+    - [Log Centralization Methods](#log-centralization-methods)
   - [Package Structure](#package-structure)
     - [@aws-accelerator/accelerator](#aws-acceleratoraccelerator)
     - [@aws-accelerator/config](#aws-acceleratorconfig)
@@ -19,39 +22,33 @@
     - [@aws-cdk-extensions/tester](#aws-cdk-extensionstester)
   - [Creating an Installer Stack](#creating-an-installer-stack)
     - [1. Build the Installer stack for deployment](#1-build-the-installer-stack-for-deployment)
-    - [2. Deploy the Installer stack](#2-deploy-the-installer-stack)
+    - [2. Create a GitHub personal access token](#2-create-a-github-personal-access-token)
+    - [3. Store Token in Secrets Manager](#3-store-token-in-secrets-manager)
+    - [4. Deploy the Installer stack](#4-deploy-the-installer-stack)
 
 # Landing Zone Accelerator on AWS
 
-The Landing Zone Accelerator on AWS solution helps you quickly deploy a secure,
-resilient, scalable, and fully automated cloud foundation that accelerates your
-readiness for your cloud compliance program. A landing zone is a cloud
-environment that offers a recommended starting point, including default
-accounts, account structure, network and security layouts, and so forth. From a
-landing zone, you can deploy workloads that utilize your solutions and
-applications.
+The Landing Zone Accelerator on AWS (LZA) is architected to align with AWS best practices
+and in conformance with multiple, global compliance frameworks. We recommend customers
+deploy AWS Control Tower as the foundational landing zone and enhance their landing zone
+capabilities with Landing Zone Accelerator. These complementary capabilities provides a
+comprehensive no-code solution across 35+ AWS services to manage and govern a multi-account
+environment built to support customers with highly-regulated workloads and complex compliance
+requirements. AWS Control Tower and Landing Zone Accelerator help you establish platform
+readiness with security, compliance, and operational capabilities.
 
-The Landing Zone Accelerator (LZA) is architected to align with AWS best
-practices and in conformance with multiple, global compliance frameworks. When
-used in coordination with services such as AWS Control Tower, the Landing Zone
-Accelerator provides a comprehensive no-code solution across 35+ AWS services to
-manage and govern a multi-account environment built to support customers with
-highly-regulated workloads and complex compliance requirements. The LZA helps
-you establish platform readiness with security, compliance, and operational
-capabilities.
-
-This solution is provided as an open-source project that is built using the AWS
-Cloud Development Kit (CDK). You install directly into your environment giving
-you full access to the infrastructure as code (IaC) solution. Through a
+Landing Zone Accelerator is provided as an open-source project that is built using the AWS
+Cloud Development Kit (CDK). You install directly into your environment to
+get full access to the infrastructure as code (IaC) solution. Through a
 simplified set of configuration files, you are able to configure additional
-functionality, guardrails and security services (eg. AWS Managed Config Rules,
-and AWS SecurityHub), manage your foundational networking topology (eg. VPCs,
+functionality, controls and security services (eg. AWS Managed Config Rules,
+and AWS Security Hub), manage your foundational networking topology (eg. VPCs,
 Transit Gateways, and Network Firewall), and generate additional workload
 accounts using the AWS Control Tower Account Factory.
 
 There are no additional charges or upfront commitments required to use Landing
 Zone Accelerator on AWS. You pay only for AWS services enabled in order to set
-up your platform and operate your guardrails. This solution can also support
+up your platform and operate your controls. This solution can also support
 non-standard AWS partitions, including AWS GovCloud (US), and the US Secret and
 Top Secret regions.
 
@@ -81,6 +78,20 @@ disable this capability, please see the [implementation guide](https://docs.aws.
 
 ## Included Services, Features, and Configuration References
 
+The latest version of our configuration reference is hosted here: https://awslabs.github.io/landing-zone-accelerator-on-aws/.
+Direct links to specific service configuration references are included in the following sections.
+
+**Documentation for previous minor releases:**
+
+- _v1.3.0_ - https://awslabs.github.io/landing-zone-accelerator-on-aws/v1.3.0
+- _v1.2.0_ - https://awslabs.github.io/landing-zone-accelerator-on-aws/v1.2.0
+- _v1.1.0_ - https://awslabs.github.io/landing-zone-accelerator-on-aws/v1.1.0
+- _v1.0.0_ - https://awslabs.github.io/landing-zone-accelerator-on-aws/v1.0.0
+
+> NOTE: You can navigate to patch release versions of the solution's configuration reference by modifying the version number of
+> the URL. For example, to navigate to v1.3.2 documentation, you can use
+> https://awslabs.github.io/landing-zone-accelerator-on-aws/v1.3.2.
+
 ### Account Configuration
 
 Used to manage all of the AWS accounts within the AWS Organization. Adding a new account configuration to **accounts-config.yaml** will invoke the account creation process from Landing Zone Accelerator on AWS.
@@ -98,9 +109,10 @@ Used to manage all of the global properties that can be inherited across the AWS
 | AWS Backup                          | Backup Vaults                         | [GlobalConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.GlobalConfig.html)                                                                                                                                 | [BackupConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.BackupConfig.html)                                                                                                                                                                     | Define AWS Backup Vaults that can be used to store backups in accounts across the AWS Organization.                                                                                                                                                               |
 | AWS Budgets                         | Budget Reports                        | [GlobalConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.GlobalConfig.html) / [ReportConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.ReportConfig.html)   | [BudgetReportConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.BudgetReportConfig.html)                                                                                                                                                         | Define Budget report configurations for account(s) and/or organizational unit(s).                                                                                                                                                                                 |
 | AWS CloudTrail                      | Organization and Account Trails       | [GlobalConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.GlobalConfig.html) / [LoggingConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.LoggingConfig.html) | [CloudTrailConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.CloudTrailConfig.html)                                                                                                                                                             | When specified, Organization and/or account-level trails are deployed.                                                                                                                                                                                            |
-| Amazon CloudWatch                   | Log Group Dynamic Partitioning        | [GlobalConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.GlobalConfig.html) / [LoggingConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.LoggingConfig.html) | [CloudWatchLogsConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.CloudTrailConfig.html)                                                                                                                                                         | Custom partition values for CloudWatch Log Groups sent to centralized logging S3 bucket.                                                                                                                                                                          |
+| Amazon CloudWatch                   | Log Group Dynamic Partitioning        | [GlobalConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.GlobalConfig.html) / [LoggingConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.LoggingConfig.html) | [CloudWatchLogsConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.CloudWatchLogsConfig.html)                                                                                                                                                     | Custom partition values for CloudWatch Log Groups sent to centralized logging S3 bucket.                                                                                                                                                                          |
 | AWS Control Tower                   | Control Tower                         | [GlobalConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.GlobalConfig.html)                                                                                                                                 | [ControlTowerConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.ControlTowerConfig.html)                                                                                                                                                         | It is recommended that AWS Control Tower is enabled, if available, in the desired home region for your environment prior to installing the accelerator. When enabled, the accelerator will integrate with resources and guardrails deployed by AWS Control Tower. |
 | AWS Cost and Usage                  | Cost and Usage Report                 | [GlobalConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.GlobalConfig.html) / [ReportConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.ReportConfig.html)   | [CostAndUsageReportConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.CostAndUsageReportConfig.html)                                                                                                                                             | Define a global Cost and Usage report configuration for the AWS Organization.                                                                                                                                                                                     |
+| AWS Regions                         | Enabled Regions                       | [GlobalConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.GlobalConfig.html)                                                                                                                                 | [GlobalConfig.enabledRegions](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.GlobalConfig.html#enabledRegions)                                                                                                                                       | Define one or more AWS Regions for the solution to gmanage.                                                                                                                                                                                                       |
 | Amazon S3                           | Lifecycle Rules                       | [GlobalConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.GlobalConfig.html) / [LoggingConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.LoggingConfig.html) | [AccessLogBucketConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.AccessLogBucketConfig.html) / [CentralLogBucketConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.CentralLogBucketConfig.html) | Define global lifecycle rules for S3 access log buckets and the central log bucket deployed by the accelerator.                                                                                                                                                   |
 | AWS Systems Manager Session Manager | Session Manager logging configuration | [GlobalConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.GlobalConfig.html) / [LoggingConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.LoggingConfig.html) | [SessionManagerConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.SessionManagerConfig.html)                                                                                                                                                     | Define global logging configuration settings for Session Manager.                                                                                                                                                                                                 |
 | AWS SNS Topics                      | SNS Topics Configuration              | [GlobalConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.GlobalConfig.html)                                                                                                                                 | [SnsTopicConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.SnsTopicConfig.html)                                                                                                                                                                 | Define SNS topics for notifications.                                                                                                                                                                                                                              |
@@ -161,7 +173,7 @@ Used to manage configuration of AWS security services. Defined in **security-con
 | Service / Feature              | Resource                                                   | Base Configuration                                                                                                                                                                                                                                                                              | Service / Feature Configuration                                                                                                                                     | Details                                                                                                                                                                                                           |
 | ------------------------------ | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | AWS Audit Manager              | Audit Manager                                              | [SecurityConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.SecurityConfig.html) / [CentralSecurityServicesConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.CentralSecurityServicesConfig.html) | [AuditManagerConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.AuditManagerConfig.html)                             | Enable Audit Manager delegated administrator and configuration settings.                                                                                                                                          |
-| Amazon CloudWatch              | Metrics and Alarms                                         | [SecurityConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.SecurityConfig.html)                                                                                                                                                                 | [CloudWatchConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.CloudWatchConfig.html)                                 | Define CloudWatch metrics and alarms to deploy into account(s) and/or organizational unit(s).                                                                                                                     |
+| Amazon CloudWatch              | Metrics, Alarms, and Log Groups                            | [SecurityConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.SecurityConfig.html)                                                                                                                                                                 | [CloudWatchConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.CloudWatchConfig.html)                                 | Define CloudWatch metrics, alarms, and log groups to deploy into account(s) and/or organizational unit(s). You can also import existing log groups into your configuration.                                       |
 | AWS Config                     | Config Recorder, Delivery Channel, Rules, and Remediations | [SecurityConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.SecurityConfig.html)                                                                                                                                                                 | [AwsConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.AwsConfig.html)                                               | Define an AWS Config Recorder, Delivery Channel, and custom and/or managed rule sets to deploy across the AWS Organization.                                                                                       |
 | Amazon Detective               | Detective                                                  | [SecurityConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.SecurityConfig.html) / [CentralSecurityServicesConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.CentralSecurityServicesConfig.html) | [DetectiveConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.DetectiveConfig.html)                                   | Enable Detective delegated administrator and configuration settings. **Note:** Requires Amazon GuardDuty to be enabled for at least 48 hours.                                                                     |
 | Amazon EBS                     | Default Volume Encryption                                  | [SecurityConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.SecurityConfig.html) / [CentralSecurityServicesConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.CentralSecurityServicesConfig.html) | [EbsDefaultVolumeEncryptionConfig](https://awslabs.github.io/landing-zone-accelerator-on-aws/classes/_aws_accelerator_config.EbsDefaultVolumeEncryptionConfig.html) | Enable EBS default volume encryption across the AWS Organization.                                                                                                                                                 |
@@ -194,6 +206,68 @@ Used to manage configuration of custom applications and CloudFormation stacks. D
 ### Other Services and Features
 
 Other mandatory and non-configurable services/features deployed by the solution are described in the [Architecture overview](https://docs.aws.amazon.com/solutions/latest/landing-zone-accelerator-on-aws/architecture-overview.html) and [Architecture details](https://docs.aws.amazon.com/solutions/latest/landing-zone-accelerator-on-aws/architecture-details.html) section of the solution [Implementation Guide](https://docs.aws.amazon.com/solutions/latest/landing-zone-accelerator-on-aws/solution-overview.html).
+
+---
+
+## Centralized Logging
+
+The Landing Zone Accelerator Centralized Logging solution provides the ability to consolidate and manage log files from various sources into a Centralized Logging Account. This enables users to consolidate logs such as audit logs for access, configuration changes, and billing events. You can also collect Amazon CloudWatch Logs from multiple accounts and AWS Regions. The following sections discuss the types of logs that are centralized and the mechanisms used by the accelerator to centralize them.
+
+### Supported Log Types
+
+- ELB Access Logs
+- VPC Flow Logs
+- Macie Reports
+- Cost and Usage Reports
+- Config History
+- Config Snapshots
+- GuardDuty Findings
+- CloudWatch Logs
+- CloudTrail Digest
+- CloudTrail Insights
+- CloudTrail Logs
+- S3 Server Access Logs
+- SSM Inventory
+- SSM Session Manager
+- Security Hub Findings
+
+### Log Centralization Methods
+
+- **S3 Replication** - Log types that do not support service-native central logging methods or logging to CloudWatch Logs are stored in account-specific S3 buckets. These buckets are configured with an S3 replication rule to replicate logs to centralized logging S3 bucket in the central logging account.
+- **Service-Native** - The AWS Service writes directly to the centralized logging bucket in the central logging account.
+- **Log Streaming** - Some services do not support native centralized logging capability and do not allow writing directly to S3 in a centralized account. In order to enable this functionality, the accelerator utilizes CloudWatch and native log forwarding capabilities via the following workflow:
+  - Log Group is created in CloudWatch.
+  - A subscription filter is added to the CloudWatch Log Group.
+  - The subscription filter points to a Log Destination.
+  - The Log Destination is a region specific Kinesis Stream in the Central Logging Account.
+    - Each enabled region has its own Kinesis Stream in the Central Logging Account.
+  - The Kinesis Streams are forwarded into a Kinesis Firehose in the same specific region.
+  - The logs are processed by a Lambda function and written to the Central Logging S3 Bucket in the Home Region.
+- **Not Replicated** - Log types that are not replicated to the centralized logging S3 bucket.
+
+| Bucket Type                |                     Bucket Name                     |                                                                                                                                                                                                    Purpose |
+| :------------------------- | :-------------------------------------------------: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| Centralized Logging Bucket |  aws-accelerator-central-logs-{account#}-{region}   | Stores all Landing Zone Accelerator centralized logs that have been enabled via the accelerator. This mechanism allows the solution to store a combined set of logs in a single account and single region. |
+| ELB Access Logs            | aws-accelerator-elb-access-logs-{account#}-{region} |                                                                                                                           Stores ELB Access logs in the centralized logging account on a per region basis. |
+| S3 Access Logs             | aws-accelerator-s3-access-logs-{account#}-{region}  |                                                                                                                                                       Stores S3 Access logs on a per account/region basis. |
+
+| Log Type                         |                                                    S3 Path                                                     |                                                                                      Example                                                                                       | Supported Centralization Methods |
+| :------------------------------- | :------------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | -------------------------------: |
+| ELB                              |                                             {account#}/{region}/\*                                             |                                             s3://aws-accelerator-elb-access-logs-123456789016-us-east-1/{account#}/{region}/\*.log.gz                                              |                   S3 Replication |
+| VPC Flow Logs                    |                 vpc-flow-logs/AWSLogs/{account#}/vpcflowlogs/{region}/{year}/{month}/{day}/\*                  |                       s3://aws-accelerator-central-logs-123456789016-us-east-1/vpc-flow-logs/AWSLogs/123456789016/vpcflowlogs/us-east-1/2023/04/14/\*.log.gz                       |   Log Streaming / Serivce-Native |
+| Macie Reports                    |                             macie/{account#}/AWSLogs/{account#}/Macie/{region}/\*                              |                            s3://aws-accelerator-central-logs-123456789016-us-east-1/macie/123456789016/AWSLogs/123456789016/Macie/us-east-1/\*.jsonl.gz                            |                   Service-Native |
+| Cost and Usage Reports           |                                       cur/{account#}/accelerator-cur/\*                                        |                           s3://aws-accelerator-central-logs-123456789016-us-east-1/cur/123456789016/accelerator-cur/20220901-20221001/\*.snappy.parquet                            |                   S3 Replication |
+| Config History                   |                config/AWSLogs/{account#}/Config/{region}/{year}/{month}/{day}/ConfigHistory/\*                 |                         s3://aws-accelerator-central-logs-123456789016-us-east-1/AWSLogs/123456789016/Config/us-east-1/2023/4/10/ConfigHistory/\*.json.gz                          |                   Service-Native |
+| Config Snapshots                 |                config/AWSLogs/{account#}/Config/{region}/{year}/{month}/{day}/ConfigSnapshot/\*                |                         s3://aws-accelerator-central-logs-123456789016-us-east-1/AWSLogs/123456789016/Config/us-east-1/2023/4/10/ConfigSnapshot/\*.json.gz                         |                   Service-Native |
+| GuardDuty                        |                     guardduty/AWSLogs/{account#}/GuardDuty/region/{year}/{month}/{day}/\*                      |                         s3://aws-accelerator-central-logs-123456789016-us-east-1/guardduty/AWSLogs/123456789016/GuardDuty/us-east-1/2023/04/08/\*.jsonl.gz                         |                   Service-Native |
+| CloudWatch Logs                  |                                 CloudWatchLogs/{year}/{month}/{day}/{hour}/\*                                  |                                          s3://aws-accelerator-central-logs-123456789016-us-east-1/CloudWatchLogs/2023/04/17/14/\*.parquet                                          |                    Log Streaming |
+| CloudTrail Organization Digest   | cloudtrail-organization/AWSLogs/{organizationId}/{account#}/CloudTrail-Digest/{region}/{year}/{month}/{day}/\* |        s3://aws-accelerator-central-logs-123456789016-us-east-1/cloudtrail-organization/AWSLogs/o-abc12cdefg/123456789016/CloudTrail-Digest/us-east-1/2023/04/14/\*.json.gz        |                   Service-Native |
+| CloudTrail Organization Insights |               cloudtrail-organization/AWSLogs/{organizationID}/{account#}/CloudTrail-Insight/\*                |                  s3://aws-accelerator-central-logs-123456789016-us-east-1/cloudtrail-organization/AWSLogs/o-abc12cdefg/123456789016/CloudTrail-Insight/\*.json.gz                  |                   Service-Native |
+| CloudTrail Organization Logs     |    cloudtrail-organization/AWSLogs/{organizationId}/{account#}/CloudTrail/{region}/{year}/{month}/{day}/\*     |           s3://aws-accelerator-central-logs-123456789016-us-east-1/cloudtrail-organization/AWSLogs/o-abc12cdefg//123456789016/CloudTrail/us-east-1/2023/04/14/\*.json.gz           |   Log Streaming / Service-Native |
+| S3 Access Logs                   |                             aws-accelerator-s3-access-logs-{account#}-{region}/\*                              |                                                           s3://aws-accelerator-s3-access-logs-123456789016-us-east-1/\*                                                            |                   Not Replicated |
+| SSM Inventory                    |                                                ssm-inventory/\*                                                | s3://aws-accelerator-central-logs-123456789016-us-east-1/ssm-inventory/AWS:ComplianceSummary/accountid=123456789016/region=us-east-1/resourcetype=ManagedInstanceInventory/\*.json |                   Service-Native |
+| SSM Sessions Manager             |                                         session/{account#}/{region}/\*                                         |                                           s3://aws-accelerator-central-logs-123456789016-us-east-1/session/123456789016/us-east-1/\*.log                                           |   Log Streaming / Service-Native |
+| Security Hub                     |                                     CloudWatchLogs/{year}/{month}/{day}/\*                                     |                                          s3://aws-accelerator-central-logs-123456789016-us-east-1/CloudWatchLogs/2023/04/21/00/\*.parquet                                          |                    Log Streaming |
 
 ---
 
@@ -265,7 +339,7 @@ directly via the AWS CLI or console. Below are the commands for completing the d
 ```
 
 - Install project dependencies
-  
+
 ```
 cd <rootDir>/source
 yarn install && yarn lerna link
@@ -280,18 +354,46 @@ yarn build && yarn cdk synth
 
 After running these commands, the Installer stack template will be saved to `<rootDir>/source/packages/@aws-accelerator/installer/cdk.out/AWSAccelerator-InstallerStack.template.json`
 
-### 2. Deploy the Installer stack
+### 2. Create a GitHub personal access token
+
+Follow the instructions on [GitHub Docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic) to create a personal access token (Classic).
+
+When creating the token select public_repo for the selected scope.
+
+### 3. Store Token in Secrets Manager
+
+Store the personal access token in Secrets Manager.
+
+1. In the AWS Management Console, navigate to Secrets Manager
+2. Click Store a new secret
+3. On the Choose secret type step select Other type of secret
+4. Select the Plaintext tab
+5. Completely remove the example text and paste your secret with no formatting no leading or trailing spaces
+6. Select the aws/secretsmanager encryption key
+7. Click Next
+8. On the Configure secret step set the Secret name to accelerator/github-token
+9. On the Configure rotation step click Next
+10. On the Review step click Store
+
+### 4. Deploy the Installer stack
 
 - Configure the AWS CLI CloudFormation command for the Installer stack
 
+- Create an S3 bucket and copy the generated template file.
+
 ```
-aws cloudformation create-stack --stack-name AWSAccelerator-InstallerStack --template-body file://cdk.out/AWSAccelerator-InstallerStack.template.json \
+cd <rootDir>/source/packages/@aws-accelerator/installer
+aws s3 mb s3://<bucket name>
+aws s3 cp ./cdk.out/AWSAccelerator-InstallerStack.template.json s3://<bucket name>
+```
+
+- Create the Installer stack with AWS CLI command:
+
+```
+aws cloudformation create-stack --stack-name AWSAccelerator-InstallerStack --template-body https://<bucket name>.s3.<region>.amazonaws.com/AWSAccelerator-InstallerStack.template.json \
 --parameters ParameterKey=RepositoryName,ParameterValue=<Repository_Name> \
 ParameterKey=RepositoryBranchName,ParameterValue=<Branch_Name> \
-ParameterKey=AcceleratorQualifier,ParameterValue=<Accelerator_Qualifier> \
-ParameterKey=ManagementAccountId,ParameterValue=<Management_Id> \
 ParameterKey=ManagementAccountEmail,ParameterValue=<Management_Email> \
-ParameterKey=ManagementAccountRoleName,ParameterValue= \
 ParameterKey=LogArchiveAccountEmail,ParameterValue=<LogArchive_Email> \
 ParameterKey=AuditAccountEmail,ParameterValue=<Audit_Email> \
 ParameterKey=EnableApprovalStage,ParameterValue=Yes \
@@ -303,12 +405,14 @@ ParameterKey=ControlTowerEnabled,ParameterValue=Yes \
 - Alternate deployment of CloudFormation via AWS console:
 
 ```
+
 - From your Management account, navigate to CloudFormation page in the AWS console
 - Select ‘Create Stack’ and from the dropdown pick ‘with new resources (standard)’
 - For the prerequisite template, select ‘Template is ready’
 - When specifying the template, select ‘Upload a template file’
 - Ensure that you select the correct file ‘AWSLandingZoneAccelerator-InstallerStack.template.json’
 - Fill out the required parameters in the UI, and create the stack once the parameters are inputted.
+
 ```
 
 ---

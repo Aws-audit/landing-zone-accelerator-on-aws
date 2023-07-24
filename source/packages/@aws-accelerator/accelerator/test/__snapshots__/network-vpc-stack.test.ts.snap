@@ -7,6 +7,10 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Default": "/accelerator/kms/cloudwatch/key-arn",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
+    "SsmParameterValueacceleratorkmslambdakeyarnC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/kms/lambda/key-arn",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
     "SsmParameterValueacceleratornetworkcustomerGatewaysacceleratorcgwidC96584B6F00A464EAD1953AFF4B05118Parameter": {
       "Default": "/accelerator/network/customerGateways/accelerator-cgw/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
@@ -157,7 +161,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -242,7 +246,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -337,7 +341,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -480,67 +484,6 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
-    "CustomOrganizationsDescribeOrganizationCustomResourceProviderHandler4C6F49D1": {
-      "DependsOn": [
-        "CustomOrganizationsDescribeOrganizationCustomResourceProviderRole775854D5",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
-        "Role": {
-          "Fn::GetAtt": [
-            "CustomOrganizationsDescribeOrganizationCustomResourceProviderRole775854D5",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs14.x",
-        "Timeout": 900,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "CustomOrganizationsDescribeOrganizationCustomResourceProviderRole775854D5": {
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Sub": "arn:\${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-          },
-        ],
-        "Policies": [
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": [
-                    "organizations:DescribeOrganization",
-                  ],
-                  "Effect": "Allow",
-                  "Resource": "*",
-                },
-              ],
-              "Version": "2012-10-17",
-            },
-            "PolicyName": "Inline",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
     "CustomPrefixListRouteCustomResourceProviderHandler5B28D077": {
       "DependsOn": [
         "CustomPrefixListRouteCustomResourceProviderRoleD08268B5",
@@ -558,7 +501,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -626,6 +569,115 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
+    "CustomSsmPutParameterValueCustomResourceProviderHandler2A0BDE7F": {
+      "DependsOn": [
+        "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
+          "S3Key": "REPLACED-GENERATED-NAME.zip",
+        },
+        "Description": "Custom resource provider to put cross-account ssm parameter value",
+        "Handler": "__entrypoint__.handler",
+        "MemorySize": 128,
+        "Role": {
+          "Fn::GetAtt": [
+            "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs16.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "CustomSsmPutParameterValueCustomResourceProviderLogGroupB0109C68": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "KmsKeyId": {
+          "Ref": "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "CustomSsmPutParameterValueCustomResourceProviderHandler2A0BDE7F",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Sub": "arn:\${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+          },
+        ],
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "ssm:DeleteParameter",
+                    "ssm:PutParameter",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    "*",
+                  ],
+                  "Sid": "SsmPutParameterActions",
+                },
+                {
+                  "Action": [
+                    "sts:AssumeRole",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "arn:",
+                          {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":iam::*:role/AWSAccelerator*",
+                        ],
+                      ],
+                    },
+                  ],
+                  "Sid": "StsAssumeRoleActions",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "Inline",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
     "DeleteDefaultVpc4DBAE36C": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
@@ -661,59 +713,6 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       },
       "Type": "Custom::DeleteDefaultSecurityGroupRules",
       "UpdateReplacePolicy": "Delete",
-    },
-    "Get555555555555IpamCidrRoleA17CA412": {
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM5",
-              "reason": "Allow read role to get CIDRs from dynamic IPAM resources.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Condition": {
-                "StringEquals": {
-                  "aws:PrincipalOrgID": {
-                    "Ref": "Organization29A5FC3F",
-                  },
-                },
-              },
-              "Effect": "Allow",
-              "Principal": {
-                "AWS": "*",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "Policies": [
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": [
-                    "ec2:DescribeSubnets",
-                    "ssm:GetParameter",
-                  ],
-                  "Effect": "Allow",
-                  "Resource": "*",
-                },
-              ],
-              "Version": "2012-10-17",
-            },
-            "PolicyName": "default",
-          },
-        ],
-        "RoleName": "AWSAccelerator-GetIpamCidrRole-us-east-1",
-      },
-      "Type": "AWS::IAM::Role",
     },
     "GetAcceleratorGwlbSsmParamRole6013B2CA": {
       "Metadata": {
@@ -788,13 +787,13 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
-    "GetNLBIPAddressLookupCB983550": {
+    "GetIpamCidrRole2DCCA945": {
       "Metadata": {
         "cdk_nag": {
           "rules_to_suppress": [
             {
               "id": "AwsSolutions-IAM5",
-              "reason": "Allows only specific role arns.",
+              "reason": "Allow read role to get CIDRs from dynamic IPAM resources.",
             },
           ],
         },
@@ -804,20 +803,14 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
           "Statement": [
             {
               "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "aws:PrincipalOrgID": "o-asdf123456",
+                },
+              },
               "Effect": "Allow",
               "Principal": {
-                "AWS": {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:",
-                      {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::555555555555:root",
-                    ],
-                  ],
-                },
+                "AWS": "*",
               },
             },
           ],
@@ -828,7 +821,10 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
             "PolicyDocument": {
               "Statement": [
                 {
-                  "Action": "ec2:DescribeNetworkInterfaces",
+                  "Action": [
+                    "ec2:DescribeSubnets",
+                    "ssm:GetParameter",
+                  ],
                   "Effect": "Allow",
                   "Resource": "*",
                 },
@@ -838,7 +834,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
             "PolicyName": "default",
           },
         ],
-        "RoleName": "AWSAccelerator-GetNLBIPAddressLookup",
+        "RoleName": "AWSAccelerator-GetIpamCidrRole",
       },
       "Type": "AWS::IAM::Role",
     },
@@ -877,7 +873,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         "Name": "Network-Endpoints-A_SubnetShare",
         "Principals": [
           "arn:aws:organizations::111111111111:ou/o-asdf123456/ou-asdf-22222222",
-          "555555555555",
+          "444444444444",
         ],
         "ResourceArns": [
           {
@@ -909,6 +905,10 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         },
         "Ipv4NetmaskLength": 25,
         "Tags": [
+          {
+            "Key": "env",
+            "Value": "prod",
+          },
           {
             "Key": "Name",
             "Value": "Network-Endpoints",
@@ -1032,6 +1032,28 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
+    "NetworkEndpointsVpcInternetGateway6505072B": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Network-Endpoints",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::InternetGateway",
+    },
+    "NetworkEndpointsVpcInternetGatewayAttachment8B5DCF4D": {
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "NetworkEndpointsVpcInternetGateway6505072B",
+        },
+        "VpcId": {
+          "Ref": "NetworkEndpointsVpc619A1F01",
+        },
+      },
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+    },
     "NetworkEndpointsVpcManagementSg2B8F9418": {
       "Properties": {
         "GroupDescription": "Management Security Group",
@@ -1053,10 +1075,22 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
             "IpProtocol": "-1",
           },
           {
+            "CidrIp": {
+              "Fn::GetAtt": [
+                "NetworkEndpointsVpcNetworkEndpointsTgwAttachASubnet3580E1C3",
+                "ipv4CidrBlock",
+              ],
+            },
             "Description": "All Outbound",
             "IpProtocol": "-1",
           },
           {
+            "CidrIp": {
+              "Fn::GetAtt": [
+                "NetworkEndpointsVpcNetworkEndpointsTgwAttachBSubnet7F2CD5B5",
+                "ipv4CidrBlock",
+              ],
+            },
             "Description": "All Outbound",
             "IpProtocol": "-1",
           },
@@ -1069,6 +1103,20 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
               ],
             },
             "IpProtocol": "-1",
+          },
+          {
+            "CidrIp": "10.0.0.0/8",
+            "Description": "Limited Outbound",
+            "FromPort": 22,
+            "IpProtocol": "tcp",
+            "ToPort": 22,
+          },
+          {
+            "CidrIp": "10.0.0.0/8",
+            "Description": "Limited Outbound",
+            "FromPort": 22,
+            "IpProtocol": "udp",
+            "ToPort": 22,
           },
         ],
         "SecurityGroupIngress": [
@@ -1094,12 +1142,24 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
             "ToPort": 3389,
           },
           {
+            "CidrIp": {
+              "Fn::GetAtt": [
+                "NetworkEndpointsVpcNetworkEndpointsTgwAttachASubnet3580E1C3",
+                "ipv4CidrBlock",
+              ],
+            },
             "Description": "Management RDP Traffic Inbound",
             "FromPort": 3389,
             "IpProtocol": "tcp",
             "ToPort": 3389,
           },
           {
+            "CidrIp": {
+              "Fn::GetAtt": [
+                "NetworkEndpointsVpcNetworkEndpointsTgwAttachBSubnet7F2CD5B5",
+                "ipv4CidrBlock",
+              ],
+            },
             "Description": "Management RDP Traffic Inbound",
             "FromPort": 3389,
             "IpProtocol": "tcp",
@@ -1116,6 +1176,120 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
               ],
             },
             "ToPort": 3389,
+          },
+          {
+            "CidrIp": "10.0.0.0/8",
+            "Description": "Management SSH Traffic Inbound",
+            "FromPort": 22,
+            "IpProtocol": "tcp",
+            "ToPort": 22,
+          },
+          {
+            "CidrIp": "100.96.252.0/23",
+            "Description": "Management SSH Traffic Inbound",
+            "FromPort": 22,
+            "IpProtocol": "tcp",
+            "ToPort": 22,
+          },
+          {
+            "CidrIp": "100.96.250.0/23",
+            "Description": "Management SSH Traffic Inbound",
+            "FromPort": 22,
+            "IpProtocol": "tcp",
+            "ToPort": 22,
+          },
+          {
+            "CidrIp": {
+              "Fn::GetAtt": [
+                "NetworkEndpointsVpcNetworkEndpointsTgwAttachASubnet3580E1C3",
+                "ipv4CidrBlock",
+              ],
+            },
+            "Description": "Management SSH Traffic Inbound",
+            "FromPort": 22,
+            "IpProtocol": "tcp",
+            "ToPort": 22,
+          },
+          {
+            "CidrIp": {
+              "Fn::GetAtt": [
+                "NetworkEndpointsVpcNetworkEndpointsTgwAttachBSubnet7F2CD5B5",
+                "ipv4CidrBlock",
+              ],
+            },
+            "Description": "Management SSH Traffic Inbound",
+            "FromPort": 22,
+            "IpProtocol": "tcp",
+            "ToPort": 22,
+          },
+          {
+            "Description": "Management SSH Traffic Inbound",
+            "FromPort": 22,
+            "IpProtocol": "tcp",
+            "SourcePrefixListId": {
+              "Fn::GetAtt": [
+                "AcceleratorPrefixListPrefixList8ACB36CF",
+                "PrefixListId",
+              ],
+            },
+            "ToPort": 22,
+          },
+          {
+            "CidrIp": "10.0.0.0/8",
+            "Description": "Management SSH Traffic Inbound",
+            "FromPort": 22,
+            "IpProtocol": "udp",
+            "ToPort": 22,
+          },
+          {
+            "CidrIp": "100.96.252.0/23",
+            "Description": "Management SSH Traffic Inbound",
+            "FromPort": 22,
+            "IpProtocol": "udp",
+            "ToPort": 22,
+          },
+          {
+            "CidrIp": "100.96.250.0/23",
+            "Description": "Management SSH Traffic Inbound",
+            "FromPort": 22,
+            "IpProtocol": "udp",
+            "ToPort": 22,
+          },
+          {
+            "CidrIp": {
+              "Fn::GetAtt": [
+                "NetworkEndpointsVpcNetworkEndpointsTgwAttachASubnet3580E1C3",
+                "ipv4CidrBlock",
+              ],
+            },
+            "Description": "Management SSH Traffic Inbound",
+            "FromPort": 22,
+            "IpProtocol": "udp",
+            "ToPort": 22,
+          },
+          {
+            "CidrIp": {
+              "Fn::GetAtt": [
+                "NetworkEndpointsVpcNetworkEndpointsTgwAttachBSubnet7F2CD5B5",
+                "ipv4CidrBlock",
+              ],
+            },
+            "Description": "Management SSH Traffic Inbound",
+            "FromPort": 22,
+            "IpProtocol": "udp",
+            "ToPort": 22,
+          },
+          {
+            "Description": "Management SSH Traffic Inbound",
+            "FromPort": 22,
+            "IpProtocol": "udp",
+            "SourcePrefixListId": {
+              "Fn::GetAtt": [
+                "AcceleratorPrefixListPrefixList8ACB36CF",
+                "PrefixListId",
+              ],
+            },
+            "ToPort": 22,
           },
         ],
         "Tags": [
@@ -1155,6 +1329,36 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
           "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
         },
         "ToPort": 3389,
+      },
+      "Type": "AWS::EC2::SecurityGroupIngress",
+    },
+    "NetworkEndpointsVpcManagementSgManagementIngress105119E927": {
+      "Properties": {
+        "Description": "Management SSH Traffic Inbound",
+        "FromPort": 22,
+        "GroupId": {
+          "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
+        },
+        "IpProtocol": "tcp",
+        "SourceSecurityGroupId": {
+          "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
+        },
+        "ToPort": 22,
+      },
+      "Type": "AWS::EC2::SecurityGroupIngress",
+    },
+    "NetworkEndpointsVpcManagementSgManagementIngress1135D6C2DD": {
+      "Properties": {
+        "Description": "Management SSH Traffic Inbound",
+        "FromPort": 22,
+        "GroupId": {
+          "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
+        },
+        "IpProtocol": "udp",
+        "SourceSecurityGroupId": {
+          "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
+        },
+        "ToPort": 22,
       },
       "Type": "AWS::EC2::SecurityGroupIngress",
     },
@@ -1234,6 +1438,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         "availabilityZone": "us-east-1a",
         "basePool": [
           "10.0.0.0/24",
+          "10.2.0.0/24",
         ],
         "ipamAllocation": {
           "ipamPoolName": "home-region-prod-pool",
@@ -1345,6 +1550,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         "availabilityZone": "us-east-1b",
         "basePool": [
           "10.0.0.0/24",
+          "10.2.0.0/24",
         ],
         "ipamAllocation": {
           "ipamPoolName": "home-region-prod-pool",
@@ -1407,6 +1613,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         "availabilityZone": "us-east-1a",
         "basePool": [
           "10.0.0.0/24",
+          "10.2.0.0/24",
         ],
         "ipamAllocation": {
           "ipamPoolName": "home-region-prod-pool",
@@ -1455,6 +1662,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         "availabilityZone": "us-east-1b",
         "basePool": [
           "10.0.0.0/24",
+          "10.2.0.0/24",
         ],
         "ipamAllocation": {
           "ipamPoolName": "home-region-prod-pool",
@@ -1528,6 +1736,43 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::EC2::FlowLog",
     },
+    "NetworkEndpointsVpcSharedParameters07793E5F": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomSsmPutParameterValueCustomResourceProviderLogGroupB0109C68",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomSsmPutParameterValueCustomResourceProviderHandler2A0BDE7F",
+            "Arn",
+          ],
+        },
+        "invokingAccountId": "555555555555",
+        "parameterAccountIds": [
+          "444444444444",
+        ],
+        "parameters": [
+          {
+            "name": "/accelerator/network/vpc/Network-Endpoints/id",
+            "value": {
+              "Ref": "NetworkEndpointsVpc619A1F01",
+            },
+          },
+          {
+            "name": "/accelerator/network/vpc/Network-Endpoints/subnet/Network-Endpoints-A/id",
+            "value": {
+              "Ref": "NetworkEndpointsVpcNetworkEndpointsASubnet758434F8",
+            },
+          },
+        ],
+        "region": "us-east-1",
+        "roleName": "AWSAccelerator-CrossAccountSsmParameterShare",
+        "uuid": "REPLACED-UUID",
+      },
+      "Type": "Custom::SsmPutParameterValue",
+      "UpdateReplacePolicy": "Delete",
+    },
     "NetworkEndpointsVpcTestNaclNaclD97515C3": {
       "Metadata": {
         "cdk_nag": {
@@ -1579,6 +1824,38 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::EC2::NetworkAclEntry",
     },
+    "NetworkEndpointsVpcTestNaclNaclNetworkEndpointsVpcTestNaclInbound204B9A2831": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-VPC3",
+              "reason": "NACL added to VPC",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "CidrBlock": {
+          "Fn::GetAtt": [
+            "NetworkEndpointsVpcNetworkEndpointsASubnet758434F8",
+            "ipv4CidrBlock",
+          ],
+        },
+        "Egress": false,
+        "NetworkAclId": {
+          "Ref": "NetworkEndpointsVpcTestNaclNaclD97515C3",
+        },
+        "PortRange": {
+          "From": -1,
+          "To": -1,
+        },
+        "Protocol": -1,
+        "RuleAction": "allow",
+        "RuleNumber": 20,
+      },
+      "Type": "AWS::EC2::NetworkAclEntry",
+    },
     "NetworkEndpointsVpcTestNaclNaclNetworkEndpointsVpcTestNaclNaclAssociateNetworkEndpointsA4115E6F7": {
       "Properties": {
         "NetworkAclId": {
@@ -1614,6 +1891,38 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         "Protocol": -1,
         "RuleAction": "allow",
         "RuleNumber": 10,
+      },
+      "Type": "AWS::EC2::NetworkAclEntry",
+    },
+    "NetworkEndpointsVpcTestNaclNaclNetworkEndpointsVpcTestNaclOutbound20634A981E": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-VPC3",
+              "reason": "NACL added to VPC",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "CidrBlock": {
+          "Fn::GetAtt": [
+            "NetworkEndpointsVpcNetworkEndpointsASubnet758434F8",
+            "ipv4CidrBlock",
+          ],
+        },
+        "Egress": true,
+        "NetworkAclId": {
+          "Ref": "NetworkEndpointsVpcTestNaclNaclD97515C3",
+        },
+        "PortRange": {
+          "From": -1,
+          "To": -1,
+        },
+        "Protocol": -1,
+        "RuleAction": "allow",
+        "RuleNumber": 20,
       },
       "Type": "AWS::EC2::NetworkAclEntry",
     },
@@ -1735,7 +2044,12 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "NetworkInspectionVpcAcceleratorNatGwANatGateway512AA371": {
       "Properties": {
-        "AllocationId": "eipalloc-acbdefg123456",
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "NetworkInspectionVpcAcceleratorNatGwANatGatewayEipDF395D54",
+            "AllocationId",
+          ],
+        },
         "SubnetId": {
           "Ref": "NetworkInspectionVpcNetworkInspectionASubnet01E2BD4D",
         },
@@ -1747,6 +2061,18 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         ],
       },
       "Type": "AWS::EC2::NatGateway",
+    },
+    "NetworkInspectionVpcAcceleratorNatGwANatGatewayEipDF395D54": {
+      "Properties": {
+        "Domain": "vpc",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "accelerator-nat-gw-a",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::EIP",
     },
     "NetworkInspectionVpcAcceleratorNatGwBNatGateway2164E612": {
       "Properties": {
@@ -2332,7 +2658,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "NetworkInspectionVpcVpcCidrBlock343B2A17": {
       "Properties": {
-        "CidrBlock": "192.168.0.0/16",
+        "CidrBlock": "10.3.0.0/16",
         "VpcId": {
           "Ref": "NetworkInspectionVpc302E00C0",
         },
@@ -2349,6 +2675,10 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         },
         "Ipv4NetmaskLength": 25,
         "Tags": [
+          {
+            "Key": "env",
+            "Value": "prod",
+          },
           {
             "Key": "Name",
             "Value": "Network-Secondary",
@@ -2490,6 +2820,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         "availabilityZone": "us-east-1a",
         "basePool": [
           "10.0.0.0/24",
+          "10.2.0.0/24",
         ],
         "ipamAllocation": {
           "ipamPoolName": "home-region-prod-pool",
@@ -2546,6 +2877,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         "availabilityZone": "us-east-1b",
         "basePool": [
           "10.0.0.0/24",
+          "10.2.0.0/24",
         ],
         "ipamAllocation": {
           "ipamPoolName": "home-region-prod-pool",
@@ -2571,6 +2903,128 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         },
         "SubnetId": {
           "Ref": "NetworkSecondaryVpcNetworkSecondaryBSubnetDD64E26D",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "NetworkSecondaryVpcNetworkSecondaryCRtRouteTableF66B2FAA": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Network-Secondary-C-Rt",
+          },
+        ],
+        "VpcId": {
+          "Ref": "NetworkSecondaryVpc37FB1791",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "NetworkSecondaryVpcNetworkSecondaryCSubnet7C04BEAE": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomIpamSubnetCustomResourceProviderLogGroup3BB67050",
+        "NetworkSecondaryVpcNetworkSecondaryBSubnetDD64E26D",
+        "NetworkSecondaryVpcNetworkSecondaryBSubnetRouteTableAssociation6EB02D15",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomIpamSubnetCustomResourceProviderHandlerF7AF0D7A",
+            "Arn",
+          ],
+        },
+        "availabilityZone": "us-east-1a",
+        "basePool": [
+          "10.0.0.0/24",
+          "10.2.0.0/24",
+        ],
+        "ipamAllocation": {
+          "ipamPoolName": "home-region-prod-pool",
+          "netmaskLength": 28,
+        },
+        "name": "Network-Secondary-C",
+        "tags": [],
+        "vpcId": {
+          "Ref": "NetworkSecondaryVpc37FB1791",
+        },
+      },
+      "Type": "Custom::IpamSubnet",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "NetworkSecondaryVpcNetworkSecondaryCSubnetRouteTableAssociation0ADC5EBF": {
+      "DependsOn": [
+        "NetworkSecondaryVpcNetworkSecondaryBSubnetDD64E26D",
+        "NetworkSecondaryVpcNetworkSecondaryBSubnetRouteTableAssociation6EB02D15",
+      ],
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "NetworkSecondaryVpcNetworkSecondaryCRtRouteTableF66B2FAA",
+        },
+        "SubnetId": {
+          "Ref": "NetworkSecondaryVpcNetworkSecondaryCSubnet7C04BEAE",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "NetworkSecondaryVpcNetworkSecondaryDRtRouteTable55050289": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Network-Secondary-D-Rt",
+          },
+        ],
+        "VpcId": {
+          "Ref": "NetworkSecondaryVpc37FB1791",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "NetworkSecondaryVpcNetworkSecondaryDSubnet339A8E74": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomIpamSubnetCustomResourceProviderLogGroup3BB67050",
+        "NetworkSecondaryVpcNetworkSecondaryCSubnet7C04BEAE",
+        "NetworkSecondaryVpcNetworkSecondaryCSubnetRouteTableAssociation0ADC5EBF",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomIpamSubnetCustomResourceProviderHandlerF7AF0D7A",
+            "Arn",
+          ],
+        },
+        "availabilityZone": "us-east-1b",
+        "basePool": [
+          "10.0.0.0/24",
+          "10.2.0.0/24",
+        ],
+        "ipamAllocation": {
+          "ipamPoolName": "home-region-prod-pool",
+          "netmaskLength": 28,
+        },
+        "name": "Network-Secondary-D",
+        "tags": [],
+        "vpcId": {
+          "Ref": "NetworkSecondaryVpc37FB1791",
+        },
+      },
+      "Type": "Custom::IpamSubnet",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "NetworkSecondaryVpcNetworkSecondaryDSubnetRouteTableAssociation7127663A": {
+      "DependsOn": [
+        "NetworkSecondaryVpcNetworkSecondaryCSubnet7C04BEAE",
+        "NetworkSecondaryVpcNetworkSecondaryCSubnetRouteTableAssociation0ADC5EBF",
+      ],
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "NetworkSecondaryVpcNetworkSecondaryDRtRouteTable55050289",
+        },
+        "SubnetId": {
+          "Ref": "NetworkSecondaryVpcNetworkSecondaryDSubnet339A8E74",
         },
       },
       "Type": "AWS::EC2::SubnetRouteTableAssociation",
@@ -2667,6 +3121,12 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         },
       },
       "Properties": {
+        "CidrBlock": {
+          "Fn::GetAtt": [
+            "NetworkEndpointsVpcNetworkEndpointsBSubnet1CF39812",
+            "ipv4CidrBlock",
+          ],
+        },
         "Egress": false,
         "NetworkAclId": {
           "Ref": "NetworkSecondaryVpcTestNaclNacl63646F9E",
@@ -2693,6 +3153,12 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         },
       },
       "Properties": {
+        "CidrBlock": {
+          "Fn::GetAtt": [
+            "NetworkEndpointsVpcNetworkEndpointsASubnet758434F8",
+            "ipv4CidrBlock",
+          ],
+        },
         "Egress": false,
         "NetworkAclId": {
           "Ref": "NetworkSecondaryVpcTestNaclNacl63646F9E",
@@ -2719,6 +3185,12 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         },
       },
       "Properties": {
+        "CidrBlock": {
+          "Fn::GetAtt": [
+            "NetworkEndpointsVpcNetworkEndpointsBSubnet1CF39812",
+            "ipv4CidrBlock",
+          ],
+        },
         "Egress": false,
         "NetworkAclId": {
           "Ref": "NetworkSecondaryVpcTestNaclNacl63646F9E",
@@ -2730,6 +3202,33 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         "Protocol": -1,
         "RuleAction": "allow",
         "RuleNumber": 104,
+      },
+      "Type": "AWS::EC2::NetworkAclEntry",
+    },
+    "NetworkSecondaryVpcTestNaclNaclNetworkSecondaryVpcTestNaclInbound107296D77E8": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-VPC3",
+              "reason": "NACL added to VPC",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "CidrBlock": "10.4.0.0/24",
+        "Egress": false,
+        "NetworkAclId": {
+          "Ref": "NetworkSecondaryVpcTestNaclNacl63646F9E",
+        },
+        "PortRange": {
+          "From": -1,
+          "To": -1,
+        },
+        "Protocol": -1,
+        "RuleAction": "deny",
+        "RuleNumber": 107,
       },
       "Type": "AWS::EC2::NetworkAclEntry",
     },
@@ -2751,6 +3250,28 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         },
         "SubnetId": {
           "Ref": "NetworkSecondaryVpcNetworkSecondaryBSubnetDD64E26D",
+        },
+      },
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+    },
+    "NetworkSecondaryVpcTestNaclNaclNetworkSecondaryVpcTestNaclNaclAssociateNetworkSecondaryC73E9D9B0": {
+      "Properties": {
+        "NetworkAclId": {
+          "Ref": "NetworkSecondaryVpcTestNaclNacl63646F9E",
+        },
+        "SubnetId": {
+          "Ref": "NetworkSecondaryVpcNetworkSecondaryCSubnet7C04BEAE",
+        },
+      },
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+    },
+    "NetworkSecondaryVpcTestNaclNaclNetworkSecondaryVpcTestNaclNaclAssociateNetworkSecondaryD02015E20": {
+      "Properties": {
+        "NetworkAclId": {
+          "Ref": "NetworkSecondaryVpcTestNaclNacl63646F9E",
+        },
+        "SubnetId": {
+          "Ref": "NetworkSecondaryVpcNetworkSecondaryDSubnet339A8E74",
         },
       },
       "Type": "AWS::EC2::SubnetNetworkAclAssociation",
@@ -2794,6 +3315,12 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         },
       },
       "Properties": {
+        "CidrBlock": {
+          "Fn::GetAtt": [
+            "NetworkEndpointsVpcNetworkEndpointsASubnet758434F8",
+            "ipv4CidrBlock",
+          ],
+        },
         "Egress": true,
         "NetworkAclId": {
           "Ref": "NetworkSecondaryVpcTestNaclNacl63646F9E",
@@ -2820,6 +3347,12 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         },
       },
       "Properties": {
+        "CidrBlock": {
+          "Fn::GetAtt": [
+            "NetworkEndpointsVpcNetworkEndpointsBSubnet1CF39812",
+            "ipv4CidrBlock",
+          ],
+        },
         "Egress": true,
         "NetworkAclId": {
           "Ref": "NetworkSecondaryVpcTestNaclNacl63646F9E",
@@ -2846,6 +3379,12 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         },
       },
       "Properties": {
+        "CidrBlock": {
+          "Fn::GetAtt": [
+            "NetworkEndpointsVpcNetworkEndpointsBSubnet1CF39812",
+            "ipv4CidrBlock",
+          ],
+        },
         "Egress": true,
         "NetworkAclId": {
           "Ref": "NetworkSecondaryVpcTestNaclNacl63646F9E",
@@ -2860,25 +3399,36 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::EC2::NetworkAclEntry",
     },
-    "Organization29A5FC3F": {
-      "DeletionPolicy": "Delete",
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomOrganizationsDescribeOrganizationCustomResourceProviderHandler4C6F49D1",
-            "Arn",
+    "NetworkSecondaryVpcTestNaclNaclNetworkSecondaryVpcTestNaclOutbound107783EBEA7": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-VPC3",
+              "reason": "NACL added to VPC",
+            },
           ],
         },
-        "partition": {
-          "Ref": "AWS::Partition",
-        },
       },
-      "Type": "Custom::DescribeOrganization",
-      "UpdateReplacePolicy": "Delete",
+      "Properties": {
+        "CidrBlock": "10.4.0.0/24",
+        "Egress": true,
+        "NetworkAclId": {
+          "Ref": "NetworkSecondaryVpcTestNaclNacl63646F9E",
+        },
+        "PortRange": {
+          "From": -1,
+          "To": -1,
+        },
+        "Protocol": -1,
+        "RuleAction": "deny",
+        "RuleNumber": 107,
+      },
+      "Type": "AWS::EC2::NetworkAclEntry",
     },
     "SsmParamAcceleratorGwlbGwlbArn7CF5F889": {
       "DependsOn": [
-        "SsmParamNetworkInspectionAcceleratorNatGwCNatGatewayId498E58EE",
+        "SsmParamAcceleratorGwlbGwlbServiceIdF93A23BF",
       ],
       "Properties": {
         "Name": "/accelerator/network/gwlb/Accelerator-GWLB/arn",
@@ -2890,9 +3440,6 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamAcceleratorGwlbGwlbServiceIdF93A23BF": {
-      "DependsOn": [
-        "SsmParamNetworkInspectionAcceleratorNatGwCNatGatewayId498E58EE",
-      ],
       "Properties": {
         "Name": "/accelerator/network/gwlb/Accelerator-GWLB/endpointService/id",
         "Type": "String",
@@ -2919,13 +3466,13 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NetworkVpcStack-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.3.2",
+        "Value": "1.4.3",
       },
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkEndpointsManagementSecurityGroup157CDC67": {
       "DependsOn": [
-        "SsmParamNetworkEndpointsNetworkEndpointsTgwAttachASubnetId72C0AC02",
+        "SsmParamNetworkInspectionNetworkInspectionTransitGatewayAttachmentId80B7A8EF",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Endpoints/securityGroup/Management/id",
@@ -2938,7 +3485,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkEndpointsNetworkEndpoints2TransitGatewayAttachmentIdD5FF19F5": {
       "DependsOn": [
-        "SsmParamNetworkEndpointsNetworkEndpointsTgwAttachASubnetId72C0AC02",
+        "SsmParamNetworkInspectionAcceleratorNatGwANatGatewayId28332EEC",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Endpoints/transitGatewayAttachment/Network-Endpoints-2/id",
@@ -2964,7 +3511,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkEndpointsNetworkEndpointsASubnetIdF53EDCC9": {
       "DependsOn": [
-        "SsmParamNetworkEndpointsNetworkEndpointsTgwBRouteTableIdC8AB07B7",
+        "SsmParamNetworkSecondaryNetworkSecondaryCSubnetId6A8F9E78",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Endpoints/subnet/Network-Endpoints-A/id",
@@ -2990,7 +3537,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkEndpointsNetworkEndpointsBSubnetId62D810E8": {
       "DependsOn": [
-        "SsmParamNetworkEndpointsNetworkEndpointsTgwBRouteTableIdC8AB07B7",
+        "SsmParamNetworkSecondaryNetworkSecondaryCSubnetId6A8F9E78",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Endpoints/subnet/Network-Endpoints-B/id",
@@ -3003,7 +3550,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkEndpointsNetworkEndpointsTgwARouteTableId2037B6B4": {
       "DependsOn": [
-        "SsmParamNetworkSecondaryNetworkSecondaryASubnetId121C5F23",
+        "SsmParamNetworkSecondaryNetworkSecondaryARtRouteTableIdD8813C63",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Endpoints/routeTable/Network-Endpoints-Tgw-A/id",
@@ -3015,6 +3562,9 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkEndpointsNetworkEndpointsTgwAttachASubnetId72C0AC02": {
+      "DependsOn": [
+        "SsmParamNetworkSecondaryNetworkSecondaryCSubnetId6A8F9E78",
+      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Endpoints/subnet/Network-EndpointsTgwAttach-A/id",
         "Type": "String",
@@ -3025,9 +3575,6 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkEndpointsNetworkEndpointsTgwAttachBSubnetId0B7C06C7": {
-      "DependsOn": [
-        "SsmParamNetworkEndpointsNetworkEndpointsTgwAttachASubnetId72C0AC02",
-      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Endpoints/subnet/Network-EndpointsTgwAttach-B/id",
         "Type": "String",
@@ -3049,7 +3596,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkEndpointsNetworkEndpointsTransitGatewayAttachmentId2EBCB846": {
       "DependsOn": [
-        "SsmParamNetworkEndpointsNetworkEndpointsTgwAttachASubnetId72C0AC02",
+        "SsmParamNetworkInspectionAcceleratorNatGwANatGatewayId28332EEC",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Endpoints/transitGatewayAttachment/Network-Endpoints/id",
@@ -3061,6 +3608,9 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkEndpointsTestNaclNaclED9584AC": {
+      "DependsOn": [
+        "SsmParamNetworkInspectionNetworkInspectionTransitGatewayAttachmentId80B7A8EF",
+      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Endpoints/networkAcl/TestNACL/id",
         "Type": "String",
@@ -3071,9 +3621,6 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkEndpointsVpcIdD8AF7DB9": {
-      "DependsOn": [
-        "SsmParamNetworkSecondaryNetworkSecondaryASubnetId121C5F23",
-      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Endpoints/id",
         "Type": "String",
@@ -3084,9 +3631,6 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkInspectionAcceleratorNatGwANatGatewayId28332EEC": {
-      "DependsOn": [
-        "SsmParamNetworkInspectionNetworkInspectionBSubnetId08F48703",
-      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/natGateway/accelerator-nat-gw-a/id",
         "Type": "String",
@@ -3098,7 +3642,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkInspectionAcceleratorNatGwBNatGatewayId74BA7991": {
       "DependsOn": [
-        "SsmParamNetworkInspectionNetworkInspectionBSubnetId08F48703",
+        "SsmParamNetworkInspectionAcceleratorNatGwANatGatewayId28332EEC",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/natGateway/accelerator-nat-gw-b/id",
@@ -3110,6 +3654,9 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkInspectionAcceleratorNatGwCNatGatewayId498E58EE": {
+      "DependsOn": [
+        "SsmParamNetworkInspectionAcceleratorNatGwANatGatewayId28332EEC",
+      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/natGateway/accelerator-nat-gw-c/id",
         "Type": "String",
@@ -3121,7 +3668,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkInspectionDataSecurityGroup1FD45226": {
       "DependsOn": [
-        "SsmParamNetworkInspectionAcceleratorNatGwCNatGatewayId498E58EE",
+        "SsmParamNetworkInspectionNetworkInspectionTransitGatewayAttachmentId80B7A8EF",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/securityGroup/Data/id",
@@ -3134,7 +3681,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkInspectionNetworkInspectionARouteTableIdAA9E21C5": {
       "DependsOn": [
-        "SsmParamNetworkEndpointsTestNaclNaclED9584AC",
+        "SsmParamNetworkEndpointsNetworkEndpointsTgwBRouteTableIdC8AB07B7",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/routeTable/Network-Inspection-A/id",
@@ -3147,7 +3694,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkInspectionNetworkInspectionASubnetId84BB7982": {
       "DependsOn": [
-        "SsmParamNetworkInspectionNetworkInspectionBRouteTableIdAC1C6F68",
+        "SsmParamNetworkEndpointsNetworkEndpointsTgwAttachBSubnetId0B7C06C7",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/subnet/Network-Inspection-A/id",
@@ -3159,6 +3706,9 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkInspectionNetworkInspectionBRouteTableIdAC1C6F68": {
+      "DependsOn": [
+        "SsmParamNetworkEndpointsNetworkEndpointsTgwBRouteTableIdC8AB07B7",
+      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/routeTable/Network-Inspection-B/id",
         "Type": "String",
@@ -3169,6 +3719,9 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkInspectionNetworkInspectionBSubnetId08F48703": {
+      "DependsOn": [
+        "SsmParamNetworkEndpointsNetworkEndpointsTgwAttachBSubnetId0B7C06C7",
+      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/subnet/Network-Inspection-B/id",
         "Type": "String",
@@ -3180,7 +3733,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkInspectionNetworkInspectionGatewayRouteTableId9C85DF52": {
       "DependsOn": [
-        "SsmParamNetworkInspectionNetworkInspectionBRouteTableIdAC1C6F68",
+        "SsmParamNetworkInspectionNetworkInspectionTgwARouteTableId838420AE",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/routeTable/Network-Inspection-Gateway/id",
@@ -3192,9 +3745,6 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkInspectionNetworkInspectionTgwARouteTableId838420AE": {
-      "DependsOn": [
-        "SsmParamNetworkInspectionNetworkInspectionBRouteTableIdAC1C6F68",
-      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/routeTable/Network-Inspection-Tgw-A/id",
         "Type": "String",
@@ -3206,7 +3756,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkInspectionNetworkInspectionTgwAttachASubnetId90B86E86": {
       "DependsOn": [
-        "SsmParamNetworkInspectionNetworkInspectionBSubnetId08F48703",
+        "SsmParamNetworkEndpointsNetworkEndpointsTgwAttachBSubnetId0B7C06C7",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/subnet/Network-InspectionTgwAttach-A/id",
@@ -3219,7 +3769,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkInspectionNetworkInspectionTgwAttachBSubnetId470AEEA9": {
       "DependsOn": [
-        "SsmParamNetworkInspectionNetworkInspectionBSubnetId08F48703",
+        "SsmParamNetworkEndpointsNetworkEndpointsTgwAttachBSubnetId0B7C06C7",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/subnet/Network-InspectionTgwAttach-B/id",
@@ -3232,7 +3782,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkInspectionNetworkInspectionTgwBRouteTableId7113F1A4": {
       "DependsOn": [
-        "SsmParamNetworkInspectionNetworkInspectionBRouteTableIdAC1C6F68",
+        "SsmParamNetworkInspectionNetworkInspectionTgwARouteTableId838420AE",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/routeTable/Network-Inspection-Tgw-B/id",
@@ -3244,9 +3794,6 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkInspectionNetworkInspectionTransitGatewayAttachmentId80B7A8EF": {
-      "DependsOn": [
-        "SsmParamNetworkInspectionAcceleratorNatGwCNatGatewayId498E58EE",
-      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/transitGatewayAttachment/Network-Inspection/id",
         "Type": "String",
@@ -3257,9 +3804,6 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkInspectionVpcIdFD2142E1": {
-      "DependsOn": [
-        "SsmParamNetworkEndpointsTestNaclNaclED9584AC",
-      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Inspection/id",
         "Type": "String",
@@ -3280,6 +3824,9 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkSecondaryNetworkSecondaryASubnetId121C5F23": {
+      "DependsOn": [
+        "SsmParamNetworkInspectionNetworkInspectionTgwARouteTableId838420AE",
+      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Secondary/subnet/Network-Secondary-A/id",
         "Type": "String",
@@ -3290,6 +3837,9 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkSecondaryNetworkSecondaryBRtRouteTableIdFA654D75": {
+      "DependsOn": [
+        "SsmParamNetworkSecondaryNetworkSecondaryARtRouteTableIdD8813C63",
+      ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Secondary/routeTable/Network-Secondary-B-Rt/id",
         "Type": "String",
@@ -3301,7 +3851,7 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
     },
     "SsmParamNetworkSecondaryNetworkSecondaryBSubnetIdDF008255": {
       "DependsOn": [
-        "SsmParamNetworkSecondaryNetworkSecondaryASubnetId121C5F23",
+        "SsmParamNetworkInspectionNetworkInspectionTgwARouteTableId838420AE",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Secondary/subnet/Network-Secondary-B/id",
@@ -3312,9 +3862,58 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::SSM::Parameter",
     },
+    "SsmParamNetworkSecondaryNetworkSecondaryCRtRouteTableId08D87312": {
+      "DependsOn": [
+        "SsmParamNetworkSecondaryNetworkSecondaryARtRouteTableIdD8813C63",
+      ],
+      "Properties": {
+        "Name": "/accelerator/network/vpc/Network-Secondary/routeTable/Network-Secondary-C-Rt/id",
+        "Type": "String",
+        "Value": {
+          "Ref": "NetworkSecondaryVpcNetworkSecondaryCRtRouteTableF66B2FAA",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamNetworkSecondaryNetworkSecondaryCSubnetId6A8F9E78": {
+      "Properties": {
+        "Name": "/accelerator/network/vpc/Network-Secondary/subnet/Network-Secondary-C/id",
+        "Type": "String",
+        "Value": {
+          "Ref": "NetworkSecondaryVpcNetworkSecondaryCSubnet7C04BEAE",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamNetworkSecondaryNetworkSecondaryDRtRouteTableIdD54D03D4": {
+      "DependsOn": [
+        "SsmParamNetworkSecondaryNetworkSecondaryARtRouteTableIdD8813C63",
+      ],
+      "Properties": {
+        "Name": "/accelerator/network/vpc/Network-Secondary/routeTable/Network-Secondary-D-Rt/id",
+        "Type": "String",
+        "Value": {
+          "Ref": "NetworkSecondaryVpcNetworkSecondaryDRtRouteTable55050289",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamNetworkSecondaryNetworkSecondaryDSubnetIdEFF1A015": {
+      "DependsOn": [
+        "SsmParamNetworkSecondaryNetworkSecondaryCSubnetId6A8F9E78",
+      ],
+      "Properties": {
+        "Name": "/accelerator/network/vpc/Network-Secondary/subnet/Network-Secondary-D/id",
+        "Type": "String",
+        "Value": {
+          "Ref": "NetworkSecondaryVpcNetworkSecondaryDSubnet339A8E74",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
     "SsmParamNetworkSecondaryTestNaclNacl0FC3F602": {
       "DependsOn": [
-        "SsmParamNetworkSecondaryNetworkSecondaryASubnetId121C5F23",
+        "SsmParamNetworkInspectionNetworkInspectionTransitGatewayAttachmentId80B7A8EF",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpc/Network-Secondary/networkAcl/TestNacl/id",
@@ -3341,132 +3940,6 @@ exports[`NetworkVpcStack Construct(NetworkVpcStack):  Snapshot Test 1`] = `
         "Type": "String",
         "Value": {
           "Ref": "AWS::StackId",
-        },
-      },
-      "Type": "AWS::SSM::Parameter",
-    },
-    "appAalb01NetworkEndpointsD769A400": {
-      "DependsOn": [
-        "NetworkEndpointsVpcManagementSgManagementEgress00D58058BF",
-        "NetworkEndpointsVpcManagementSgManagementIngress008FD972B5",
-        "NetworkEndpointsVpcManagementSg2B8F9418",
-        "NetworkEndpointsVpcNetworkEndpointsTgwAttachASubnet3580E1C3",
-        "NetworkEndpointsVpcNetworkEndpointsTgwAttachASubnetRouteTableAssociation4D925D52",
-        "NetworkEndpointsVpcNetworkEndpointsTgwAttachBSubnet7F2CD5B5",
-        "NetworkEndpointsVpcNetworkEndpointsTgwAttachBSubnetRouteTableAssociation958ED1AB",
-      ],
-      "Properties": {
-        "LoadBalancerAttributes": [
-          {
-            "Key": "access_logs.s3.enabled",
-            "Value": "true",
-          },
-          {
-            "Key": "access_logs.s3.bucket",
-            "Value": "aws-accelerator-elb-access-logs-333333333333-us-west-2",
-          },
-          {
-            "Key": "access_logs.s3.prefix",
-            "Value": "555555555555/us-east-1/appA-alb-01",
-          },
-        ],
-        "Name": "appA-alb-01",
-        "Scheme": "internet-facing",
-        "SecurityGroups": [
-          {
-            "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
-          },
-        ],
-        "Subnets": [
-          {
-            "Ref": "NetworkEndpointsVpcNetworkEndpointsTgwAttachASubnet3580E1C3",
-          },
-          {
-            "Ref": "NetworkEndpointsVpcNetworkEndpointsTgwAttachBSubnet7F2CD5B5",
-          },
-        ],
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "appA-alb-01",
-          },
-        ],
-        "Type": "application",
-      },
-      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
-    },
-    "appAalb01NetworkEndpointsssmF399A7CC": {
-      "DependsOn": [
-        "SsmParamNetworkEndpointsTestNaclNaclED9584AC",
-      ],
-      "Properties": {
-        "Name": "/accelerator/network/vpc/Network-Endpoints/alb/appA-alb-01/id",
-        "Type": "String",
-        "Value": {
-          "Ref": "appAalb01NetworkEndpointsD769A400",
-        },
-      },
-      "Type": "AWS::SSM::Parameter",
-    },
-    "appAnlb01NetworkEndpoints0281B174": {
-      "DependsOn": [
-        "NetworkEndpointsVpcNetworkEndpointsTgwAttachASubnet3580E1C3",
-        "NetworkEndpointsVpcNetworkEndpointsTgwAttachASubnetRouteTableAssociation4D925D52",
-        "NetworkEndpointsVpcNetworkEndpointsTgwAttachBSubnet7F2CD5B5",
-        "NetworkEndpointsVpcNetworkEndpointsTgwAttachBSubnetRouteTableAssociation958ED1AB",
-      ],
-      "Properties": {
-        "LoadBalancerAttributes": [
-          {
-            "Key": "deletion_protection.enabled",
-            "Value": "false",
-          },
-          {
-            "Key": "load_balancing.cross_zone.enabled",
-            "Value": "true",
-          },
-          {
-            "Key": "access_logs.s3.enabled",
-            "Value": "true",
-          },
-          {
-            "Key": "access_logs.s3.bucket",
-            "Value": "aws-accelerator-elb-access-logs-333333333333-us-west-2",
-          },
-          {
-            "Key": "access_logs.s3.prefix",
-            "Value": "555555555555/us-east-1/appA-nlb-01",
-          },
-        ],
-        "Name": "appA-nlb-01",
-        "Scheme": "internet-facing",
-        "Subnets": [
-          {
-            "Ref": "NetworkEndpointsVpcNetworkEndpointsTgwAttachASubnet3580E1C3",
-          },
-          {
-            "Ref": "NetworkEndpointsVpcNetworkEndpointsTgwAttachBSubnet7F2CD5B5",
-          },
-        ],
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "appA-nlb-01",
-          },
-        ],
-        "Type": "network",
-      },
-      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
-    },
-    "appAnlb01NetworkEndpointsssm0DA0AE1E": {
-      "DependsOn": [
-        "SsmParamNetworkEndpointsTestNaclNaclED9584AC",
-      ],
-      "Properties": {
-        "Name": "/accelerator/network/vpc/Network-Endpoints/nlb/appA-nlb-01/id",
-        "Type": "String",
-        "Value": {
-          "Ref": "appAnlb01NetworkEndpoints0281B174",
         },
       },
       "Type": "AWS::SSM::Parameter",

@@ -18,53 +18,120 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as winston from 'winston';
+import { NagSuppressions } from 'cdk-nag';
 
 import {
   AccountsConfig,
   BlockDeviceMappingItem,
   CustomizationsConfig,
   DeploymentTargets,
-  DnsFirewallRuleGroupConfig,
-  DnsQueryLogsConfig,
   EbsItemConfig,
   GlobalConfig,
   IamConfig,
-  IpamPoolConfig,
   LifeCycleRule,
-  NetworkAclSubnetSelection,
   NetworkConfig,
   NetworkConfigTypes,
-  NfwFirewallPolicyConfig,
-  NfwRuleGroupConfig,
   OrganizationConfig,
-  ResolverRuleConfig,
+  Region,
   SecurityConfig,
   ShareTargets,
-  SubnetConfig,
-  TransitGatewayConfig,
   VpcConfig,
   VpcTemplatesConfig,
 } from '@aws-accelerator/config';
-import {
-  IResourceShareItem,
-  ResourceShare,
-  ResourceShareItem,
-  ResourceShareOwner,
-  S3LifeCycleRule,
-} from '@aws-accelerator/constructs';
-import { createLogger, policyReplacements } from '@aws-accelerator/utils';
+import { KeyLookup, S3LifeCycleRule, ServiceLinkedRole } from '@aws-accelerator/constructs';
+import { createLogger, policyReplacements, SsmParameterPath, SsmResourceType } from '@aws-accelerator/utils';
 
 import { version } from '../../../../../package.json';
+import { AcceleratorResourceNames } from '../accelerator-resource-names';
 
-type ResourceShareType =
-  | DnsFirewallRuleGroupConfig
-  | DnsQueryLogsConfig
-  | IpamPoolConfig
-  | NfwRuleGroupConfig
-  | NfwFirewallPolicyConfig
-  | SubnetConfig
-  | ResolverRuleConfig
-  | TransitGatewayConfig;
+/**
+ * Allowed rule id type for NagSuppression
+ */
+export enum NagSuppressionRuleIds {
+  DDB3 = 'DDB3',
+  EC28 = 'EC28',
+  EC29 = 'EC29',
+  IAM4 = 'IAM4',
+  IAM5 = 'IAM5',
+  SMG4 = 'SMG4',
+  VPC3 = 'VPC3',
+  AS3 = 'AS3',
+}
+
+/**
+ * NagSuppression Detail Type
+ */
+export type NagSuppressionDetailType = {
+  /**
+   * Suppressions rule id
+   */
+  id: NagSuppressionRuleIds;
+  /**
+   * Suppressions details
+   */
+  details: {
+    /**
+     * Resource path
+     */
+    path: string;
+    /**
+     * Suppressions reason
+     */
+    reason: string;
+  }[];
+};
+
+/**
+ * Accelerator Key type enum
+ */
+export enum AcceleratorKeyType {
+  /**
+   * Cloudwatch key
+   */
+  CLOUDWATCH_KEY = 'cloudwatch-key',
+  /**
+   * Lambda key
+   */
+  LAMBDA_KEY = 'lambda-key',
+  /**
+   * Central Log Bucket key
+   */
+  CENTRAL_LOG_BUCKET = 'central-log-bucket',
+}
+
+/**
+ * Service Linked Role type enum
+ */
+export enum ServiceLinkedRoleType {
+  /**
+   * Access Analyzer SLR
+   */
+  ACCESS_ANALYZER = 'access-analyzer',
+  /**
+   * GUARDDUTY SLR
+   */
+  GUARDDUTY = 'guardduty',
+  /**
+   * MACIE SLR
+   */
+  MACIE = 'macie',
+  /**
+   * SECURITYHUB SLR
+   */
+  SECURITY_HUB = 'securityhub',
+  /**
+   * AUTOSCALING SLR
+   */
+  AUTOSCALING = 'autoscaling',
+  /**
+   * AWSCloud9 SLR
+   */
+  AWS_CLOUD9 = 'cloud9',
+  /**
+   * AWS Firewall Manager SLR
+   */
+  FMS = 'fms',
+}
 
 export interface AcceleratorStackProps extends cdk.StackProps {
   readonly configDirPath: string;
@@ -79,8 +146,52 @@ export interface AcceleratorStackProps extends cdk.StackProps {
   readonly configRepositoryName: string;
   readonly qualifier?: string;
   readonly configCommitId?: string;
-  readonly globalRegion?: string;
+  readonly globalRegion: string;
   readonly centralizedLoggingRegion: string;
+  /**
+   * Accelerator resource name prefixes
+   */
+  readonly prefixes: {
+    /**
+     * Use this prefix value to name resources like -
+     AWS IAM Role names, AWS Lambda Function names, AWS Cloudwatch log groups names, AWS CloudFormation stack names, AWS CodePipeline names, AWS CodeBuild project names
+     *
+     */
+    readonly accelerator: string;
+    /**
+     * Use this prefix value to name AWS CodeCommit repository
+     */
+    readonly repoName: string;
+    /**
+     * Use this prefix value to name AWS S3 bucket
+     */
+    readonly bucketName: string;
+    /**
+     * Use this prefix value to name AWS SSM parameter
+     */
+    readonly ssmParamName: string;
+    /**
+     * Use this prefix value to name AWS KMS alias
+     */
+    readonly kmsAlias: string;
+    /**
+     * Use this prefix value to name AWS SNS topic
+     */
+    readonly snsTopicName: string;
+    /**
+     * Use this prefix value to name AWS Secrets
+     */
+    readonly secretName: string;
+    /**
+     * Use this prefix value to name AWS CloudTrail CloudWatch log group
+     */
+    readonly trailLogName: string;
+    /**
+     * Use this prefix value to name AWS Glue database
+     */
+    readonly databaseName: string;
+  };
+  readonly enableSingleAccountMode: boolean;
 }
 
 process.on('uncaughtException', err => {
@@ -92,297 +203,7 @@ process.on('uncaughtException', err => {
 export abstract class AcceleratorStack extends cdk.Stack {
   protected logger: winston.Logger;
   protected props: AcceleratorStackProps;
-
-  /**
-   * Accelerator ELB logs bucket name prefix
-   */
-  public static readonly ACCELERATOR_ELB_LOGS_BUCKET_PREFIX = 'aws-accelerator-elb-access-logs';
-
-  /**
-   * Accelerator cost and usage report bucket name prefix
-   */
-  public static readonly ACCELERATOR_COST_USAGE_REPORT_BUCKET_PREFIX = 'aws-accelerator-cur';
-
-  /**
-   * Accelerator configuration repository name
-   */
-  public static readonly ACCELERATOR_CONFIGURATION_REPOSITORY_NAME = 'aws-accelerator-config';
-
-  /**
-   * Accelerator S3 access logs bucket name prefix
-   */
-  public static readonly ACCELERATOR_S3_ACCESS_LOGS_BUCKET_NAME_PREFIX = 'aws-accelerator-s3-access-logs';
-
-  /**
-   * Accelerator Audit Manager bucket name prefix
-   */
-  public static readonly ACCELERATOR_AUDIT_MANAGER_BUCKET_NAME_PREFIX = 'aws-accelerator-auditmgr';
-
-  /**
-   * Accelerator cloudtrail bucket name prefix
-   */
-  public static readonly ACCELERATOR_CLOUDTRAIL_BUCKET_NAME_PREFIX = 'aws-accelerator-cloudtrail';
-
-  /**
-   * Accelerator cloudtrail bucket name SSM parameter name
-   */
-  protected static readonly ACCELERATOR_CLOUDTRAIL_BUCKET_NAME_PARAMETER_NAME =
-    '/accelerator/organization/security/cloudtrail/log/bucket-name';
-
-  /**
-   * Accelerator VPC flow log bucket name prefix
-   */
-  public static readonly ACCELERATOR_VPC_FLOW_LOGS_BUCKET_NAME_PREFIX = 'aws-accelerator-vpc';
-
-  /**
-   * Accelerator VPC flow log bucket arn SSM parameter name
-   */
-  protected static readonly ACCELERATOR_VPC_FLOW_LOGS_DESTINATION_S3_BUCKET_ARN_PARAMETER_NAME =
-    '/accelerator/vpc/flow-logs/destination/bucket/arn';
-  /**
-   * Accelerator Metadata bucket prefix
-   */
-  public static readonly ACCELERATOR_METADATA_BUCKET_NAME_PREFIX = 'aws-accelerator-metadata';
-  /**
-   * Accelerator Metadata bucket arn SSM parameter name
-   */
-  public static readonly ACCELERATOR_METADATA_BUCKET_PARAMETER_NAME = '/accelerator/metadata/bucket/arn';
-
-  /**
-   * Accelerator Metadata KMS key alias
-   */
-
-  public static readonly ACCELERATOR_METADATA_KEY_ALIAS = '/alias/accelerator/kms/metadata/key';
-
-  /**
-   * Accelerator Metadata KMS key description
-   */
-  public static readonly ACCELERATOR_METADATA_KEY_DESCRIPTION = 'The s3 bucket key for accelerator metadata collection';
-
-  /**
-   * Accelerator Metadata KMS key arn
-   */
-
-  public static readonly ACCELERATOR_METADATA_KEY_ARN = '/accelerator/kms/metadata/key-arn';
-
-  /**
-   * Accelerator CentralLogs bucket name prefix
-   */
-  public static readonly ACCELERATOR_CENTRAL_LOGS_BUCKET_NAME_PREFIX = 'aws-accelerator-central-logs';
-  /**
-   * Cross account IAM ROLE to read SSM parameter
-   * IAM role to access SSM parameter from different account or different region
-   * This role is created in Key stack
-   */
-  public static readonly ACCELERATOR_CROSS_ACCOUNT_ACCESS_ROLE_NAME = 'AWSAccelerator-CrossAccount-SsmParameter-Role';
-
-  /**
-   * Cross account IAM ROLE to read SSM parameter related to secrets manager kms arn
-   * IAM role to access SSM parameter from different region
-   * This role is created in logging stack where secrets manager kms keys were created
-   * Managed AD needs access to secrets in different account, so this role is used to access secret's kms key arn
-   */
-  public static readonly ACCELERATOR_CROSS_ACCOUNT_SECRETS_KMS_ARN_PARAMETER_ROLE_NAME =
-    'AWSAccelerator-CrossAccount-SecretsKms-Role';
-  /**
-   * Accelerator role to access account config table parameters
-   */
-  public static readonly ACCELERATOR_ACCOUNT_CONFIG_TABLE_PARAMETER_ACCESS_ROLE_NAME =
-    'AWSAccelerator-MoveAccountConfigRule-Role';
-  /**
-   * Transit Gateway peering role name, which gives permission on TGW related ssm parameters to configure tgw peering
-   */
-  public static readonly ACCELERATOR_TGW_PEERING_ROLE_NAME = 'AWSAccelerator-TgwPeering-Role';
-
-  /**
-   * Managed active directory share accept role name
-   */
-  public static readonly ACCELERATOR_MAD_SHARE_ACCEPT_ROLE_NAME = 'AWSAccelerator-MadAccept-Role';
-  /**
-   * Accelerator generic KMS Key
-   */
-  public static readonly ACCELERATOR_KEY_ARN_PARAMETER_NAME = '/accelerator/kms/key-arn';
-  /**
-   * Accelerator ELB default encryption key arn SSM parameter name
-   */
-  protected static readonly ACCELERATOR_EBS_DEFAULT_KEY_ARN_PARAMETER_NAME =
-    '/accelerator/ebs/default-encryption/key-arn';
-  /**
-   * Accelerator ELB default encryption key alias, S3 CMK use to encrypt buckets
-   * This key is created in logging stack
-   */
-  protected static readonly ACCELERATOR_EBS_DEFAULT_KEY_ALIAS = 'alias/accelerator/ebs/default-encryption/key';
-  /**
-   * Accelerator ELB default encryption key description, S3 CMK use to encrypt buckets
-   * This key is created in logging stack
-   */
-  protected static readonly ACCELERATOR_EBS_DEFAULT_KEY_DESCRIPTION =
-    'AWS Accelerator default EBS Volume Encryption key';
-  /**
-   * Accelerator S3 encryption key arn SSM parameter name
-   */
-  protected static readonly ACCELERATOR_S3_KEY_ARN_PARAMETER_NAME = '/accelerator/kms/s3/key-arn';
-  /**
-   * Accelerator Secret manager encryption key alias, Secret CMK use to encrypt secrets
-   * This key is created in logging stack
-   */
-  protected static readonly ACCELERATOR_SECRET_MANAGER_KEY_ALIAS = 'alias/accelerator/kms/secret-manager/key';
-  /**
-   * Accelerator Secret manager encryption key description, Secret manager CMK use to encrypt secrets
-   * This key is created in logging stack
-   */
-  protected static readonly ACCELERATOR_SECRET_MANAGER_KEY_DESCRIPTION = 'AWS Accelerator Secret manager Kms Key';
-
-  /**
-   * Accelerator secrets manager encryption key arn SSM parameter name
-   */
-  protected static readonly ACCELERATOR_SECRET_MANAGER_KEY_ARN_PARAMETER_NAME =
-    '/accelerator/kms/secret-manager/key-arn';
-  /**
-   * Accelerator S3 encryption key alias, S3 CMK use to encrypt buckets
-   * This key is created in logging stack
-   */
-  protected static readonly ACCELERATOR_S3_KEY_ALIAS = 'alias/accelerator/kms/s3/key';
-  /**
-   * Accelerator S3 encryption key description, S3 CMK use to encrypt buckets
-   * This key is created in logging stack
-   */
-  protected static readonly ACCELERATOR_S3_KEY_DESCRIPTION = 'AWS Accelerator S3 Kms Key';
-  /**
-   * Accelerator CloudWatch Log encryption key arn SSM parameter name
-   */
-  protected static readonly ACCELERATOR_CLOUDWATCH_LOG_KEY_ARN_PARAMETER_NAME = '/accelerator/kms/cloudwatch/key-arn';
-  /**
-   * Accelerator CloudWatch Log encryption key alias used to encrypt cloudwatch log groups
-   * This key is created in Prepare, Accounts and Logging stacks
-   */
-  protected static readonly ACCELERATOR_CLOUDWATCH_LOG_KEY_ALIAS = 'alias/accelerator/kms/cloudwatch/key';
-  /**
-   * Accelerator CloudWatch Log encryption key description used to encrypt cloudwatch log groups
-   * This key is created in Prepare, Accounts and Logging stacks
-   */
-  protected static readonly ACCELERATOR_CLOUDWATCH_LOG_KEY_DESCRIPTION = 'AWS Accelerator CloudWatch Kms Key';
-
-  /**
-   * Accelerator CloudWatch Log replication encryption key alias used to encrypt kinesis data stream
-   * This key is created in Logging stack
-   */
-  protected static readonly ACCELERATOR_CLOUDWATCH_LOG_REPLICATION_KEY_ALIAS =
-    'alias/accelerator/kms/replication/cloudwatch/logs/key';
-  /**
-   * Accelerator CloudWatch Log encryption replication key description used to encrypt kinesis data stream
-   * This key is created in Logging stack
-   */
-  protected static readonly ACCELERATOR_CLOUDWATCH_LOG_REPLICATION_KEY_DESCRIPTION =
-    'AWS Accelerator CloudWatch Logs Replication Kms Key';
-  /**
-   * Accelerator Backup encryption key alias
-   * Organization stack creates this key to encrypt AWS backup
-   */
-  protected static readonly ACCELERATOR_AWS_BACKUP_KEY_ALIAS = 'alias/accelerator/kms/backup/key';
-
-  /**
-   * Accelerator Backup encryption key description
-   * Organization stack creates this key to encrypt AWS backup
-   */
-  protected static readonly ACCELERATOR_AWS_BACKUP_KEY_DESCRIPTION = 'AWS Accelerator Backup Kms Key';
-
-  /**
-   * Accelerator SNS encryption key alias
-   * SecurityAudit stack creates this key to encrypt AWS SNS topics
-   */
-  protected static readonly ACCELERATOR_SNS_KEY_ALIAS = 'alias/accelerator/kms/sns/key';
-  protected static readonly ACCELERATOR_SNS_TOPIC_KEY_ALIAS = 'alias/accelerator/kms/snstopic/key';
-  /**
-   * Accelerator SNS encryption key description
-   * SecurityAudit stack creates this key to encrypt AWS SNS topics
-   */
-  protected static readonly ACCELERATOR_SNS_KEY_DESCRIPTION = 'AWS Accelerator SNS Kms Key';
-  protected static readonly ACCELERATOR_SNS_TOPIC_KEY_DESCRIPTION = 'AWS Accelerator SNS Topic Kms Key';
-
-  /**
-   * Accelerator Secrets manager encryption key alias
-   */
-  protected static readonly ACCELERATOR_SECRETS_MANAGER_KEY_ALIAS = '/accelerator/kms/secrets-manager/key';
-  /**
-   * Accelerator Secrets manager encryption key description
-   */
-  protected static readonly ACCELERATOR_SECRETS_MANAGER_KEY_DESCRIPTION = 'AWS Accelerator Secrets Manager Kms Key';
-
-  /**
-   * Accelerator Central SNS Topic key arn
-   */
-  protected static readonly ACCELERATOR_SNS_TOPIC_KEY_ARN_PARAMETER_NAME = '/accelerator/kms/snstopic/key-arn';
-  protected static readonly ACCELERATOR_SSM_SNS_TOPIC_PARAMETER_ACCESS_ROLE_NAME =
-    'AWSAccelerator-SnsTopic-KeyArnParam-Role';
-  /**
-   * Accelerator Lambda Log encryption key alias
-   * Accounts stack creates this key to encrypt lambda environment variables
-   */
-  protected static readonly ACCELERATOR_LAMBDA_KEY_ALIAS = 'alias/accelerator/kms/lambda/key';
-
-  /**
-   * Accelerator Lambda Log encryption key description
-   * Key stack creates this key to encrypt Accelerator Audit account S3 encryption.
-   * Audit account S3 buckets are accessed by every accounts to publish security services data
-   */
-  protected static readonly ACCELERATOR_LAMBDA_KEY_DESCRIPTION = 'AWS Accelerator Lambda Kms Key';
-  /**
-   * Accelerator  Lambda Log encryption key arn SSM parameter name
-   */
-  protected static readonly ACCELERATOR_LAMBDA_KEY_ARN_PARAMETER_NAME = '/accelerator/kms/lambda/key-arn';
-
-  /**
-   * @Deprecated
-   * Accelerator encryption key alias, this key is no longer in use, it will be removed in future iteration
-   */
-  protected static readonly ACCELERATOR_KEY_ALIAS = 'alias/accelerator/kms/key';
-
-  /**
-   * @Deprecated
-   * Accelerator encryption key alias, this key is no longer in use, it will be removed in future iteration
-   */
-  protected static readonly ACCELERATOR_KEY_DESCRIPTION = 'AWS Accelerator Kms Key';
-
-  /**
-   * Accelerator management encryption key alias
-   * Prepare stack creates this key to encrypt DynamoDB and CT SNS notification
-   */
-  protected static readonly ACCELERATOR_MANAGEMENT_KEY_ALIAS = 'alias/accelerator/management/kms/key';
-
-  /**
-   * Accelerator management encryption key alias
-   * Prepare stack creates this key to encrypt DynamoDB and CT SNS notification
-   */
-  protected static readonly ACCELERATOR_MANAGEMENT_KEY_DESCRIPTION = 'AWS Accelerator Management Account Kms Key';
-
-  /**
-   * Accelerator management encryption key alias
-   * Prepare stack creates this key to encrypt DynamoDB and CT SNS notification
-   */
-  protected static readonly ACCELERATOR_MANAGEMENT_KEY_ARN_PARAMETER_NAME = '/accelerator/management/kms/key-arn';
-
-  /**
-   * Accelerator assets kms key alias
-   */
-  protected static readonly ACCELERATOR_ASSETS_KEY_ARN_PARAMETER_NAME = '/accelerator/assets/kms/key';
-
-  /**
-   * Accelerator assets kms key description
-   */
-  protected static readonly ACCELERATOR_ASSETS_KEY_DESCRIPTION = 'Key used to encrypt solution assets';
-
-  /**
-   * Accelerator assets kms key description
-   */
-  protected static readonly ACCELERATOR_ASSETS_CROSS_ACCOUNT_SSM_PARAMETER_ACCESS_ROLE_NAME =
-    'AWSAccelerator-AssetsBucket-KeyArnParam-Role';
-
-  /**
-   * Service Catalog Principal Association Propagation Role
-   */
-  public static readonly ACCELERATOR_SERVICE_CATALOG_PROPAGATION_ROLE_NAME =
-    'AWSAccelerator-CrossAccount-ServiceCatalog-Role';
+  protected organizationId: string | undefined;
 
   /**
    * Accelerator SSM parameters
@@ -390,20 +211,37 @@ export abstract class AcceleratorStack extends cdk.Stack {
    */
   protected ssmParameters: { logicalId: string; parameterName: string; stringValue: string }[];
 
+  public acceleratorResourceNames: AcceleratorResourceNames;
+
+  /**
+   * List of supported partitions for Service Linked Role creation
+   */
+  protected serviceLinkedRoleSupportedPartitionList: string[] = ['aws', 'aws-cn', 'aws-us-gov'];
+
+  /**
+   * Nag suppression input list
+   */
+  protected nagSuppressionInputs: NagSuppressionDetailType[] = [];
+
   protected constructor(scope: Construct, id: string, props: AcceleratorStackProps) {
     super(scope, id, props);
 
     this.logger = createLogger([cdk.Stack.of(this).stackName]);
     this.props = props;
     this.ssmParameters = [];
+    this.organizationId = props.organizationConfig.getOrganizationId();
+
+    //
+    // Initialize resource names
+    this.acceleratorResourceNames = new AcceleratorResourceNames({ prefixes: props.prefixes });
 
     new cdk.aws_ssm.StringParameter(this, 'SsmParamStackId', {
-      parameterName: `/accelerator/${cdk.Stack.of(this).stackName}/stack-id`,
+      parameterName: this.getSsmPath(SsmResourceType.STACK_ID, [cdk.Stack.of(this).stackName]),
       stringValue: cdk.Stack.of(this).stackId,
     });
 
     new cdk.aws_ssm.StringParameter(this, 'SsmParamAcceleratorVersion', {
-      parameterName: `/accelerator/${cdk.Stack.of(this).stackName}/version`,
+      parameterName: this.getSsmPath(SsmResourceType.VERSION, [cdk.Stack.of(this).stackName]),
       stringValue: version,
     });
   }
@@ -441,7 +279,7 @@ export abstract class AcceleratorStack extends cdk.Stack {
     }
   }
 
-  protected isIncluded(deploymentTargets: DeploymentTargets): boolean {
+  public isIncluded(deploymentTargets: DeploymentTargets): boolean {
     // Explicit Denies
     if (
       this.isRegionExcluded(deploymentTargets.excludedRegions) ||
@@ -498,15 +336,18 @@ export abstract class AcceleratorStack extends cdk.Stack {
     }
   }
 
-  protected getAccountIdsFromDeploymentTarget(deploymentTargets: DeploymentTargets): string[] {
+  public getAccountIdsFromDeploymentTarget(deploymentTargets: DeploymentTargets): string[] {
     const accountIds: string[] = [];
 
     for (const ou of deploymentTargets.organizationalUnits ?? []) {
       // debug: processing ou
       if (ou === 'Root') {
-        for (const account of this.props.accountsConfig.accountIds ?? []) {
-          // debug: accountId
-          this._addAccountId(accountIds, account.accountId);
+        for (const account of [
+          ...this.props.accountsConfig.mandatoryAccounts,
+          ...this.props.accountsConfig.workloadAccounts,
+        ]) {
+          const accountId = this.props.accountsConfig.getAccountId(account.name);
+          this._addAccountId(accountIds, accountId);
         }
       } else {
         for (const account of [
@@ -515,7 +356,6 @@ export abstract class AcceleratorStack extends cdk.Stack {
         ]) {
           if (ou === account.organizationalUnit) {
             const accountId = this.props.accountsConfig.getAccountId(account.name);
-            // debug: accountId
             this._addAccountId(accountIds, accountId);
           }
         }
@@ -545,7 +385,18 @@ export abstract class AcceleratorStack extends cdk.Stack {
     return accountIds;
   }
 
-  protected getVpcAccountIds(vpcItem: VpcConfig | VpcTemplatesConfig): string[] {
+  public getRegionsFromDeploymentTarget(deploymentTargets: DeploymentTargets): Region[] {
+    const regions: Region[] = [];
+    const enabledRegions = this.props.globalConfig.enabledRegions;
+    regions.push(
+      ...enabledRegions.filter(region => {
+        return !deploymentTargets?.excludedRegions?.includes(region);
+      }),
+    );
+    return regions;
+  }
+
+  public getVpcAccountIds(vpcItem: VpcConfig | VpcTemplatesConfig): string[] {
     let vpcAccountIds: string[];
 
     if (NetworkConfigTypes.vpcConfig.is(vpcItem)) {
@@ -560,15 +411,17 @@ export abstract class AcceleratorStack extends cdk.Stack {
     return vpcAccountIds;
   }
 
-  protected getAccountIdsFromShareTarget(shareTargets: ShareTargets): string[] {
+  public getAccountIdsFromShareTarget(shareTargets: ShareTargets): string[] {
     const accountIds: string[] = [];
 
     for (const ou of shareTargets.organizationalUnits ?? []) {
-      // debug: processing ou
       if (ou === 'Root') {
-        for (const account of this.props.accountsConfig.accountIds ?? []) {
-          // debug: accountId
-          this._addAccountId(accountIds, account.accountId);
+        for (const account of [
+          ...this.props.accountsConfig.mandatoryAccounts,
+          ...this.props.accountsConfig.workloadAccounts,
+        ]) {
+          const accountId = this.props.accountsConfig.getAccountId(account.name);
+          this._addAccountId(accountIds, accountId);
         }
       } else {
         for (const account of [
@@ -577,7 +430,6 @@ export abstract class AcceleratorStack extends cdk.Stack {
         ]) {
           if (ou === account.organizationalUnit) {
             const accountId = this.props.accountsConfig.getAccountId(account.name);
-            // debug: accountId
             this._addAccountId(accountIds, accountId);
           }
         }
@@ -586,7 +438,6 @@ export abstract class AcceleratorStack extends cdk.Stack {
 
     for (const account of shareTargets.accounts ?? []) {
       const accountId = this.props.accountsConfig.getAccountId(account);
-      // debug: accountId
       this._addAccountId(accountIds, accountId);
     }
 
@@ -601,7 +452,7 @@ export abstract class AcceleratorStack extends cdk.Stack {
     return false;
   }
 
-  protected isAccountExcluded(accounts: string[]): boolean {
+  public isAccountExcluded(accounts: string[]): boolean {
     for (const account of accounts ?? []) {
       if (cdk.Stack.of(this).account === this.props.accountsConfig.getAccountId(account)) {
         this.logger.info(`${account} account explicitly excluded`);
@@ -689,77 +540,42 @@ export abstract class AcceleratorStack extends cdk.Stack {
   }
 
   /**
-   * Add RAM resource shares to the stack.
+   * Returns the SSM parameter path for the given resource type and replacement strings.
+   * @see {@link SsmParameterPath} for resource type schema
    *
-   * @param item
-   * @param resourceShareName
-   * @param resourceArns
+   * @param resourceType
+   * @param replacements
+   * @returns
    */
-  protected addResourceShare(item: ResourceShareType, resourceShareName: string, resourceArns: string[]) {
-    // Build a list of principals to share to
-    const principals: string[] = [];
-
-    // Loop through all the defined OUs
-    for (const ouItem of item.shareTargets?.organizationalUnits ?? []) {
-      let ouArn = this.props.organizationConfig.getOrganizationalUnitArn(ouItem);
-      // AWS::RAM::ResourceShare expects the organizations ARN if
-      // sharing with the entire org (Root)
-      if (ouItem === 'Root') {
-        ouArn = ouArn.substring(0, ouArn.lastIndexOf('/')).replace('root', 'organization');
-      }
-      this.logger.info(`Share ${resourceShareName} with Organizational Unit ${ouItem}: ${ouArn}`);
-      principals.push(ouArn);
-    }
-
-    // Loop through all the defined accounts
-    for (const account of item.shareTargets?.accounts ?? []) {
-      const accountId = this.props.accountsConfig.getAccountId(account);
-      this.logger.info(`Share ${resourceShareName} with Account ${account}: ${accountId}`);
-      principals.push(accountId);
-    }
-
-    // Create the Resource Share
-    new ResourceShare(this, `${pascalCase(resourceShareName)}ResourceShare`, {
-      name: resourceShareName,
-      principals,
-      resourceArns: resourceArns,
-    });
+  public getSsmPath(resourceType: SsmResourceType, replacements: string[]) {
+    // Prefix applied to all SSM parameters
+    // Static for now, but leaving option to modify for future iterations
+    const ssmPrefix = this.props.prefixes.ssmParamName;
+    return new SsmParameterPath(ssmPrefix, resourceType, replacements).parameterPath;
   }
 
   /**
-   * Get the resource ID from a RAM share.
-   *
-   * @param resourceShareName
-   * @param itemType
-   * @param owningAccountId
+   * Function to get list of targets by type organization unit or account for given scp
+   * @param targetName
+   * @param targetType
+   * @returns
    */
-  protected getResourceShare(
-    resourceShareName: string,
-    itemType: string,
-    owningAccountId: string,
-    kmsKey: cdk.aws_kms.Key,
-    vpcName?: string,
-  ): IResourceShareItem {
-    // Generate a logical ID
-    const resourceName = resourceShareName.split('_')[0];
-    const logicalId = vpcName
-      ? `${vpcName}${resourceName}${itemType.split(':')[1]}`
-      : `${resourceName}${itemType.split(':')[1]}`;
+  protected getScpNamesForTarget(targetName: string, targetType: 'ou' | 'account'): string[] {
+    const scps: string[] = [];
 
-    // Lookup resource share
-    const resourceShare = ResourceShare.fromLookup(this, pascalCase(`${logicalId}Share`), {
-      resourceShareOwner: ResourceShareOwner.OTHER_ACCOUNTS,
-      resourceShareName: resourceShareName,
-      owningAccountId,
-    });
-
-    // Represents the item shared by RAM
-    return ResourceShareItem.fromLookup(this, pascalCase(`${logicalId}`), {
-      resourceShare,
-      resourceShareItemType: itemType,
-      kmsKey,
-      logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
-    });
+    for (const serviceControlPolicy of this.props.organizationConfig.serviceControlPolicies) {
+      if (targetType === 'ou' && serviceControlPolicy.deploymentTargets.organizationalUnits) {
+        if (serviceControlPolicy.deploymentTargets.organizationalUnits.indexOf(targetName) !== -1) {
+          scps.push(serviceControlPolicy.name);
+        }
+      }
+      if (targetType === 'account' && serviceControlPolicy.deploymentTargets.accounts) {
+        if (serviceControlPolicy.deploymentTargets.accounts.indexOf(targetName) !== -1) {
+          scps.push(serviceControlPolicy.name);
+        }
+      }
+    }
+    return scps;
   }
 
   /**
@@ -786,7 +602,7 @@ export abstract class AcceleratorStack extends cdk.Stack {
   /**
    * Get the IAM principals for the organization.
    */
-  protected getOrgPrincipals(organizationId: string | undefined): cdk.aws_iam.IPrincipal {
+  public getOrgPrincipals(organizationId: string | undefined): cdk.aws_iam.IPrincipal {
     if (this.props.partition === 'aws-cn' || !this.props.organizationConfig.enable) {
       const accountIds = this.props.accountsConfig.getAccountIds();
       if (accountIds) {
@@ -815,13 +631,13 @@ export abstract class AcceleratorStack extends cdk.Stack {
   protected generatePolicyReplacements(policyPath: string, returnTempPath: boolean, organizationId?: string): string {
     // Transform policy document
     let policyContent: string = JSON.stringify(require(policyPath));
-    const acceleratorPrefix = 'AWSAccelerator';
+    const acceleratorPrefix = this.props.prefixes.accelerator;
     const acceleratorPrefixNoDash = acceleratorPrefix.endsWith('-')
       ? acceleratorPrefix.slice(0, -1)
       : acceleratorPrefix;
 
     const additionalReplacements: { [key: string]: string | string[] } = {
-      '\\${ACCELERATOR_DEFAULT_PREFIX_SHORTHAND}': acceleratorPrefix === 'AWSAccelerator' ? 'AWSA' : acceleratorPrefix,
+      '\\${ACCELERATOR_DEFAULT_PREFIX_SHORTHAND}': acceleratorPrefix.substring(0, 4).toUpperCase(),
       '\\${ACCELERATOR_PREFIX_ND}': acceleratorPrefixNoDash,
       '\\${ACCELERATOR_PREFIX_LND}': acceleratorPrefixNoDash.toLowerCase(),
       '\\${ACCOUNT_ID}': cdk.Stack.of(this).account,
@@ -957,7 +773,7 @@ export abstract class AcceleratorStack extends cdk.Stack {
           `-KmsKey`,
         cdk.aws_ssm.StringParameter.valueForStringParameter(
           this,
-          `/accelerator/kms/${this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.kmsKey}/key-arn`,
+          `${this.props.prefixes.ssmParamName}/kms/${this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.kmsKey}/key-arn`,
         ),
       ) as cdk.aws_kms.Key;
     } else {
@@ -968,7 +784,7 @@ export abstract class AcceleratorStack extends cdk.Stack {
         pascalCase(`AcceleratorGetKey-${appName}-${device.deviceName}-${device.ebs!.kmsKeyId}`),
         cdk.aws_ssm.StringParameter.valueForStringParameter(
           this,
-          `/accelerator/security-stack/ebsDefaultVolumeEncryptionKeyArn`,
+          `${this.props.prefixes.ssmParamName}/security-stack/ebsDefaultVolumeEncryptionKeyArn`,
         ),
       ) as cdk.aws_kms.Key;
     }
@@ -988,7 +804,10 @@ export abstract class AcceleratorStack extends cdk.Stack {
     const kmsKeyEntity = cdk.aws_kms.Key.fromKeyArn(
       this,
       pascalCase(`AcceleratorGetKey-${appName}-${device.deviceName}-${device.ebs!.kmsKeyId}`),
-      cdk.aws_ssm.StringParameter.valueForStringParameter(this, `/accelerator/kms/${device.ebs!.kmsKeyId}/key-arn`),
+      cdk.aws_ssm.StringParameter.valueForStringParameter(
+        this,
+        `${this.props.prefixes.ssmParamName}/kms/${device.ebs!.kmsKeyId}/key-arn`,
+      ),
     ) as cdk.aws_kms.Key;
     return {
       deleteOnTermination: device.ebs!.deleteOnTermination,
@@ -1011,19 +830,526 @@ export abstract class AcceleratorStack extends cdk.Stack {
     }
   }
 
-  protected isCrossAccountNaclSource(naclItem: string | NetworkAclSubnetSelection): boolean {
-    if (typeof naclItem === 'string') {
-      return false;
-    }
-    const accountId = cdk.Stack.of(this).account;
-    const naclAccount = this.props.accountsConfig.getAccountId(naclItem.account);
-    const region = cdk.Stack.of(this).region;
-    const naclRegion = naclItem.region;
+  /**
+   * Create Access Analyzer Service Linked role
+   *
+   * @remarks
+   * Access Analyzer Service linked role is created when organization is enabled and accessAnalyzer flag is ON.
+   */
+  protected createAccessAnalyzerServiceLinkedRole(cloudwatchKey: cdk.aws_kms.Key, lambdaKey: cdk.aws_kms.Key) {
+    if (
+      this.props.organizationConfig.enable &&
+      this.props.securityConfig.accessAnalyzer.enable &&
+      this.serviceLinkedRoleSupportedPartitionList.includes(this.props.partition)
+    ) {
+      this.createServiceLinkedRole(ServiceLinkedRoleType.ACCESS_ANALYZER, cloudwatchKey, lambdaKey);
 
-    if (naclRegion && accountId === naclAccount && region === naclRegion) {
-      return false;
-    } else {
-      return true;
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/AccessAnalyzerServiceLinkedRole/CreateServiceLinkedRoleFunction/ServiceRole/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/AccessAnalyzerServiceLinkedRole/CreateServiceLinkedRoleFunction/ServiceRole/DefaultPolicy/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/AccessAnalyzerServiceLinkedRole/CreateServiceLinkedRoleProvider/framework-onEvent/ServiceRole/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/AccessAnalyzerServiceLinkedRole/CreateServiceLinkedRoleProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+    }
+  }
+
+  /**
+   * Create GuardDuty Service Linked role
+   *
+   * @remarks
+   * GuardDuty Service linked role is created when organization is enabled and guardduty flag is ON.
+   */
+  protected createGuardDutyServiceLinkedRole(cloudwatchKey: cdk.aws_kms.Key, lambdaKey: cdk.aws_kms.Key) {
+    if (
+      this.props.organizationConfig.enable &&
+      this.props.securityConfig.centralSecurityServices.guardduty.enable &&
+      this.serviceLinkedRoleSupportedPartitionList.includes(this.props.partition)
+    ) {
+      this.createServiceLinkedRole(ServiceLinkedRoleType.GUARDDUTY, cloudwatchKey, lambdaKey);
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/GuardDutyServiceLinkedRole/CreateServiceLinkedRoleFunction/ServiceRole/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/GuardDutyServiceLinkedRole/CreateServiceLinkedRoleFunction/ServiceRole/DefaultPolicy/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/GuardDutyServiceLinkedRole/CreateServiceLinkedRoleProvider/framework-onEvent/ServiceRole/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/GuardDutyServiceLinkedRole/CreateServiceLinkedRoleProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+    }
+  }
+
+  /**
+   * Create SecurityHub Service Linked role
+   *
+   * @remarks
+   * SecurityHub Service linked role is created when organization is enabled and securityHub flag is ON.
+   */
+  protected createSecurityHubServiceLinkedRole(cloudwatchKey: cdk.aws_kms.Key, lambdaKey: cdk.aws_kms.Key) {
+    if (
+      this.props.organizationConfig.enable &&
+      this.props.securityConfig.centralSecurityServices.securityHub.enable &&
+      this.serviceLinkedRoleSupportedPartitionList.includes(this.props.partition)
+    ) {
+      this.createServiceLinkedRole(ServiceLinkedRoleType.SECURITY_HUB, cloudwatchKey, lambdaKey);
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/SecurityHubServiceLinkedRole/CreateServiceLinkedRoleFunction/ServiceRole/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/SecurityHubServiceLinkedRole/CreateServiceLinkedRoleFunction/ServiceRole/DefaultPolicy/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/SecurityHubServiceLinkedRole/CreateServiceLinkedRoleProvider/framework-onEvent/ServiceRole/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/SecurityHubServiceLinkedRole/CreateServiceLinkedRoleProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+    }
+  }
+
+  /**
+   * Create Macie Service Linked role
+   *
+   * @remarks
+   * Macie Service linked role is created when organization is enabled and macie flag is ON.
+   */
+  protected createMacieServiceLinkedRole(cloudwatchKey: cdk.aws_kms.Key, lambdaKey: cdk.aws_kms.Key) {
+    if (
+      this.props.organizationConfig.enable &&
+      this.props.securityConfig.centralSecurityServices.macie.enable &&
+      this.serviceLinkedRoleSupportedPartitionList.includes(this.props.partition)
+    ) {
+      this.createServiceLinkedRole(ServiceLinkedRoleType.MACIE, cloudwatchKey, lambdaKey);
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/MacieServiceLinkedRole/CreateServiceLinkedRoleFunction/ServiceRole/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/MacieServiceLinkedRole/CreateServiceLinkedRoleFunction/ServiceRole/DefaultPolicy/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/MacieServiceLinkedRole/CreateServiceLinkedRoleProvider/framework-onEvent/ServiceRole/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/MacieServiceLinkedRole/CreateServiceLinkedRoleProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+    }
+  }
+
+  /**
+   * Create AutoScaling Service Linked role
+   *
+   * @remarks
+   * AutoScaling when ebsDefaultVolumeEncryption flag is ON. Or when firewall is used.
+   */
+  protected createAutoScalingServiceLinkedRole(cloudwatchKey: cdk.aws_kms.Key, lambdaKey: cdk.aws_kms.Key) {
+    if (
+      this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.enable &&
+      this.serviceLinkedRoleSupportedPartitionList.includes(this.props.partition)
+    ) {
+      this.createServiceLinkedRole(ServiceLinkedRoleType.AUTOSCALING, cloudwatchKey, lambdaKey);
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/AutoScalingServiceLinkedRole/CreateServiceLinkedRoleFunction/ServiceRole/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/AutoScalingServiceLinkedRole/CreateServiceLinkedRoleFunction/ServiceRole/DefaultPolicy/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/AutoScalingServiceLinkedRole/CreateServiceLinkedRoleProvider/framework-onEvent/ServiceRole/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/AutoScalingServiceLinkedRole/CreateServiceLinkedRoleProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+    }
+  }
+
+  /**
+   * Create AWS CLOUD9 Service Linked role
+   *
+   * @remarks
+   * AWS CLOUD9 when ebsDefaultVolumeEncryption flag is ON and partition is 'aws'
+   */
+  protected createAwsCloud9ServiceLinkedRole(cloudwatchKey: cdk.aws_kms.Key, lambdaKey: cdk.aws_kms.Key) {
+    if (
+      this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.enable &&
+      this.props.partition === 'aws'
+    ) {
+      this.createServiceLinkedRole(ServiceLinkedRoleType.AWS_CLOUD9, cloudwatchKey, lambdaKey);
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/AWSServiceRoleForAWSCloud9/CreateServiceLinkedRoleFunction/ServiceRole/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/AWSServiceRoleForAWSCloud9/CreateServiceLinkedRoleFunction/ServiceRole/DefaultPolicy/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/AWSServiceRoleForAWSCloud9/CreateServiceLinkedRoleProvider/framework-onEvent/ServiceRole/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/AWSServiceRoleForAWSCloud9/CreateServiceLinkedRoleProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource`,
+            reason: 'Custom resource Lambda role policy.',
+          },
+        ],
+      });
+    }
+  }
+
+  /**
+   * Create AWS Firewall Manager Service Linked role
+   *
+   * @remarks
+   * Service linked role is created in the partitions that allow it.
+   * Since it is used for delegated admin organizations need to be enabled
+   */
+  protected createAwsFirewallManagerServiceLinkedRole(
+    cloudwatchKey: cdk.aws_kms.Key,
+    lambdaKey: cdk.aws_kms.Key,
+  ): ServiceLinkedRole {
+    // create service linked roles only in the partitions that allow it
+    return this.createServiceLinkedRole(ServiceLinkedRoleType.FMS, cloudwatchKey, lambdaKey);
+  }
+  /**
+   * Function to create Service Linked Role for given type
+   * @param roleType {@link ServiceLinkedRoleType}
+   * @returns CreateServiceLinkedRole
+   *
+   * @remarks
+   * Service Linked Role creation is depended on the service configuration.
+   */
+  private createServiceLinkedRole(
+    roleType: string,
+    cloudwatchKey: cdk.aws_kms.Key,
+    lambdaKey: cdk.aws_kms.Key,
+  ): ServiceLinkedRole {
+    let serviceLinkedRole: ServiceLinkedRole | undefined;
+
+    switch (roleType) {
+      case ServiceLinkedRoleType.ACCESS_ANALYZER:
+        this.logger.debug('Create AccessAnalyzerServiceLinkedRole');
+        serviceLinkedRole = new ServiceLinkedRole(this, 'AccessAnalyzerServiceLinkedRole', {
+          awsServiceName: 'access-analyzer.amazonaws.com',
+          environmentEncryptionKmsKey: lambdaKey,
+          cloudWatchLogKmsKey: cloudwatchKey,
+          cloudWatchLogRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+          roleName: 'AWSServiceRoleForAccessAnalyzer',
+        });
+
+        break;
+      case ServiceLinkedRoleType.GUARDDUTY:
+        this.logger.debug('Create GuardDutyServiceLinkedRole');
+        new ServiceLinkedRole(this, 'GuardDutyServiceLinkedRole', {
+          awsServiceName: 'guardduty.amazonaws.com',
+          description: 'A service-linked role required for Amazon GuardDuty to access your resources. ',
+          environmentEncryptionKmsKey: lambdaKey,
+          cloudWatchLogKmsKey: cloudwatchKey,
+          cloudWatchLogRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+          roleName: 'AWSServiceRoleForAmazonGuardDuty',
+        });
+
+        break;
+      case ServiceLinkedRoleType.SECURITY_HUB:
+        if (
+          this.props.organizationConfig.enable &&
+          this.props.securityConfig.centralSecurityServices.securityHub.enable
+        ) {
+          this.logger.debug('Create SecurityHubServiceLinkedRole');
+          new ServiceLinkedRole(this, 'SecurityHubServiceLinkedRole', {
+            awsServiceName: 'securityhub.amazonaws.com',
+            description: 'A service-linked role required for AWS Security Hub to access your resources.',
+            environmentEncryptionKmsKey: lambdaKey,
+            cloudWatchLogKmsKey: cloudwatchKey,
+            cloudWatchLogRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+            roleName: 'AWSServiceRoleForSecurityHub',
+          });
+        }
+        break;
+      case ServiceLinkedRoleType.MACIE:
+        if (this.props.organizationConfig.enable && this.props.securityConfig.centralSecurityServices.macie.enable) {
+          this.logger.debug('Create MacieServiceLinkedRole');
+          new ServiceLinkedRole(this, 'MacieServiceLinkedRole', {
+            awsServiceName: 'macie.amazonaws.com',
+            environmentEncryptionKmsKey: lambdaKey,
+            cloudWatchLogKmsKey: cloudwatchKey,
+            cloudWatchLogRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+            roleName: 'AWSServiceRoleForAmazonMacie',
+          });
+        }
+        break;
+      case ServiceLinkedRoleType.AUTOSCALING:
+        this.logger.debug('Create AutoScalingServiceLinkedRole');
+        new ServiceLinkedRole(this, 'AutoScalingServiceLinkedRole', {
+          awsServiceName: 'autoscaling.amazonaws.com',
+          description:
+            'Default Service-Linked Role enables access to AWS Services and Resources used or managed by Auto Scaling',
+          environmentEncryptionKmsKey: lambdaKey,
+          cloudWatchLogKmsKey: cloudwatchKey,
+          cloudWatchLogRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+          roleName: 'AWSServiceRoleForAutoScaling',
+        });
+        break;
+      case ServiceLinkedRoleType.AWS_CLOUD9:
+        if (
+          this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.enable &&
+          this.props.partition === 'aws'
+        ) {
+          this.logger.debug('Create AutoScalingServiceLinkedRole');
+          new ServiceLinkedRole(this, 'AWSServiceRoleForAWSCloud9', {
+            awsServiceName: 'cloud9.amazonaws.com',
+            description: 'Service linked role for AWS Cloud9',
+            environmentEncryptionKmsKey: lambdaKey,
+            cloudWatchLogKmsKey: cloudwatchKey,
+            cloudWatchLogRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+            roleName: 'AWSServiceRoleForAWSCloud9',
+          });
+        }
+        break;
+      case ServiceLinkedRoleType.FMS:
+        this.logger.debug('Create FirewallManagerServiceLinkedRole');
+        new ServiceLinkedRole(this, 'FirewallManagerServiceLinkedRole', {
+          awsServiceName: 'fms.amazonaws.com',
+          environmentEncryptionKmsKey: lambdaKey,
+          cloudWatchLogKmsKey: cloudwatchKey,
+          cloudWatchLogRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+          roleName: 'AWSServiceRoleForFMS',
+        });
+        break;
+      default:
+        throw new Error(`Invalid service linked role type ${roleType}`);
+    }
+    return serviceLinkedRole!;
+  }
+
+  /**
+   * Function to get Accelerator key for given key type
+   * @param keyType {@type AcceleratorKeyType}
+   * @param customResourceLambdaCloudWatchLogKmsKey {@link cdk.aws_kms.IKey}
+   * @returns cdk.aws_kms.Key
+   */
+  protected getAcceleratorKey(
+    keyType: AcceleratorKeyType,
+    customResourceLambdaCloudWatchLogKmsKey?: cdk.aws_kms.IKey,
+  ): cdk.aws_kms.Key {
+    let key: cdk.aws_kms.Key | undefined;
+    switch (keyType) {
+      case AcceleratorKeyType.CLOUDWATCH_KEY:
+        key = cdk.aws_kms.Key.fromKeyArn(
+          this,
+          'AcceleratorGetCloudWatchKey',
+          cdk.aws_ssm.StringParameter.valueForStringParameter(
+            this,
+            this.acceleratorResourceNames.parameters.cloudWatchLogCmkArn,
+          ),
+        ) as cdk.aws_kms.Key;
+        break;
+      case AcceleratorKeyType.LAMBDA_KEY:
+        key = cdk.aws_kms.Key.fromKeyArn(
+          this,
+          'AcceleratorGetLambdaKey',
+          cdk.aws_ssm.StringParameter.valueForStringParameter(
+            this,
+            this.acceleratorResourceNames.parameters.lambdaCmkArn,
+          ),
+        ) as cdk.aws_kms.Key;
+        break;
+      case AcceleratorKeyType.CENTRAL_LOG_BUCKET:
+        key = new KeyLookup(this, 'AcceleratorCentralLogBucketKeyLookup', {
+          accountId: this.props.accountsConfig.getLogArchiveAccountId(),
+          keyRegion: this.props.centralizedLoggingRegion,
+          roleName: this.acceleratorResourceNames.roles.crossAccountCentralLogBucketCmkArnSsmParameterAccess,
+          keyArnParameterName: this.acceleratorResourceNames.parameters.centralLogBucketCmkArn,
+          kmsKey: customResourceLambdaCloudWatchLogKmsKey,
+          logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+          acceleratorPrefix: this.props.prefixes.accelerator,
+        }).getKey();
+        break;
+      default:
+        throw new Error(`Invalid key type ${keyType}`);
+    }
+
+    return key!;
+  }
+
+  /**
+   * Function to add resource suppressions by path
+   * @param inputs {@link NagSuppressionDetailType}
+   */
+  protected addResourceSuppressionsByPath(inputs: NagSuppressionDetailType[]): void {
+    for (const input of inputs) {
+      for (const detail of input.details) {
+        NagSuppressions.addResourceSuppressionsByPath(this, detail.path, [
+          { id: `AwsSolutions-${input.id}`, reason: detail.reason },
+        ]);
+      }
     }
   }
 }
