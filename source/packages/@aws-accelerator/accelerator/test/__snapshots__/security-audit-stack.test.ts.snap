@@ -77,9 +77,7 @@ exports[`SecurityAuditStack Construct(SecurityAuditStack):  Snapshot Test 1`] = 
                   ],
                 },
                 "StringEquals": {
-                  "aws:PrincipalOrgID": {
-                    "Ref": "Organization29A5FC3F",
-                  },
+                  "aws:PrincipalOrgID": "o-asdf123456",
                 },
               },
               "Effect": "Allow",
@@ -154,8 +152,8 @@ exports[`SecurityAuditStack Construct(SecurityAuditStack):  Snapshot Test 1`] = 
         },
         "accountIds": [
           "111111111111",
-          "222222222222",
           "333333333333",
+          "222222222222",
           "444444444444",
           "555555555555",
           "666666666666",
@@ -250,8 +248,8 @@ def script_handler(events, context):
         },
         "accountIds": [
           "111111111111",
-          "222222222222",
           "333333333333",
+          "222222222222",
           "444444444444",
           "555555555555",
           "666666666666",
@@ -644,9 +642,7 @@ def script_handler(events, context):
               ],
               "Condition": {
                 "StringEquals": {
-                  "aws:PrincipalOrgID": {
-                    "Ref": "Organization29A5FC3F",
-                  },
+                  "aws:PrincipalOrgID": "o-asdf123456",
                 },
               },
               "Effect": "Allow",
@@ -788,7 +784,7 @@ def script_handler(events, context):
                   {
                     "Ref": "AWS::Partition",
                   },
-                  ":sns:us-east-1:111111111111:AWSAccelerator-ControlTowerNotification",
+                  ":sns:us-east-1:111111111111:aws-accelerator-ControlTowerNotification",
                 ],
               ],
             },
@@ -801,7 +797,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 120,
       },
       "Type": "AWS::Lambda::Function",
@@ -831,7 +827,7 @@ def script_handler(events, context):
                     {
                       "Ref": "AWS::Partition",
                     },
-                    ":sns:us-east-1:111111111111:AWSAccelerator-ControlTowerNotification",
+                    ":sns:us-east-1:111111111111:aws-accelerator-ControlTowerNotification",
                   ],
                 ],
               },
@@ -929,7 +925,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1013,7 +1009,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1123,7 +1119,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1256,7 +1252,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1370,7 +1366,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1457,7 +1453,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1546,67 +1542,6 @@ def script_handler(events, context):
       },
       "Type": "AWS::IAM::Role",
     },
-    "CustomOrganizationsDescribeOrganizationCustomResourceProviderHandler4C6F49D1": {
-      "DependsOn": [
-        "CustomOrganizationsDescribeOrganizationCustomResourceProviderRole775854D5",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-222222222222-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
-        "Role": {
-          "Fn::GetAtt": [
-            "CustomOrganizationsDescribeOrganizationCustomResourceProviderRole775854D5",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs14.x",
-        "Timeout": 900,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "CustomOrganizationsDescribeOrganizationCustomResourceProviderRole775854D5": {
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Sub": "arn:\${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-          },
-        ],
-        "Policies": [
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": [
-                    "organizations:DescribeOrganization",
-                  ],
-                  "Effect": "Allow",
-                  "Resource": "*",
-                },
-              ],
-              "Version": "2012-10-17",
-            },
-            "PolicyName": "Inline",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
     "CustomS3PutBucketReplicationCustomResourceProviderHandler1D75398C": {
       "DependsOn": [
         "CustomS3PutBucketReplicationCustomResourceProviderRole1C378488",
@@ -1624,7 +1559,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1711,7 +1646,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1807,7 +1742,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1911,7 +1846,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 180,
       },
       "Type": "AWS::Lambda::Function",
@@ -2000,7 +1935,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2213,9 +2148,7 @@ def script_handler(events, context):
               "Action": "sns:Publish",
               "Condition": {
                 "StringEquals": {
-                  "aws:PrincipalOrgID": {
-                    "Ref": "Organization29A5FC3F",
-                  },
+                  "aws:PrincipalOrgID": "o-asdf123456",
                 },
               },
               "Effect": "Allow",
@@ -2235,9 +2168,7 @@ def script_handler(events, context):
               ],
               "Condition": {
                 "StringEquals": {
-                  "aws:PrincipalOrgID": {
-                    "Ref": "Organization29A5FC3F",
-                  },
+                  "aws:PrincipalOrgID": "o-asdf123456",
                 },
               },
               "Effect": "Allow",
@@ -2313,9 +2244,7 @@ def script_handler(events, context):
               "Action": "sns:Publish",
               "Condition": {
                 "StringEquals": {
-                  "aws:PrincipalOrgID": {
-                    "Ref": "Organization29A5FC3F",
-                  },
+                  "aws:PrincipalOrgID": "o-asdf123456",
                 },
               },
               "Effect": "Allow",
@@ -2335,9 +2264,7 @@ def script_handler(events, context):
               ],
               "Condition": {
                 "StringEquals": {
-                  "aws:PrincipalOrgID": {
-                    "Ref": "Organization29A5FC3F",
-                  },
+                  "aws:PrincipalOrgID": "o-asdf123456",
                 },
               },
               "Effect": "Allow",
@@ -2434,9 +2361,7 @@ def script_handler(events, context):
               "Action": "sns:Publish",
               "Condition": {
                 "StringEquals": {
-                  "aws:PrincipalOrgID": {
-                    "Ref": "Organization29A5FC3F",
-                  },
+                  "aws:PrincipalOrgID": "o-asdf123456",
                 },
               },
               "Effect": "Allow",
@@ -2456,9 +2381,7 @@ def script_handler(events, context):
               ],
               "Condition": {
                 "StringEquals": {
-                  "aws:PrincipalOrgID": {
-                    "Ref": "Organization29A5FC3F",
-                  },
+                  "aws:PrincipalOrgID": "o-asdf123456",
                 },
               },
               "Effect": "Allow",
@@ -2490,22 +2413,6 @@ def script_handler(events, context):
         },
       },
       "Type": "AWS::SNS::Subscription",
-    },
-    "Organization29A5FC3F": {
-      "DeletionPolicy": "Delete",
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomOrganizationsDescribeOrganizationCustomResourceProviderHandler4C6F49D1",
-            "Arn",
-          ],
-        },
-        "partition": {
-          "Ref": "AWS::Partition",
-        },
-      },
-      "Type": "Custom::DescribeOrganization",
-      "UpdateReplacePolicy": "Delete",
     },
     "PutS3Encryption383DF0CE": {
       "Properties": {
@@ -2571,8 +2478,8 @@ def script_handler(events, context):
         },
         "accountIds": [
           "111111111111",
-          "222222222222",
           "333333333333",
+          "222222222222",
           "444444444444",
           "555555555555",
           "666666666666",
@@ -2720,8 +2627,8 @@ def script_handler(events, context):
         },
         "accountIds": [
           "111111111111",
-          "222222222222",
           "333333333333",
+          "222222222222",
           "444444444444",
           "555555555555",
           "666666666666",
@@ -2737,7 +2644,7 @@ def script_handler(events, context):
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SecurityAuditStack-222222222222-us-east-1/version",
         "Type": "String",
-        "Value": "1.3.2",
+        "Value": "1.4.3",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -2763,6 +2670,68 @@ def script_handler(events, context):
         },
       },
       "Type": "AWS::SSM::Parameter",
+    },
+    "WafEnableLoggingB6AE5B82": {
+      "Properties": {
+        "Content": {
+          "assumeRole": "{{ AutomationAssumeRole }}",
+          "description": "Adds logging to non-compliant WebACLs",
+          "mainSteps": [
+            {
+              "action": "aws:executeScript",
+              "inputs": {
+                "Handler": "handler",
+                "InputPayload": {
+                  "WebACLId": "{{ WebACLId }}",
+                },
+                "Runtime": "python3.7",
+                "Script": "REPLACED-JSON-PATH.json",
+              },
+              "name": "performRemediation",
+            },
+          ],
+          "parameters": {
+            "AutomationAssumeRole": {
+              "type": "String",
+            },
+            "WebACLId": {
+              "type": "String",
+            },
+          },
+          "schemaVersion": "0.3",
+        },
+        "DocumentType": "Automation",
+        "Name": "WAF-Enable-Logging",
+        "UpdateMethod": "NewVersion",
+      },
+      "Type": "AWS::SSM::Document",
+    },
+    "WafEnableLoggingShareDocument11FB34C8": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomSSMShareDocumentCustomResourceProviderLogGroup11AEA42B",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomSSMShareDocumentCustomResourceProviderHandler02D98C87",
+            "Arn",
+          ],
+        },
+        "accountIds": [
+          "111111111111",
+          "333333333333",
+          "222222222222",
+          "444444444444",
+          "555555555555",
+          "666666666666",
+        ],
+        "name": {
+          "Ref": "WafEnableLoggingB6AE5B82",
+        },
+      },
+      "Type": "Custom::SSMShareDocument",
+      "UpdateReplacePolicy": "Delete",
     },
   },
 }
@@ -2839,8 +2808,8 @@ exports[`delegatedAdminStack Construct(SecurityAuditStack):  Snapshot Test 1`] =
         },
         "accountIds": [
           "111111111111",
-          "222222222222",
           "333333333333",
+          "222222222222",
           "444444444444",
           "555555555555",
           "666666666666",
@@ -2935,8 +2904,8 @@ def script_handler(events, context):
         },
         "accountIds": [
           "111111111111",
-          "222222222222",
           "333333333333",
+          "222222222222",
           "444444444444",
           "555555555555",
           "666666666666",
@@ -3329,9 +3298,7 @@ def script_handler(events, context):
               ],
               "Condition": {
                 "StringEquals": {
-                  "aws:PrincipalOrgID": {
-                    "Ref": "Organization29A5FC3F",
-                  },
+                  "aws:PrincipalOrgID": "o-asdf123456",
                 },
               },
               "Effect": "Allow",
@@ -3473,7 +3440,7 @@ def script_handler(events, context):
                   {
                     "Ref": "AWS::Partition",
                   },
-                  ":sns:us-east-1:111111111111:AWSAccelerator-ControlTowerNotification",
+                  ":sns:us-east-1:111111111111:aws-accelerator-ControlTowerNotification",
                 ],
               ],
             },
@@ -3486,7 +3453,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 120,
       },
       "Type": "AWS::Lambda::Function",
@@ -3516,7 +3483,7 @@ def script_handler(events, context):
                     {
                       "Ref": "AWS::Partition",
                     },
-                    ":sns:us-east-1:111111111111:AWSAccelerator-ControlTowerNotification",
+                    ":sns:us-east-1:111111111111:aws-accelerator-ControlTowerNotification",
                   ],
                 ],
               },
@@ -3614,7 +3581,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3698,7 +3665,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3808,7 +3775,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3941,7 +3908,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4055,7 +4022,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4142,7 +4109,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4231,67 +4198,6 @@ def script_handler(events, context):
       },
       "Type": "AWS::IAM::Role",
     },
-    "CustomOrganizationsDescribeOrganizationCustomResourceProviderHandler4C6F49D1": {
-      "DependsOn": [
-        "CustomOrganizationsDescribeOrganizationCustomResourceProviderRole775854D5",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-222222222222-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
-        "Role": {
-          "Fn::GetAtt": [
-            "CustomOrganizationsDescribeOrganizationCustomResourceProviderRole775854D5",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs14.x",
-        "Timeout": 900,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "CustomOrganizationsDescribeOrganizationCustomResourceProviderRole775854D5": {
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Sub": "arn:\${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-          },
-        ],
-        "Policies": [
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": [
-                    "organizations:DescribeOrganization",
-                  ],
-                  "Effect": "Allow",
-                  "Resource": "*",
-                },
-              ],
-              "Version": "2012-10-17",
-            },
-            "PolicyName": "Inline",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
     "CustomS3PutBucketReplicationCustomResourceProviderHandler1D75398C": {
       "DependsOn": [
         "CustomS3PutBucketReplicationCustomResourceProviderRole1C378488",
@@ -4309,7 +4215,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4396,7 +4302,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4492,7 +4398,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4596,7 +4502,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 180,
       },
       "Type": "AWS::Lambda::Function",
@@ -4685,7 +4591,7 @@ def script_handler(events, context):
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4876,22 +4782,6 @@ def script_handler(events, context):
       "Type": "Custom::MacieCreateMember",
       "UpdateReplacePolicy": "Delete",
     },
-    "Organization29A5FC3F": {
-      "DeletionPolicy": "Delete",
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomOrganizationsDescribeOrganizationCustomResourceProviderHandler4C6F49D1",
-            "Arn",
-          ],
-        },
-        "partition": {
-          "Ref": "AWS::Partition",
-        },
-      },
-      "Type": "Custom::DescribeOrganization",
-      "UpdateReplacePolicy": "Delete",
-    },
     "PutS3Encryption383DF0CE": {
       "Properties": {
         "Content": {
@@ -4956,8 +4846,8 @@ def script_handler(events, context):
         },
         "accountIds": [
           "111111111111",
-          "222222222222",
           "333333333333",
+          "222222222222",
           "444444444444",
           "555555555555",
           "666666666666",
@@ -5105,8 +4995,8 @@ def script_handler(events, context):
         },
         "accountIds": [
           "111111111111",
-          "222222222222",
           "333333333333",
+          "222222222222",
           "444444444444",
           "555555555555",
           "666666666666",
@@ -5122,7 +5012,7 @@ def script_handler(events, context):
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SecurityAuditStack-222222222222-us-east-1/version",
         "Type": "String",
-        "Value": "1.3.2",
+        "Value": "1.4.3",
       },
       "Type": "AWS::SSM::Parameter",
     },

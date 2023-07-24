@@ -75,20 +75,12 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Default": "/accelerator/network/transitGateways/Network-Main/routeTables/Network-Main-Standalone/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
-    "SsmParameterValueacceleratornetworkvpcNetworkEndpointsalbappAalb01idC96584B6F00A464EAD1953AFF4B05118Parameter": {
-      "Default": "/accelerator/network/vpc/Network-Endpoints/alb/appA-alb-01/id",
-      "Type": "AWS::SSM::Parameter::Value<String>",
-    },
     "SsmParameterValueacceleratornetworkvpcNetworkEndpointsidC96584B6F00A464EAD1953AFF4B05118Parameter": {
       "Default": "/accelerator/network/vpc/Network-Endpoints/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
     "SsmParameterValueacceleratornetworkvpcNetworkEndpointsnetworkAclTestNACLidC96584B6F00A464EAD1953AFF4B05118Parameter": {
       "Default": "/accelerator/network/vpc/Network-Endpoints/networkAcl/TestNACL/id",
-      "Type": "AWS::SSM::Parameter::Value<String>",
-    },
-    "SsmParameterValueacceleratornetworkvpcNetworkEndpointsnlbappAnlb01idC96584B6F00A464EAD1953AFF4B05118Parameter": {
-      "Default": "/accelerator/network/vpc/Network-Endpoints/nlb/appA-nlb-01/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
     "SsmParameterValueacceleratornetworkvpcNetworkEndpointsroute53hostedZoneec2idC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -105,6 +97,10 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     },
     "SsmParameterValueacceleratornetworkvpcNetworkEndpointsroute53hostedZonelogsidC96584B6F00A464EAD1953AFF4B05118Parameter": {
       "Default": "/accelerator/network/vpc/Network-Endpoints/route53/hostedZone/logs/id",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+    "SsmParameterValueacceleratornetworkvpcNetworkEndpointsroute53hostedZones3idC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/network/vpc/Network-Endpoints/route53/hostedZone/s3/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
     "SsmParameterValueacceleratornetworkvpcNetworkEndpointsroute53hostedZonessmidC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -181,6 +177,14 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     },
     "SsmParameterValueacceleratornetworkvpcNetworkSecondaryrouteTableNetworkSecondaryBRtidC96584B6F00A464EAD1953AFF4B05118Parameter": {
       "Default": "/accelerator/network/vpc/Network-Secondary/routeTable/Network-Secondary-B-Rt/id",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+    "SsmParameterValueacceleratornetworkvpcNetworkSecondaryrouteTableNetworkSecondaryCRtidC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/network/vpc/Network-Secondary/routeTable/Network-Secondary-C-Rt/id",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+    "SsmParameterValueacceleratornetworkvpcNetworkSecondaryrouteTableNetworkSecondaryDRtidC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/network/vpc/Network-Secondary/routeTable/Network-Secondary-D-Rt/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
   },
@@ -266,6 +270,9 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           {
             "Ref": "SsmParameterValueacceleratornetworkvpcNetworkEndpointsroute53hostedZonelogsidC96584B6F00A464EAD1953AFF4B05118Parameter",
           },
+          {
+            "Ref": "SsmParameterValueacceleratornetworkvpcNetworkEndpointsroute53hostedZones3idC96584B6F00A464EAD1953AFF4B05118Parameter",
+          },
         ],
         "partition": {
           "Ref": "AWS::Partition",
@@ -305,7 +312,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 15,
       },
       "Type": "AWS::Lambda::Function",
@@ -666,14 +673,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
             "Arn",
           ],
         },
-        "assumeRoleArn": "arn:aws:iam::444444444444:role/AWSAccelerator-VpcPeeringRole-us-east-1",
-        "invokingAccountID": "555555555555",
-        "parameterAccountID": "444444444444",
-        "parameterName": "/accelerator/network/vpcPeering/CrossAccount/id",
-        "parameterValue": {
-          "Ref": "CrossAccountVpcPeering9E0C69A2",
-        },
+        "invokingAccountId": "555555555555",
+        "parameterAccountIds": [
+          "444444444444",
+        ],
+        "parameters": [
+          {
+            "name": "/accelerator/network/vpcPeering/CrossAccount/id",
+            "value": {
+              "Ref": "CrossAccountVpcPeering9E0C69A2",
+            },
+          },
+        ],
         "region": "us-east-1",
+        "roleName": "AWSAccelerator-CrossAccountSsmParameterShare",
         "uuid": "REPLACED-UUID",
       },
       "Type": "Custom::SsmPutParameterValue",
@@ -696,7 +709,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -811,7 +824,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -902,7 +915,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -993,7 +1006,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1082,7 +1095,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1192,7 +1205,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1300,7 +1313,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1368,98 +1381,6 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         ],
       },
       "Type": "AWS::IAM::Role",
-    },
-    "ListenerNetworkEndpointsappAAlb01appAListener2": {
-      "Properties": {
-        "Certificates": [
-          {},
-        ],
-        "DefaultActions": [
-          {
-            "ForwardConfig": {
-              "TargetGroups": [
-                {
-                  "TargetGroupArn": {
-                    "Ref": "NetworkEndpointsappAalbtg176E11B7D",
-                  },
-                },
-              ],
-            },
-            "TargetGroupArn": {
-              "Ref": "NetworkEndpointsappAalbtg176E11B7D",
-            },
-            "Type": "forward",
-          },
-        ],
-        "LoadBalancerArn": {
-          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkEndpointsalbappAalb01idC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "Port": 80,
-        "Protocol": "HTTP",
-      },
-      "Type": "AWS::ElasticLoadBalancingV2::Listener",
-    },
-    "ListenerNetworkEndpointsappANlb01appAListener1": {
-      "Properties": {
-        "AlpnPolicy": [],
-        "Certificates": [
-          {},
-        ],
-        "DefaultActions": [
-          {
-            "ForwardConfig": {
-              "TargetGroups": [
-                {
-                  "TargetGroupArn": {
-                    "Ref": "NetworkEndpointsappAnlbtg19C910FB9",
-                  },
-                },
-              ],
-            },
-            "TargetGroupArn": {
-              "Ref": "NetworkEndpointsappAnlbtg19C910FB9",
-            },
-            "Type": "forward",
-          },
-        ],
-        "LoadBalancerArn": {
-          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkEndpointsnlbappAnlb01idC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "Port": 80,
-        "Protocol": "TCP",
-      },
-      "Type": "AWS::ElasticLoadBalancingV2::Listener",
-    },
-    "ListenerNetworkEndpointsappANlb01appAListener2": {
-      "Properties": {
-        "AlpnPolicy": [],
-        "Certificates": [
-          {},
-        ],
-        "DefaultActions": [
-          {
-            "ForwardConfig": {
-              "TargetGroups": [
-                {
-                  "TargetGroupArn": {
-                    "Ref": "NetworkEndpointsappAnlbtg2EE7F2886",
-                  },
-                },
-              ],
-            },
-            "TargetGroupArn": {
-              "Ref": "NetworkEndpointsappAnlbtg2EE7F2886",
-            },
-            "Type": "forward",
-          },
-        ],
-        "LoadBalancerArn": {
-          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkEndpointsnlbappAnlb01idC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "Port": 80,
-        "Protocol": "TCP",
-      },
-      "Type": "AWS::ElasticLoadBalancingV2::Listener",
     },
     "NetworkDxgwNetworkMainCoreAssociation1B0096A1": {
       "Properties": {
@@ -1603,121 +1524,17 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       },
       "Type": "AWS::EC2::TransitGatewayRouteTablePropagation",
     },
-    "NetworkEndpointsTestNACLinbound1": {
-      "Properties": {
-        "CidrBlock": {
-          "Fn::GetAtt": [
-            "NetworkEndpointsTestNacl20IngressNaclRule139869A8",
-            "ipv4CidrBlock",
-          ],
-        },
-        "Egress": false,
-        "NetworkAclId": {
-          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkEndpointsnetworkAclTestNACLidC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "PortRange": {
-          "From": -1,
-          "To": -1,
-        },
-        "Protocol": -1,
-        "RuleAction": "allow",
-        "RuleNumber": 20,
-      },
-      "Type": "AWS::EC2::NetworkAclEntry",
-    },
-    "NetworkEndpointsTestNACLoutbound1": {
-      "Properties": {
-        "CidrBlock": {
-          "Fn::GetAtt": [
-            "NetworkEndpointsTestNacl20EgressNaclRuleDD93F104",
-            "ipv4CidrBlock",
-          ],
-        },
-        "Egress": true,
-        "NetworkAclId": {
-          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkEndpointsnetworkAclTestNACLidC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "PortRange": {
-          "From": -1,
-          "To": -1,
-        },
-        "Protocol": -1,
-        "RuleAction": "allow",
-        "RuleNumber": 20,
-      },
-      "Type": "AWS::EC2::NetworkAclEntry",
-    },
-    "NetworkEndpointsTestNacl20EgressNaclRuleDD93F104": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomGetIpamSubnetCidrCustomResourceProviderLogGroup655A9FB7",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomGetIpamSubnetCidrCustomResourceProviderHandler8C11DBB5",
-            "Arn",
-          ],
-        },
-        "roleArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":iam::555555555555:role/AWSAccelerator-GetIpamCidrRole-us-east-1",
-            ],
-          ],
-        },
-        "ssmSubnetIdPath": "/accelerator/network/vpc/Network-Endpoints/subnet/Network-Endpoints-A/id",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::GetIpamSubnetCidr",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "NetworkEndpointsTestNacl20IngressNaclRule139869A8": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomGetIpamSubnetCidrCustomResourceProviderLogGroup655A9FB7",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomGetIpamSubnetCidrCustomResourceProviderHandler8C11DBB5",
-            "Arn",
-          ],
-        },
-        "roleArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":iam::555555555555:role/AWSAccelerator-GetIpamCidrRole-us-east-1",
-            ],
-          ],
-        },
-        "ssmSubnetIdPath": "/accelerator/network/vpc/Network-Endpoints/subnet/Network-Endpoints-A/id",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::GetIpamSubnetCidr",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "NetworkEndpointsToInspectionVpcPeeringE81AF602": {
+    "NetworkEndpointsToSecondaryVpcPeering08A08BA2": {
       "Properties": {
         "PeerOwnerId": "555555555555",
         "PeerRegion": "us-east-1",
         "PeerVpcId": {
-          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkInspectionidC96584B6F00A464EAD1953AFF4B05118Parameter",
+          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkSecondaryidC96584B6F00A464EAD1953AFF4B05118Parameter",
         },
         "Tags": [
           {
             "Key": "Name",
-            "Value": "NetworkEndpointsToInspection",
+            "Value": "NetworkEndpointsToSecondary",
           },
         ],
         "VpcId": {
@@ -1759,78 +1576,6 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         },
       },
       "Type": "AWS::Route53Resolver::ResolverQueryLoggingConfigAssociation",
-    },
-    "NetworkEndpointsappAalbtg176E11B7D": {
-      "Properties": {
-        "HealthCheckEnabled": true,
-        "HealthCheckPort": "80",
-        "HealthCheckProtocol": "HTTP",
-        "Matcher": {},
-        "Name": "appA-alb-tg-1",
-        "Port": 80,
-        "Protocol": "HTTP",
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "appA-alb-tg-1",
-          },
-        ],
-        "TargetType": "instance",
-        "VpcId": {
-          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkEndpointsidC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-      },
-      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
-    },
-    "NetworkEndpointsappAnlbtg19C910FB9": {
-      "Properties": {
-        "HealthCheckEnabled": true,
-        "HealthCheckPort": "80",
-        "HealthCheckProtocol": "TCP",
-        "Matcher": {},
-        "Name": "appA-nlb-tg-1",
-        "Port": 80,
-        "Protocol": "TCP",
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "appA-nlb-tg-1",
-          },
-        ],
-        "TargetType": "instance",
-        "VpcId": {
-          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkEndpointsidC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-      },
-      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
-    },
-    "NetworkEndpointsappAnlbtg2EE7F2886": {
-      "Properties": {
-        "HealthCheckEnabled": true,
-        "HealthCheckPort": "80",
-        "HealthCheckProtocol": "TCP",
-        "Matcher": {},
-        "Name": "appA-nlb-tg-2",
-        "Port": 80,
-        "Protocol": "TCP",
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "appA-nlb-tg-2",
-          },
-        ],
-        "TargetType": "ip",
-        "Targets": {
-          "Fn::GetAtt": [
-            "appAnlbtg2ipLookupB24081DE",
-            "ipAddresses",
-          ],
-        },
-        "VpcId": {
-          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkEndpointsidC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-      },
-      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
     },
     "NetworkEndpointsexampleRuleRuleAssociationB302A795": {
       "Properties": {
@@ -1963,9 +1708,9 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       },
       "Type": "AWS::EC2::TransitGatewayRoute",
     },
-    "NetworkMainCore103000016acceleratorvpnStaticRoute674FF3C8": {
+    "NetworkMainCore10300016acceleratorvpnStaticRoute1A702C47": {
       "Properties": {
-        "DestinationCidrBlock": "10.300.0.0/16",
+        "DestinationCidrBlock": "10.30.0.0/16",
         "TransitGatewayAttachmentId": {
           "Ref": "AcceleratorVpnVpnTransitGatewayAttachmentFBF8EE77",
         },
@@ -2046,6 +1791,218 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       },
       "Type": "Custom::GetTransitGatewayAttachment",
       "UpdateReplacePolicy": "Delete",
+    },
+    "NetworkSecondaryTestNacl105EgressNaclRuleA32FBE84": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomGetIpamSubnetCidrCustomResourceProviderLogGroup655A9FB7",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomGetIpamSubnetCidrCustomResourceProviderHandler8C11DBB5",
+            "Arn",
+          ],
+        },
+        "region": "us-east-1",
+        "roleArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":iam::444444444444:role/AWSAccelerator-GetIpamCidrRole",
+            ],
+          ],
+        },
+        "ssmSubnetIdPath": "/accelerator/network/vpc/SharedServices-Ipam-East/subnet/SharedServices-A/id",
+        "uuid": "REPLACED-UUID",
+      },
+      "Type": "Custom::GetIpamSubnetCidr",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "NetworkSecondaryTestNacl105IngressNaclRule02EE83A1": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomGetIpamSubnetCidrCustomResourceProviderLogGroup655A9FB7",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomGetIpamSubnetCidrCustomResourceProviderHandler8C11DBB5",
+            "Arn",
+          ],
+        },
+        "region": "us-east-1",
+        "roleArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":iam::444444444444:role/AWSAccelerator-GetIpamCidrRole",
+            ],
+          ],
+        },
+        "ssmSubnetIdPath": "/accelerator/network/vpc/SharedServices-Ipam-East/subnet/SharedServices-A/id",
+        "uuid": "REPLACED-UUID",
+      },
+      "Type": "Custom::GetIpamSubnetCidr",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "NetworkSecondaryTestNacl106EgressNaclRule04845A6D": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomGetIpamSubnetCidrCustomResourceProviderLogGroup655A9FB7",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomGetIpamSubnetCidrCustomResourceProviderHandler8C11DBB5",
+            "Arn",
+          ],
+        },
+        "region": "us-west-2",
+        "roleArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":iam::444444444444:role/AWSAccelerator-GetIpamCidrRole",
+            ],
+          ],
+        },
+        "ssmSubnetIdPath": "/accelerator/network/vpc/SharedServices-Ipam-West/subnet/SharedServices-A/id",
+        "uuid": "REPLACED-UUID",
+      },
+      "Type": "Custom::GetIpamSubnetCidr",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "NetworkSecondaryTestNacl106IngressNaclRuleCBC09801": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomGetIpamSubnetCidrCustomResourceProviderLogGroup655A9FB7",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomGetIpamSubnetCidrCustomResourceProviderHandler8C11DBB5",
+            "Arn",
+          ],
+        },
+        "region": "us-west-2",
+        "roleArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":iam::444444444444:role/AWSAccelerator-GetIpamCidrRole",
+            ],
+          ],
+        },
+        "ssmSubnetIdPath": "/accelerator/network/vpc/SharedServices-Ipam-West/subnet/SharedServices-A/id",
+        "uuid": "REPLACED-UUID",
+      },
+      "Type": "Custom::GetIpamSubnetCidr",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "NetworkSecondaryTestNaclinbound4": {
+      "Properties": {
+        "CidrBlock": {
+          "Fn::GetAtt": [
+            "NetworkSecondaryTestNacl105IngressNaclRule02EE83A1",
+            "ipv4CidrBlock",
+          ],
+        },
+        "Egress": false,
+        "NetworkAclId": {
+          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkSecondarynetworkAclTestNaclidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+        "PortRange": {
+          "From": -1,
+          "To": -1,
+        },
+        "Protocol": -1,
+        "RuleAction": "allow",
+        "RuleNumber": 105,
+      },
+      "Type": "AWS::EC2::NetworkAclEntry",
+    },
+    "NetworkSecondaryTestNaclinbound5": {
+      "Properties": {
+        "CidrBlock": {
+          "Fn::GetAtt": [
+            "NetworkSecondaryTestNacl106IngressNaclRuleCBC09801",
+            "ipv4CidrBlock",
+          ],
+        },
+        "Egress": false,
+        "NetworkAclId": {
+          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkSecondarynetworkAclTestNaclidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+        "PortRange": {
+          "From": -1,
+          "To": -1,
+        },
+        "Protocol": -1,
+        "RuleAction": "deny",
+        "RuleNumber": 106,
+      },
+      "Type": "AWS::EC2::NetworkAclEntry",
+    },
+    "NetworkSecondaryTestNacloutbound4": {
+      "Properties": {
+        "CidrBlock": {
+          "Fn::GetAtt": [
+            "NetworkSecondaryTestNacl105EgressNaclRuleA32FBE84",
+            "ipv4CidrBlock",
+          ],
+        },
+        "Egress": true,
+        "NetworkAclId": {
+          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkSecondarynetworkAclTestNaclidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+        "PortRange": {
+          "From": -1,
+          "To": -1,
+        },
+        "Protocol": -1,
+        "RuleAction": "allow",
+        "RuleNumber": 105,
+      },
+      "Type": "AWS::EC2::NetworkAclEntry",
+    },
+    "NetworkSecondaryTestNacloutbound5": {
+      "Properties": {
+        "CidrBlock": {
+          "Fn::GetAtt": [
+            "NetworkSecondaryTestNacl106EgressNaclRule04845A6D",
+            "ipv4CidrBlock",
+          ],
+        },
+        "Egress": true,
+        "NetworkAclId": {
+          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkSecondarynetworkAclTestNaclidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+        "PortRange": {
+          "From": -1,
+          "To": -1,
+        },
+        "Protocol": -1,
+        "RuleAction": "deny",
+        "RuleNumber": 106,
+      },
+      "Type": "AWS::EC2::NetworkAclEntry",
     },
     "SharedServicesMainNetworkMainCorePropagationB8A9444B": {
       "Properties": {
@@ -2130,7 +2087,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NetworkAssociationsStack-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.3.2",
+        "Value": "1.4.3",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -2246,12 +2203,12 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Type": "Custom::SsmGetParameterValue",
       "UpdateReplacePolicy": "Delete",
     },
-    "SsmParamNetworkEndpointsToInspectionVpcPeering66A4E12A": {
+    "SsmParamNetworkEndpointsToSecondaryVpcPeeringED109890": {
       "Properties": {
-        "Name": "/accelerator/network/vpcPeering/NetworkEndpointsToInspection/id",
+        "Name": "/accelerator/network/vpcPeering/NetworkEndpointsToSecondary/id",
         "Type": "String",
         "Value": {
-          "Ref": "NetworkEndpointsToInspectionVpcPeeringE81AF602",
+          "Ref": "NetworkEndpointsToSecondaryVpcPeering08A08BA2",
         },
       },
       "Type": "AWS::SSM::Parameter",
@@ -2265,274 +2222,6 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         },
       },
       "Type": "AWS::SSM::Parameter",
-    },
-    "appAnlbtg2ipLookupB24081DE": {
-      "DeletionPolicy": "Delete",
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderframeworkonEvent694CD713",
-            "Arn",
-          ],
-        },
-        "assumeRoleName": "AWSAccelerator-GetNLBIPAddressLookup",
-        "partition": {
-          "Ref": "AWS::Partition",
-        },
-        "region": "us-east-1",
-        "targets": [
-          {
-            "account": "555555555555",
-            "nlbName": "appA-nlb-01",
-            "region": "us-east-1",
-          },
-        ],
-      },
-      "Type": "AWS::CloudFormation::CustomResource",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaEF941FA2": {
-      "DependsOn": [
-        "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaServiceRoleDefaultPolicyD488029A",
-        "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaServiceRole92332B48",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Handler": "index.handler",
-        "Role": {
-          "Fn::GetAtt": [
-            "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaServiceRole92332B48",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs14.x",
-        "Timeout": 15,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaLogGroup713C77F0": {
-      "DeletionPolicy": "Delete",
-      "Properties": {
-        "KmsKeyId": {
-          "Ref": "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "LogGroupName": {
-          "Fn::Join": [
-            "",
-            [
-              "/aws/lambda/",
-              {
-                "Ref": "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaEF941FA2",
-              },
-            ],
-          ],
-        },
-        "RetentionInDays": 3653,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaServiceRole92332B48": {
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM4",
-              "reason": "AWS Custom resource provider framework-role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-              ],
-            ],
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaServiceRoleDefaultPolicyD488029A": {
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM5",
-              "reason": "Allows only specific policy.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Resource": "*",
-              "Sid": "StsAssumeRole",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaServiceRoleDefaultPolicyD488029A",
-        "Roles": [
-          {
-            "Ref": "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaServiceRole92332B48",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderframeworkonEvent694CD713": {
-      "DependsOn": [
-        "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderframeworkonEventServiceRoleDefaultPolicy60AF00B7",
-        "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderframeworkonEventServiceRoleA31E553B",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-555555555555-us-east-1/appA-nlb-tg-2-ipLookup/appA-nlb-tg-2-ipLookupProvider)",
-        "Environment": {
-          "Variables": {
-            "USER_ON_EVENT_FUNCTION_ARN": {
-              "Fn::GetAtt": [
-                "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaEF941FA2",
-                "Arn",
-              ],
-            },
-          },
-        },
-        "Handler": "framework.onEvent",
-        "Role": {
-          "Fn::GetAtt": [
-            "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderframeworkonEventServiceRoleA31E553B",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs14.x",
-        "Timeout": 900,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderframeworkonEventServiceRoleA31E553B": {
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM4",
-              "reason": "AWS Custom resource provider framework-role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-              ],
-            ],
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderframeworkonEventServiceRoleDefaultPolicy60AF00B7": {
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM5",
-              "reason": "Allows only specific policy.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaEF941FA2",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaEF941FA2",
-                          "Arn",
-                        ],
-                      },
-                      ":*",
-                    ],
-                  ],
-                },
-              ],
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderframeworkonEventServiceRoleDefaultPolicy60AF00B7",
-        "Roles": [
-          {
-            "Ref": "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderframeworkonEventServiceRoleA31E553B",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
     },
   },
 }

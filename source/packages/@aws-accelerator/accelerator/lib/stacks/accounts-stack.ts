@@ -12,7 +12,6 @@
  */
 
 import * as cdk from 'aws-cdk-lib';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import { NagSuppressions } from 'cdk-nag';
 import { pascalCase } from 'change-case';
 import { Construct } from 'constructs';
@@ -26,7 +25,7 @@ import {
   MoveAccountRule,
   RevertScpChanges,
 } from '@aws-accelerator/constructs';
-import { AcceleratorStack, AcceleratorStackProps } from './accelerator-stack';
+import { AcceleratorKeyType, AcceleratorStack, AcceleratorStackProps } from './accelerator-stack';
 
 export interface AccountsStackProps extends AcceleratorStackProps {
   readonly configDirPath: string;
@@ -47,13 +46,13 @@ export class AccountsStack extends AcceleratorStack {
         'AcceleratorGetCloudWatchKey',
         cdk.aws_ssm.StringParameter.valueForStringParameter(
           this,
-          AcceleratorStack.ACCELERATOR_CLOUDWATCH_LOG_KEY_ARN_PARAMETER_NAME,
+          this.acceleratorResourceNames.parameters.cloudWatchLogCmkArn,
         ),
       ) as cdk.aws_kms.Key;
     } else {
       this.cloudwatchKey = new cdk.aws_kms.Key(this, 'AcceleratorCloudWatchKey', {
-        alias: AcceleratorStack.ACCELERATOR_CLOUDWATCH_LOG_KEY_ALIAS,
-        description: AcceleratorStack.ACCELERATOR_CLOUDWATCH_LOG_KEY_DESCRIPTION,
+        alias: this.acceleratorResourceNames.customerManagedKeys.cloudWatchLog.alias,
+        description: this.acceleratorResourceNames.customerManagedKeys.cloudWatchLog.description,
         enableKeyRotation: true,
         removalPolicy: cdk.RemovalPolicy.RETAIN,
       });
@@ -79,7 +78,7 @@ export class AccountsStack extends AcceleratorStack {
 
       this.ssmParameters.push({
         logicalId: 'AcceleratorCloudWatchKmsArnParameter',
-        parameterName: AcceleratorStack.ACCELERATOR_CLOUDWATCH_LOG_KEY_ARN_PARAMETER_NAME,
+        parameterName: this.acceleratorResourceNames.parameters.cloudWatchLogCmkArn,
         stringValue: this.cloudwatchKey.keyArn,
       });
     }
@@ -87,26 +86,19 @@ export class AccountsStack extends AcceleratorStack {
     // Exactly like CloudWatch key, reference a new key if in home
     // otherwise create new kms key
     if (props.globalConfig.homeRegion == cdk.Stack.of(this).region) {
-      this.lambdaKey = cdk.aws_kms.Key.fromKeyArn(
-        this,
-        'AcceleratorGetLambdaKey',
-        cdk.aws_ssm.StringParameter.valueForStringParameter(
-          this,
-          AcceleratorStack.ACCELERATOR_LAMBDA_KEY_ARN_PARAMETER_NAME,
-        ),
-      ) as cdk.aws_kms.Key;
+      this.lambdaKey = this.getAcceleratorKey(AcceleratorKeyType.LAMBDA_KEY);
     } else {
       // Create KMS Key for Lambda environment variable encryption
       this.lambdaKey = new cdk.aws_kms.Key(this, 'AcceleratorLambdaKey', {
-        alias: AcceleratorStack.ACCELERATOR_LAMBDA_KEY_ALIAS,
-        description: AcceleratorStack.ACCELERATOR_LAMBDA_KEY_DESCRIPTION,
+        alias: this.acceleratorResourceNames.customerManagedKeys.lambda.alias,
+        description: this.acceleratorResourceNames.customerManagedKeys.lambda.description,
         enableKeyRotation: true,
         removalPolicy: cdk.RemovalPolicy.RETAIN,
       });
 
       this.ssmParameters.push({
         logicalId: 'AcceleratorLambdaKmsArnParameter',
-        parameterName: AcceleratorStack.ACCELERATOR_LAMBDA_KEY_ARN_PARAMETER_NAME,
+        parameterName: this.acceleratorResourceNames.parameters.lambdaCmkArn,
         stringValue: this.lambdaKey.keyArn,
       });
     }
@@ -119,8 +111,11 @@ export class AccountsStack extends AcceleratorStack {
         new MoveAccountRule(this, 'MoveAccountRule', {
           globalRegion: props.globalRegion,
           homeRegion: props.globalConfig.homeRegion,
-          moveAccountRoleName: AcceleratorStack.ACCELERATOR_ACCOUNT_CONFIG_TABLE_PARAMETER_ACCESS_ROLE_NAME,
+          moveAccountRoleName: this.acceleratorResourceNames.roles.moveAccountConfig,
           commitId: props.configCommitId ?? '',
+          acceleratorPrefix: props.prefixes.accelerator,
+          configTableNameParameterName: this.acceleratorResourceNames.parameters.configTableName,
+          configTableArnParameterName: this.acceleratorResourceNames.parameters.configTableArn,
           kmsKey: this.cloudwatchKey,
           logRetentionInDays: props.globalConfig.cloudwatchLogRetentionInDays,
         });
@@ -164,6 +159,8 @@ export class AccountsStack extends AcceleratorStack {
 
       if (props.organizationConfig.enable) {
         let quarantineScpId = '';
+        const generatedScpFilePaths = [];
+
         // SCP is not supported in China Region.
         if (props.partition !== 'aws-cn') {
           const enablePolicyTypeScp = new EnablePolicyType(this, 'enablePolicyTypeScp', {
@@ -176,12 +173,25 @@ export class AccountsStack extends AcceleratorStack {
           for (const serviceControlPolicy of props.organizationConfig.serviceControlPolicies) {
             this.logger.info(`Adding service control policy (${serviceControlPolicy.name})`);
 
+            const scpPath = this.generatePolicyReplacements(
+              path.join(props.configDirPath, serviceControlPolicy.policy),
+              true,
+              this.organizationId,
+            );
+            generatedScpFilePaths.push({
+              name: serviceControlPolicy.name,
+              path: serviceControlPolicy.policy,
+              tempPath: scpPath,
+            });
+
             const scp = new Policy(this, serviceControlPolicy.name, {
               description: serviceControlPolicy.description,
               name: serviceControlPolicy.name,
               partition: props.partition,
-              path: this.generatePolicyReplacements(path.join(props.configDirPath, serviceControlPolicy.policy), true),
+              path: scpPath,
               type: PolicyType.SERVICE_CONTROL_POLICY,
+              strategy: serviceControlPolicy.strategy,
+              acceleratorPrefix: props.prefixes.accelerator,
               kmsKey: this.cloudwatchKey,
               logRetentionInDays: props.globalConfig.cloudwatchLogRetentionInDays,
             });
@@ -193,7 +203,7 @@ export class AccountsStack extends AcceleratorStack {
             ) {
               this.ssmParameters.push({
                 logicalId: pascalCase(`SsmParam${scp.name}ScpPolicyId`),
-                parameterName: `/accelerator/organizations/scp/${scp.name}/id`,
+                parameterName: `${props.prefixes.ssmParamName}/organizations/scp/${scp.name}/id`,
                 stringValue: scp.id,
               });
               quarantineScpId = scp.id;
@@ -204,71 +214,66 @@ export class AccountsStack extends AcceleratorStack {
                 `Attaching service control policy (${serviceControlPolicy.name}) to organizational unit (${organizationalUnit})`,
               );
 
-              new PolicyAttachment(this, pascalCase(`Attach_${scp.name}_${organizationalUnit}`), {
-                policyId: scp.id,
-                targetId: props.organizationConfig.getOrganizationalUnitId(organizationalUnit),
-                type: PolicyType.SERVICE_CONTROL_POLICY,
-                kmsKey: this.cloudwatchKey,
-                logRetentionInDays: props.globalConfig.cloudwatchLogRetentionInDays,
-              });
+              const ouPolicyAttachment = new PolicyAttachment(
+                this,
+                pascalCase(`Attach_${scp.name}_${organizationalUnit}`),
+                {
+                  policyId: scp.id,
+                  targetId: props.organizationConfig.getOrganizationalUnitId(organizationalUnit),
+                  type: PolicyType.SERVICE_CONTROL_POLICY,
+                  strategy: scp.strategy,
+                  configPolicyNames: this.getScpNamesForTarget(organizationalUnit, 'ou'),
+                  acceleratorPrefix: props.prefixes.accelerator,
+                  kmsKey: this.cloudwatchKey,
+                  logRetentionInDays: props.globalConfig.cloudwatchLogRetentionInDays,
+                },
+              );
+              ouPolicyAttachment.node.addDependency(scp);
             }
 
             for (const account of serviceControlPolicy.deploymentTargets.accounts ?? []) {
-              new PolicyAttachment(this, pascalCase(`Attach_${scp.name}_${account}`), {
+              this.logger.info(
+                `Attaching service control policy (${serviceControlPolicy.name}) to account (${account})`,
+              );
+
+              const accountPolicyAttachment = new PolicyAttachment(this, pascalCase(`Attach_${scp.name}_${account}`), {
                 policyId: scp.id,
                 targetId: props.accountsConfig.getAccountId(account),
                 type: PolicyType.SERVICE_CONTROL_POLICY,
+                strategy: scp.strategy,
+                configPolicyNames: this.getScpNamesForTarget(account, 'account'),
+                acceleratorPrefix: props.prefixes.accelerator,
                 kmsKey: this.cloudwatchKey,
                 logRetentionInDays: props.globalConfig.cloudwatchLogRetentionInDays,
               });
+              accountPolicyAttachment.node.addDependency(scp);
             }
           }
         }
 
-        if (props.securityConfig.accessAnalyzer.enable) {
-          this.logger.debug('Enable Service Access for access-analyzer.amazonaws.com');
-          new iam.CfnServiceLinkedRole(this, 'AccessAnalyzerServiceLinkedRole', {
-            awsServiceName: 'access-analyzer.amazonaws.com',
-          });
-        }
+        this.logger.debug('Enable Service Access for access-analyzer.amazonaws.com');
+        this.createAccessAnalyzerServiceLinkedRole(this.cloudwatchKey, this.lambdaKey);
 
-        if (props.securityConfig.centralSecurityServices.guardduty.enable) {
-          this.logger.debug('Enable Service Access for guardduty.amazonaws.com');
-          new iam.CfnServiceLinkedRole(this, 'GuardDutyServiceLinkedRole', {
-            awsServiceName: 'guardduty.amazonaws.com',
-            description: 'A service-linked role required for Amazon GuardDuty to access your resources. ',
-          });
-        }
+        this.logger.debug('Enable Service Access for guardduty.amazonaws.com');
+        this.createGuardDutyServiceLinkedRole(this.cloudwatchKey, this.lambdaKey);
 
-        if (props.securityConfig.centralSecurityServices.securityHub.enable) {
-          this.logger.debug('Enable Service Access for securityhub.amazonaws.com');
-          new iam.CfnServiceLinkedRole(this, 'SecurityHubServiceLinkedRole', {
-            awsServiceName: 'securityhub.amazonaws.com',
-            description: 'A service-linked role required for AWS Security Hub to access your resources.',
-          });
-        }
+        this.logger.debug('Enable Service Access for securityhub.amazonaws.com');
+        this.createSecurityHubServiceLinkedRole(this.cloudwatchKey, this.lambdaKey);
 
-        if (props.securityConfig.centralSecurityServices.macie.enable) {
-          this.logger.debug('Enable Service Access for macie.amazonaws.com');
-          new iam.CfnServiceLinkedRole(this, 'MacieServiceLinkedRole', {
-            awsServiceName: 'macie.amazonaws.com',
-          });
-        }
+        this.logger.debug('Enable Service Access for macie.amazonaws.com');
+        this.createMacieServiceLinkedRole(this.cloudwatchKey, this.lambdaKey);
 
         if (props.securityConfig.centralSecurityServices?.scpRevertChangesConfig?.enable) {
           this.logger.info(`Creating resources to revert modifications to scps`);
           new RevertScpChanges(this, 'RevertScpChanges', {
-            auditAccountId: props.accountsConfig.getAuditAccountId(),
-            logArchiveAccountId: props.accountsConfig.getLogArchiveAccountId(),
-            managementAccountId: props.accountsConfig.getManagementAccountId(),
             configDirPath: props.configDirPath,
             homeRegion: props.globalConfig.homeRegion,
             kmsKeyCloudWatch: this.cloudwatchKey,
             kmsKeyLambda: this.lambdaKey,
             logRetentionInDays: props.globalConfig.cloudwatchLogRetentionInDays,
-            managementAccountAccessRole: props.globalConfig.managementAccountAccessRole,
+            acceleratorTopicNamePrefix: props.prefixes.snsTopicName,
             snsTopicName: props.securityConfig.centralSecurityServices.scpRevertChangesConfig?.snsTopicName,
-            scpFilePaths: props.organizationConfig.serviceControlPolicies?.map(a => a.policy) ?? [],
+            scpFilePaths: generatedScpFilePaths,
           });
         }
 
@@ -298,7 +303,7 @@ export class AccountsStack extends AcceleratorStack {
           this.logger.info(`Creating function to attach quarantine scp to accounts`);
           const attachQuarantineFunction = new cdk.aws_lambda.Function(this, 'AttachQuarantineScpFunction', {
             code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, '../lambdas/attach-quarantine-scp/dist')),
-            runtime: cdk.aws_lambda.Runtime.NODEJS_14_X,
+            runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
             handler: 'index.handler',
             description: 'Lambda function to attach quarantine scp to new accounts',
             timeout: cdk.Duration.minutes(5),
@@ -390,6 +395,11 @@ export class AccountsStack extends AcceleratorStack {
     // Create SSM parameters
     //
     this.createSsmParameters();
+
+    //
+    // Add nag suppressions by path
+    //
+    this.addResourceSuppressionsByPath(this.nagSuppressionInputs);
 
     this.logger.info('Completed stack synthesis');
   }

@@ -32,13 +32,12 @@ import {
   CloudWatchToS3Firehose,
   KeyLookup,
   NewCloudWatchLogEvent,
-  Organization,
   S3PublicAccessBlock,
   SsmParameterLookup,
 } from '@aws-accelerator/constructs';
 
 import { AcceleratorElbRootAccounts, OptInRegions } from '../accelerator';
-import { AcceleratorStack, AcceleratorStackProps } from './accelerator-stack';
+import { AcceleratorKeyType, AcceleratorStack, AcceleratorStackProps } from './accelerator-stack';
 
 export type cloudwatchExclusionProcessedItem = {
   account: string;
@@ -49,7 +48,6 @@ export type cloudwatchExclusionProcessedItem = {
 
 export class LoggingStack extends AcceleratorStack {
   private cloudwatchKey: cdk.aws_kms.IKey;
-  private organizationId: string | undefined;
   private lambdaKey: cdk.aws_kms.IKey;
   private centralLogsBucketName: string;
   private centralLogsBucket: CentralLogsBucket | undefined;
@@ -61,11 +59,8 @@ export class LoggingStack extends AcceleratorStack {
     super(scope, id, props);
 
     this.centralLogsBucketName = `${
-      AcceleratorStack.ACCELERATOR_CENTRAL_LOGS_BUCKET_NAME_PREFIX
+      this.acceleratorResourceNames.bucketPrefixes.centralLogs
     }-${this.props.accountsConfig.getLogArchiveAccountId()}-${this.props.centralizedLoggingRegion}`;
-
-    // Set Organization ID
-    this.setOrganizationId();
 
     // Create S3 Key in all account
     const s3Key = this.createS3Key();
@@ -91,6 +86,8 @@ export class LoggingStack extends AcceleratorStack {
     } else {
       this.cloudwatchKey = this.createCloudWatchKey();
     }
+    // Create Notification Role for FMS Notifications if enabled
+    this.createFMSNotificationRole();
 
     // create kms key for Lambda environment encryption
     // the Lambda environment encryption key for the management account
@@ -100,24 +97,17 @@ export class LoggingStack extends AcceleratorStack {
       (cdk.Stack.of(this).region === this.props.globalConfig.homeRegion ||
         cdk.Stack.of(this).region === this.props.globalRegion)
     ) {
-      this.lambdaKey = cdk.aws_kms.Key.fromKeyArn(
-        this,
-        'AcceleratorGetLambdaKey',
-        cdk.aws_ssm.StringParameter.valueForStringParameter(
-          this,
-          AcceleratorStack.ACCELERATOR_LAMBDA_KEY_ARN_PARAMETER_NAME,
-        ),
-      );
+      this.lambdaKey = this.getAcceleratorKey(AcceleratorKeyType.LAMBDA_KEY);
     } else {
       this.lambdaKey = new cdk.aws_kms.Key(this, 'AcceleratorLambdaKey', {
-        alias: AcceleratorStack.ACCELERATOR_LAMBDA_KEY_ALIAS,
-        description: AcceleratorStack.ACCELERATOR_LAMBDA_KEY_DESCRIPTION,
+        alias: this.acceleratorResourceNames.customerManagedKeys.lambda.alias,
+        description: this.acceleratorResourceNames.customerManagedKeys.lambda.description,
         enableKeyRotation: true,
         removalPolicy: cdk.RemovalPolicy.RETAIN,
       });
       this.ssmParameters.push({
         logicalId: 'AcceleratorLambdaKmsArnParameter',
-        parameterName: AcceleratorStack.ACCELERATOR_LAMBDA_KEY_ARN_PARAMETER_NAME,
+        parameterName: this.acceleratorResourceNames.parameters.lambdaCmkArn,
         stringValue: this.lambdaKey.keyArn,
       });
     }
@@ -174,7 +164,7 @@ export class LoggingStack extends AcceleratorStack {
     //
     const serverAccessLogsBucket = new Bucket(this, 'AccessLogsBucket', {
       encryptionType: BucketEncryptionType.SSE_S3, // Server access logging does not support SSE-KMS
-      s3BucketName: `${AcceleratorStack.ACCELERATOR_S3_ACCESS_LOGS_BUCKET_NAME_PREFIX}-${cdk.Stack.of(this).account}-${
+      s3BucketName: `${this.acceleratorResourceNames.bucketPrefixes.s3AccessLogs}-${cdk.Stack.of(this).account}-${
         cdk.Stack.of(this).region
       }`,
       s3LifeCycleRules: this.getS3LifeCycleRules(this.props.globalConfig.logging.accessLogBucket?.lifecycleRules),
@@ -230,10 +220,11 @@ export class LoggingStack extends AcceleratorStack {
       this.centralLogBucketKey = new KeyLookup(this, 'AcceleratorCentralLogBucketKeyLookup', {
         accountId: this.props.accountsConfig.getLogArchiveAccountId(),
         keyRegion: this.props.centralizedLoggingRegion,
-        roleName: CentralLogsBucket.CROSS_ACCOUNT_SSM_PARAMETER_ACCESS_ROLE_NAME,
-        keyArnParameterName: CentralLogsBucket.KEY_ARN_PARAMETER_NAME,
+        roleName: this.acceleratorResourceNames.roles.crossAccountCentralLogBucketCmkArnSsmParameterAccess,
+        keyArnParameterName: this.acceleratorResourceNames.parameters.centralLogBucketCmkArn,
         kmsKey: this.cloudwatchKey,
         logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+        acceleratorPrefix: props.prefixes.accelerator,
       }).getKey();
     }
 
@@ -258,7 +249,7 @@ export class LoggingStack extends AcceleratorStack {
     if (cdk.Stack.of(this).account === this.props.accountsConfig.getLogArchiveAccountId()) {
       const elbAccessLogsBucket = new Bucket(this, 'ElbAccessLogsBucket', {
         encryptionType: BucketEncryptionType.SSE_S3, // Server access logging does not support SSE-KMS
-        s3BucketName: `${AcceleratorStack.ACCELERATOR_ELB_LOGS_BUCKET_PREFIX}-${cdk.Stack.of(this).account}-${
+        s3BucketName: `${this.acceleratorResourceNames.bucketPrefixes.elbLogs}-${cdk.Stack.of(this).account}-${
           cdk.Stack.of(this).region
         }`,
         replicationProps,
@@ -366,24 +357,12 @@ export class LoggingStack extends AcceleratorStack {
       this.elbLogBucketAddResourcePolicies(elbAccessLogsBucket.getS3Bucket());
     }
 
-    if (this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.enable) {
-      // create service linked role for autoscaling
-      // if ebs default encryption enabled and using a customer master key
-      new iam.CfnServiceLinkedRole(this, 'AutoScalingServiceLinkedRole', {
-        awsServiceName: 'autoscaling.amazonaws.com',
-        description:
-          'Default Service-Linked Role enables access to AWS Services and Resources used or managed by Auto Scaling',
-      });
-    }
-    if (
-      this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.enable &&
-      props.partition === 'aws'
-    ) {
-      new iam.CfnServiceLinkedRole(this, 'AWSServiceRoleForAWSCloud9', {
-        awsServiceName: 'cloud9.amazonaws.com',
-        description: 'Service linked role for AWS Cloud9',
-      });
-    }
+    this.logger.debug('Create AutoScaling service linked role');
+    this.createAutoScalingServiceLinkedRole(this.cloudwatchKey as cdk.aws_kms.Key, this.lambdaKey as cdk.aws_kms.Key);
+
+    this.logger.debug('Create AWS Cloud9 service linked role');
+    this.createAwsCloud9ServiceLinkedRole(this.cloudwatchKey as cdk.aws_kms.Key, this.lambdaKey as cdk.aws_kms.Key);
+
     // CloudWatchLogs to S3 replication
 
     // First, logs receiving account will setup Kinesis DataStream and Firehose
@@ -431,14 +410,14 @@ export class LoggingStack extends AcceleratorStack {
     //
     this.createMetadataBucket(serverAccessLogsBucket);
 
+    //
+    // Add nag suppressions by path
+    //
+    this.addResourceSuppressionsByPath(this.nagSuppressionInputs);
+
     this.logger.debug(`Stack synthesis complete`);
   }
 
-  private setOrganizationId() {
-    if (this.props.organizationConfig.enable) {
-      this.organizationId = new Organization(this, 'Organization').id;
-    }
-  }
   /**
    * Function to create S3 Key
    */
@@ -449,8 +428,8 @@ export class LoggingStack extends AcceleratorStack {
     if (cdk.Stack.of(this).account !== this.props.accountsConfig.getAuditAccountId()) {
       this.logger.debug(`Create S3 Key`);
       const s3Key = new cdk.aws_kms.Key(this, 'Accelerator3Key', {
-        alias: AcceleratorStack.ACCELERATOR_S3_KEY_ALIAS,
-        description: AcceleratorStack.ACCELERATOR_S3_KEY_DESCRIPTION,
+        alias: this.acceleratorResourceNames.customerManagedKeys.s3.alias,
+        description: this.acceleratorResourceNames.customerManagedKeys.s3.description,
         enableKeyRotation: true,
         removalPolicy: cdk.RemovalPolicy.RETAIN,
       });
@@ -491,7 +470,7 @@ export class LoggingStack extends AcceleratorStack {
 
       this.ssmParameters.push({
         logicalId: 'AcceleratorS3KmsArnParameter',
-        parameterName: AcceleratorStack.ACCELERATOR_S3_KEY_ARN_PARAMETER_NAME,
+        parameterName: this.acceleratorResourceNames.parameters.s3CmkArn,
         stringValue: s3Key.keyArn,
       });
 
@@ -507,8 +486,8 @@ export class LoggingStack extends AcceleratorStack {
   private createAuditAccountS3Key(): cdk.aws_kms.Key {
     this.logger.debug(`Create S3 Key`);
     const s3Key = new cdk.aws_kms.Key(this, 'AcceleratorAuditS3Key', {
-      alias: AcceleratorStack.ACCELERATOR_S3_KEY_ALIAS,
-      description: AcceleratorStack.ACCELERATOR_S3_KEY_DESCRIPTION,
+      alias: this.acceleratorResourceNames.customerManagedKeys.s3.alias,
+      description: this.acceleratorResourceNames.customerManagedKeys.s3.description,
       enableKeyRotation: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
@@ -578,7 +557,7 @@ export class LoggingStack extends AcceleratorStack {
 
     this.ssmParameters.push({
       logicalId: 'AcceleratorS3KmsArnParameter',
-      parameterName: AcceleratorStack.ACCELERATOR_S3_KEY_ARN_PARAMETER_NAME,
+      parameterName: this.acceleratorResourceNames.parameters.s3CmkArn,
       stringValue: s3Key.keyArn,
     });
 
@@ -589,7 +568,7 @@ export class LoggingStack extends AcceleratorStack {
    * Function to get VPC flow logs configuration when any VPC have S3 flow logs destination
    */
   private getS3FlowLogsDestinationConfig(): VpcFlowLogsConfig | undefined {
-    let vpcFlowLogs: VpcFlowLogsConfig;
+    let vpcFlowLogs: VpcFlowLogsConfig | undefined;
     for (const vpcItem of [...this.props.networkConfig.vpcs, ...(this.props.networkConfig.vpcTemplates ?? [])] ?? []) {
       // Get account IDs
       const vpcAccountIds = this.getVpcAccountIds(vpcItem);
@@ -599,7 +578,7 @@ export class LoggingStack extends AcceleratorStack {
         } else {
           vpcFlowLogs = this.props.networkConfig.vpcFlowLogs;
         }
-        if (vpcFlowLogs.destinations.includes('s3')) {
+        if (vpcFlowLogs && vpcFlowLogs.destinations.includes('s3')) {
           return vpcFlowLogs;
         }
       }
@@ -626,7 +605,7 @@ export class LoggingStack extends AcceleratorStack {
 
       const vpcFlowLogsBucket = new Bucket(this, 'AcceleratorVpcFlowLogsBucket', {
         encryptionType: BucketEncryptionType.SSE_KMS,
-        s3BucketName: `${AcceleratorStack.ACCELERATOR_VPC_FLOW_LOGS_BUCKET_NAME_PREFIX}-${cdk.Stack.of(this).account}-${
+        s3BucketName: `${this.acceleratorResourceNames.bucketPrefixes.vpcFlowLogs}-${cdk.Stack.of(this).account}-${
           cdk.Stack.of(this).region
         }`,
         kmsKey: s3Key,
@@ -669,7 +648,7 @@ export class LoggingStack extends AcceleratorStack {
 
       this.ssmParameters.push({
         logicalId: 'AcceleratorVpcFlowLogsBucketArnParameter',
-        parameterName: AcceleratorStack.ACCELERATOR_VPC_FLOW_LOGS_DESTINATION_S3_BUCKET_ARN_PARAMETER_NAME,
+        parameterName: this.acceleratorResourceNames.parameters.flowLogsDestinationBucketArn,
         stringValue: vpcFlowLogsBucket.getS3Bucket().bucketArn,
       });
     }
@@ -677,8 +656,8 @@ export class LoggingStack extends AcceleratorStack {
 
   private cloudwatchLogReceivingAccount(centralLogsBucketName: string, lambdaKey: cdk.aws_kms.IKey) {
     const logsReplicationKmsKey = new cdk.aws_kms.Key(this, 'LogsReplicationKey', {
-      alias: AcceleratorStack.ACCELERATOR_CLOUDWATCH_LOG_REPLICATION_KEY_ALIAS,
-      description: AcceleratorStack.ACCELERATOR_CLOUDWATCH_LOG_REPLICATION_KEY_DESCRIPTION,
+      alias: this.acceleratorResourceNames.customerManagedKeys.cloudWatchLogReplication.alias,
+      description: this.acceleratorResourceNames.customerManagedKeys.cloudWatchLogReplication.description,
       enableKeyRotation: true,
       // kms is used to encrypt kinesis data stream,
       // unlike data store like s3, rds, dynamodb no snapshot/object is encrypted
@@ -719,6 +698,7 @@ export class LoggingStack extends AcceleratorStack {
         this.props.partition === 'aws-cn' || !this.organizationId
           ? this.props.accountsConfig.getAccountIds()
           : undefined,
+      destinationName: `${this.props.prefixes.accelerator}CloudWatchToS3`,
     });
 
     // Setup Firehose to take records from Kinesis and place in S3
@@ -733,42 +713,11 @@ export class LoggingStack extends AcceleratorStack {
       homeRegion: this.props.globalConfig.homeRegion,
       lambdaKey: lambdaKey, // to encrypt lambda environment
       configDir: this.props.configDirPath,
+      prefixProcessingFunctionName: `${this.props.prefixes.accelerator}-FirehoseRecordsProcessor`,
+      glueDatabaseName: `${this.props.prefixes.databaseName}-subscription-database`,
+      transformationTableName: `${this.props.prefixes.databaseName}-firehose-transformation-table`,
     });
-    // FirehosePrefixProcessingLambda/ServiceRole AwsSolutions-IAM4: The IAM user, role, or group uses AWS managed policies.
-    NagSuppressions.addResourceSuppressionsByPath(
-      this,
-      `${this.stackName}/FirehoseToS3Setup/FirehosePrefixProcessingLambda/ServiceRole/Resource`,
-      [
-        {
-          id: 'AwsSolutions-IAM4',
-          reason: 'AWS Managed policy for Lambda basic execution attached.',
-        },
-      ],
-    );
 
-    NagSuppressions.addResourceSuppressionsByPath(
-      this,
-      `${this.stackName}/FirehoseToS3Setup/FirehoseS3ServiceRole/Resource`,
-      [
-        {
-          id: 'AwsSolutions-IAM5',
-          reason:
-            'Bucket permissions are wildcards to abort downloads and clean up objects. KMS permissions are wildcards to re-encrypt entities.',
-        },
-      ],
-    );
-
-    // Kinesis-Firehose-Stream-Dynamic-Partitioning AwsSolutions-KDF1: The Kinesis Data Firehose delivery stream does have server-side encryption enabled.
-    NagSuppressions.addResourceSuppressionsByPath(
-      this,
-      `${this.stackName}/FirehoseToS3Setup/Kinesis-Firehose-Stream-Dynamic-Partitioning`,
-      [
-        {
-          id: 'AwsSolutions-KDF1',
-          reason: 'Customer managed key is used to encrypt firehose delivery stream.',
-        },
-      ],
-    );
     return cloudwatchCfnDestination;
   }
   private cloudwatchLogCreatingAccount() {
@@ -779,7 +728,8 @@ export class LoggingStack extends AcceleratorStack {
       cdk.Stack.of(this).region +
       ':' +
       this.props.accountsConfig.getLogArchiveAccountId() +
-      ':destination:AWSAcceleratorCloudWatchToS3';
+      ':destination:' +
+      `${this.props.prefixes.accelerator}CloudWatchToS3`;
 
     // Since this is deployed organization wide, this role is required
     // https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CreateSubscriptionFilter-IAMrole.html
@@ -1018,7 +968,7 @@ export class LoggingStack extends AcceleratorStack {
   private lookupManagementAccountCloudWatchKey() {
     const cloudwatchKeyArn = cdk.aws_ssm.StringParameter.valueForStringParameter(
       this,
-      AcceleratorStack.ACCELERATOR_CLOUDWATCH_LOG_KEY_ARN_PARAMETER_NAME,
+      this.acceleratorResourceNames.parameters.cloudWatchLogCmkArn,
     );
 
     return cdk.aws_kms.Key.fromKeyArn(this, 'AcceleratorGetCloudWatchKey', cloudwatchKeyArn);
@@ -1026,8 +976,8 @@ export class LoggingStack extends AcceleratorStack {
 
   private createCloudWatchKey() {
     const cloudwatchKey = new cdk.aws_kms.Key(this, 'AcceleratorCloudWatchKey', {
-      alias: AcceleratorStack.ACCELERATOR_CLOUDWATCH_LOG_KEY_ALIAS,
-      description: AcceleratorStack.ACCELERATOR_CLOUDWATCH_LOG_KEY_DESCRIPTION,
+      alias: this.acceleratorResourceNames.customerManagedKeys.cloudWatchLog.alias,
+      description: this.acceleratorResourceNames.customerManagedKeys.cloudWatchLog.description,
       enableKeyRotation: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
@@ -1052,7 +1002,7 @@ export class LoggingStack extends AcceleratorStack {
 
     this.ssmParameters.push({
       logicalId: 'AcceleratorCloudWatchKmsArnParameter',
-      parameterName: '/accelerator/kms/cloudwatch/key-arn',
+      parameterName: this.acceleratorResourceNames.parameters.cloudWatchLogCmkArn,
       stringValue: cloudwatchKey.keyArn,
     });
 
@@ -1074,8 +1024,8 @@ export class LoggingStack extends AcceleratorStack {
 
       if (cdk.Stack.of(this).account == madAdminSecretAccountId && cdk.Stack.of(this).region == madAdminSecretRegion) {
         const key = new cdk.aws_kms.Key(this, 'AcceleratorSecretsManagerKmsKey', {
-          alias: AcceleratorStack.ACCELERATOR_SECRETS_MANAGER_KEY_ALIAS,
-          description: AcceleratorStack.ACCELERATOR_SECRETS_MANAGER_KEY_DESCRIPTION,
+          alias: this.acceleratorResourceNames.customerManagedKeys.secretsManager.alias,
+          description: this.acceleratorResourceNames.customerManagedKeys.secretsManager.description,
           enableKeyRotation: true,
           removalPolicy: cdk.RemovalPolicy.RETAIN,
         });
@@ -1104,14 +1054,14 @@ export class LoggingStack extends AcceleratorStack {
           this,
           'AcceleratorSecretsManagerKmsKeyArnParameter',
           {
-            parameterName: AcceleratorStack.ACCELERATOR_SECRET_MANAGER_KEY_ARN_PARAMETER_NAME,
+            parameterName: this.acceleratorResourceNames.parameters.secretsManagerCmkArn,
             stringValue: key.keyArn,
           },
         );
 
         // Create role to give access to Secret manager KSM arn parameter, this will be used by MAD account to give access to this KMS for MAD instance
         new cdk.aws_iam.Role(this, 'CrossAccountAcceleratorSecretsKmsArnSsmParamAccessRole', {
-          roleName: AcceleratorStack.ACCELERATOR_CROSS_ACCOUNT_SECRETS_KMS_ARN_PARAMETER_ROLE_NAME,
+          roleName: this.acceleratorResourceNames.roles.crossAccountSecretsCmkParameterAccess,
           assumedBy: this.getOrgPrincipals(this.organizationId),
           inlinePolicies: {
             default: new cdk.aws_iam.PolicyDocument({
@@ -1122,7 +1072,9 @@ export class LoggingStack extends AcceleratorStack {
                   resources: [secretsManagerKmsKeyArnParameter.parameterArn],
                   conditions: {
                     ArnLike: {
-                      'aws:PrincipalARN': [`arn:${cdk.Stack.of(this).partition}:iam::*:role/AWSAccelerator-*`],
+                      'aws:PrincipalARN': [
+                        `arn:${cdk.Stack.of(this).partition}:iam::*:role/${this.props.prefixes.accelerator}-*`,
+                      ],
                     },
                   },
                 }),
@@ -1132,7 +1084,9 @@ export class LoggingStack extends AcceleratorStack {
                   resources: ['*'],
                   conditions: {
                     ArnLike: {
-                      'aws:PrincipalARN': [`arn:${cdk.Stack.of(this).partition}:iam::*:role/AWSAccelerator-*`],
+                      'aws:PrincipalARN': [
+                        `arn:${cdk.Stack.of(this).partition}:iam::*:role/${this.props.prefixes.accelerator}-*`,
+                      ],
                     },
                   },
                 }),
@@ -1203,7 +1157,7 @@ export class LoggingStack extends AcceleratorStack {
       // Create SSM parameter
       this.ssmParameters.push({
         logicalId: 'AcceleratorKmsArnParameter-' + pascalCase(keyItem.name),
-        parameterName: `/accelerator/kms/${keyItem.name}/key-arn`,
+        parameterName: `${this.props.prefixes.ssmParamName}/kms/${keyItem.name}/key-arn`,
         stringValue: key.keyArn,
       });
 
@@ -1289,13 +1243,17 @@ export class LoggingStack extends AcceleratorStack {
       this.centralLogsBucket = new CentralLogsBucket(this, 'CentralLogsBucket', {
         s3BucketName: this.centralLogsBucketName,
         serverAccessLogsBucket: serverAccessLogsBucket,
-        kmsAliasName: 'alias/accelerator/central-logs/s3',
-        kmsDescription: 'AWS Accelerator Central Logs Bucket CMK',
+        kmsAliasName: this.acceleratorResourceNames.customerManagedKeys.centralLogsBucket.alias,
+        kmsDescription: this.acceleratorResourceNames.customerManagedKeys.centralLogsBucket.description,
         principalOrgIdCondition: this.getPrincipalOrgIdCondition(this.organizationId),
         orgPrincipals: this.getOrgPrincipals(this.organizationId),
         s3LifeCycleRules: this.getS3LifeCycleRules(this.props.globalConfig.logging.centralLogBucket?.lifecycleRules),
         awsPrincipalAccesses,
         bucketPrefixProps,
+        acceleratorPrefix: this.props.prefixes.accelerator,
+        crossAccountAccessRoleName:
+          this.acceleratorResourceNames.roles.crossAccountCentralLogBucketCmkArnSsmParameterAccess,
+        cmkArnSsmParameterName: this.acceleratorResourceNames.parameters.centralLogBucketCmkArn,
       });
 
       // AwsSolutions-IAM5: The IAM entity contains wildcard permissions and does not have a cdk_nag rule suppression with evidence for those permission.
@@ -1311,7 +1269,7 @@ export class LoggingStack extends AcceleratorStack {
         ],
       );
 
-      this.centralLogBucketAddResourcePolicies();
+      this.centralLogBucketAddResourcePolicies(this.centralLogsBucket);
     }
   }
 
@@ -1319,8 +1277,8 @@ export class LoggingStack extends AcceleratorStack {
     this.logger.info('Creating SNS topic in log archive account home region.');
 
     const topic = new cdk.aws_sns.Topic(this, `${pascalCase(snsTopic.name)}SNSTopic`, {
-      displayName: `AWS Accelerator - ${snsTopic.name}`,
-      topicName: `aws-accelerator-${snsTopic.name}`,
+      displayName: `${this.props.prefixes.snsTopicName}-${snsTopic.name}`,
+      topicName: `${this.props.prefixes.snsTopicName}-${snsTopic.name}`,
       masterKey: snsKey,
     });
     for (const email of snsTopic.emailAddresses) {
@@ -1342,17 +1300,18 @@ export class LoggingStack extends AcceleratorStack {
 
   private createSnsForwarderFunction() {
     const centralSnsKeyArn = new SsmParameterLookup(this, 'LookupCentralSnsKeyArnParameter', {
-      name: AcceleratorStack.ACCELERATOR_SNS_TOPIC_KEY_ARN_PARAMETER_NAME,
+      name: this.acceleratorResourceNames.parameters.snsTopicCmkArn,
       accountId: this.props.accountsConfig.getLogArchiveAccountId(),
       parameterRegion: cdk.Stack.of(this).region,
-      roleName: AcceleratorStack.ACCELERATOR_SSM_SNS_TOPIC_PARAMETER_ACCESS_ROLE_NAME,
+      roleName: this.acceleratorResourceNames.roles.snsTopicCmkArnParameterAccess,
       kmsKey: this.cloudwatchKey,
       logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+      acceleratorPrefix: this.props.prefixes.accelerator,
     }).value;
 
     this.snsForwarderFunction = new cdk.aws_lambda.Function(this, 'SnsTopicForwarderFunction', {
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, '../lambdas/sns-topic-forwarder/dist')),
-      runtime: cdk.aws_lambda.Runtime.NODEJS_14_X,
+      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
       handler: 'index.handler',
       description: 'Lambda function to forward Accelerator SNS Topics to log archive account',
       timeout: cdk.Duration.minutes(2),
@@ -1378,7 +1337,7 @@ export class LoggingStack extends AcceleratorStack {
         resources: [
           `arn:${cdk.Stack.of(this).partition}:sns:${
             cdk.Stack.of(this).region
-          }:${this.props.accountsConfig.getLogArchiveAccountId()}:aws-accelerator-*`,
+          }:${this.props.accountsConfig.getLogArchiveAccountId()}:${this.props.prefixes.snsTopicName}-*`,
         ],
       }),
     );
@@ -1419,8 +1378,8 @@ export class LoggingStack extends AcceleratorStack {
     this.logger.info(`Creating SNS topic ${snsTopic.name} in ${cdk.Stack.of(this).account}`);
 
     const topic = new cdk.aws_sns.Topic(this, `${pascalCase(snsTopic.name)}SNSTopic`, {
-      displayName: `AWS Accelerator - ${snsTopic.name}`,
-      topicName: `aws-accelerator-${snsTopic.name}`,
+      displayName: `${this.props.prefixes.snsTopicName}-${snsTopic.name}`,
+      topicName: `${this.props.prefixes.snsTopicName}-${snsTopic.name}`,
       masterKey: snsKey,
     });
 
@@ -1441,7 +1400,9 @@ export class LoggingStack extends AcceleratorStack {
           conditions: {
             ArnLike: {
               'aws:PrincipalARN': [
-                `arn:${cdk.Stack.of(this).partition}:iam::${cdk.Stack.of(this).account}:role/AWSAccelerator-FMS`,
+                `arn:${cdk.Stack.of(this).partition}:iam::${cdk.Stack.of(this).account}:role/${
+                  this.props.prefixes.accelerator
+                }-FMS`,
               ],
             },
           },
@@ -1449,16 +1410,12 @@ export class LoggingStack extends AcceleratorStack {
       );
     }
     topic.addSubscription(new cdk.aws_sns_subscriptions.LambdaSubscription(this.snsForwarderFunction!));
-    if (cdk.Stack.of(this).region === this.props.globalConfig.homeRegion) {
-      // Create Notification Role for FMS Notifications if enabled
-      this.createFMSNotificationRole();
-    }
   }
 
   private createCentralSnsKey() {
     this.centralSnsKey = new cdk.aws_kms.Key(this, 'AcceleratorSnsTopicKey', {
-      alias: AcceleratorStack.ACCELERATOR_SNS_TOPIC_KEY_ALIAS,
-      description: AcceleratorStack.ACCELERATOR_SNS_TOPIC_KEY_DESCRIPTION,
+      alias: this.acceleratorResourceNames.customerManagedKeys.snsTopic.alias,
+      description: this.acceleratorResourceNames.customerManagedKeys.snsTopic.description,
       enableKeyRotation: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -1520,14 +1477,14 @@ export class LoggingStack extends AcceleratorStack {
     );
 
     new cdk.aws_ssm.StringParameter(this, 'AcceleratorCentralSnsKmsArnParameter', {
-      parameterName: AcceleratorStack.ACCELERATOR_SNS_TOPIC_KEY_ARN_PARAMETER_NAME,
+      parameterName: this.acceleratorResourceNames.parameters.snsTopicCmkArn,
       stringValue: this.centralSnsKey.keyArn,
     });
 
     if (cdk.Stack.of(this).region === this.props.globalConfig.homeRegion) {
       // SSM parameter access IAM Role for central sns topic key
       new cdk.aws_iam.Role(this, 'CrossAccountCentralSnsTopicKMSArnSsmParamAccessRole', {
-        roleName: AcceleratorStack.ACCELERATOR_SSM_SNS_TOPIC_PARAMETER_ACCESS_ROLE_NAME,
+        roleName: this.acceleratorResourceNames.roles.snsTopicCmkArnParameterAccess,
         assumedBy: this.getOrgPrincipals(this.organizationId),
         inlinePolicies: {
           default: new cdk.aws_iam.PolicyDocument({
@@ -1537,7 +1494,7 @@ export class LoggingStack extends AcceleratorStack {
                 actions: ['ssm:GetParameters', 'ssm:GetParameter'],
                 resources: [
                   `arn:${cdk.Stack.of(this).partition}:ssm:*:*:parameter${
-                    AcceleratorStack.ACCELERATOR_SNS_TOPIC_KEY_ARN_PARAMETER_NAME
+                    this.acceleratorResourceNames.parameters.snsTopicCmkArn
                   }`,
                 ],
                 conditions: {
@@ -1545,7 +1502,9 @@ export class LoggingStack extends AcceleratorStack {
                     ...this.getPrincipalOrgIdCondition(this.organizationId),
                   },
                   ArnLike: {
-                    'aws:PrincipalARN': [`arn:${cdk.Stack.of(this).partition}:iam::*:role/AWSAccelerator-*`],
+                    'aws:PrincipalARN': [
+                      `arn:${cdk.Stack.of(this).partition}:iam::*:role/${this.props.prefixes.accelerator}-*`,
+                    ],
                   },
                 },
               }),
@@ -1558,7 +1517,9 @@ export class LoggingStack extends AcceleratorStack {
                     ...this.getPrincipalOrgIdCondition(this.organizationId),
                   },
                   ArnLike: {
-                    'aws:PrincipalARN': [`arn:${cdk.Stack.of(this).partition}:iam::*:role/AWSAccelerator-*`],
+                    'aws:PrincipalARN': [
+                      `arn:${cdk.Stack.of(this).partition}:iam::*:role/${this.props.prefixes.accelerator}-*`,
+                    ],
                   },
                 },
               }),
@@ -1582,8 +1543,8 @@ export class LoggingStack extends AcceleratorStack {
 
   private createSnsKey() {
     const snsKey = new cdk.aws_kms.Key(this, 'AcceleratorSnsTopicKey', {
-      alias: AcceleratorStack.ACCELERATOR_SNS_TOPIC_KEY_ALIAS,
-      description: AcceleratorStack.ACCELERATOR_SNS_TOPIC_KEY_DESCRIPTION,
+      alias: this.acceleratorResourceNames.customerManagedKeys.snsTopic.alias,
+      description: this.acceleratorResourceNames.customerManagedKeys.snsTopic.description,
       enableKeyRotation: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -1615,9 +1576,9 @@ export class LoggingStack extends AcceleratorStack {
           conditions: {
             ArnLike: {
               'aws:PrincipalARN': [
-                `arn:${cdk.Stack.of(this).partition}:iam::${
-                  cdk.Stack.of(this).account
-                }:role/AWSAccelerator-FMS-Notifications`,
+                `arn:${cdk.Stack.of(this).partition}:iam::${cdk.Stack.of(this).account}:role/${
+                  this.props.prefixes.accelerator
+                }-FMS-Notifications`,
               ],
             },
           },
@@ -1651,26 +1612,32 @@ export class LoggingStack extends AcceleratorStack {
         conditions: {
           ArnLike: {
             'aws:PrincipalARN': [
-              `arn:${cdk.Stack.of(this).partition}:iam::${cdk.Stack.of(this).account}:role/AWSAccelerator-*`,
+              `arn:${cdk.Stack.of(this).partition}:iam::${cdk.Stack.of(this).account}:role/${
+                this.props.prefixes.accelerator
+              }-*`,
             ],
           },
         },
       }),
     );
     new cdk.aws_ssm.StringParameter(this, 'AcceleratorCentralSnsKmsArnParameter', {
-      parameterName: AcceleratorStack.ACCELERATOR_SNS_TOPIC_KEY_ARN_PARAMETER_NAME,
+      parameterName: this.acceleratorResourceNames.parameters.snsTopicCmkArn,
       stringValue: snsKey.keyArn,
     });
 
     return snsKey;
   }
 
-  private centralLogBucketAddResourcePolicies() {
+  private centralLogBucketAddResourcePolicies(centralLogsBucket: CentralLogsBucket) {
     this.logger.info(`Adding central log bucket resource policies to KMS`);
-
+    const centralLogsBucketKey = centralLogsBucket.getS3Bucket().getKey();
     for (const attachment of this.props.globalConfig.logging.centralLogBucket?.kmsResourcePolicyAttachments ?? []) {
       const policyDocument = JSON.parse(
-        this.generatePolicyReplacements(path.join(this.props.configDirPath, attachment.policy), false),
+        this.generatePolicyReplacements(
+          path.join(this.props.configDirPath, attachment.policy),
+          false,
+          this.organizationId,
+        ),
       );
 
       // Create a statements list using the PolicyStatement factory
@@ -1678,24 +1645,27 @@ export class LoggingStack extends AcceleratorStack {
       for (const statement of policyDocument.Statement) {
         statements.push(cdk.aws_iam.PolicyStatement.fromJson(statement));
         for (const statement of statements) {
-          this.centralLogBucketKey?.addToResourcePolicy(statement);
+          centralLogsBucketKey?.addToResourcePolicy(statement);
         }
       }
-
-      this.logger.info(`Adding central log bucket resource policies to S3`);
-      const realCentralLogBucket = this.centralLogsBucket?.getS3Bucket().getS3Bucket();
-      for (const attachment of this.props.globalConfig.logging.centralLogBucket?.s3ResourcePolicyAttachments ?? []) {
-        const policyDocument = JSON.parse(
-          this.generatePolicyReplacements(path.join(this.props.configDirPath, attachment.policy), false),
-        );
-        // Create a statements list using the PolicyStatement factory
-        const statements: cdk.aws_iam.PolicyStatement[] = [];
-        for (const statement of policyDocument.Statement) {
-          statements.push(cdk.aws_iam.PolicyStatement.fromJson(statement));
-        }
-        for (const statement of statements) {
-          realCentralLogBucket?.addToResourcePolicy(statement);
-        }
+    }
+    this.logger.info(`Adding central log bucket resource policies to S3`);
+    const realCentralLogBucket = centralLogsBucket?.getS3Bucket().getS3Bucket();
+    for (const attachment of this.props.globalConfig.logging.centralLogBucket?.s3ResourcePolicyAttachments ?? []) {
+      const policyDocument = JSON.parse(
+        this.generatePolicyReplacements(
+          path.join(this.props.configDirPath, attachment.policy),
+          false,
+          this.organizationId,
+        ),
+      );
+      // Create a statements list using the PolicyStatement factory
+      const statements: cdk.aws_iam.PolicyStatement[] = [];
+      for (const statement of policyDocument.Statement) {
+        statements.push(cdk.aws_iam.PolicyStatement.fromJson(statement));
+      }
+      for (const statement of statements) {
+        realCentralLogBucket?.addToResourcePolicy(statement);
       }
     }
   }
@@ -1704,48 +1674,62 @@ export class LoggingStack extends AcceleratorStack {
     const fmsConfiguration = this.props.networkConfig.firewallManagerService;
 
     // Exit if Notification channels don't exist.
-    if (!fmsConfiguration?.notificationChannels || fmsConfiguration.notificationChannels.length === 0) {
+    if (
+      !fmsConfiguration?.notificationChannels ||
+      fmsConfiguration.notificationChannels.length === 0 ||
+      !this.props.networkConfig.firewallManagerService?.delegatedAdminAccount
+    ) {
       return;
     }
-    const roleName = `AWSAccelerator-FMS-Notifications`;
-    const auditAccountId = this.props.accountsConfig.getAuditAccountId();
+    if (
+      cdk.Stack.of(this).region === this.props.globalConfig.homeRegion &&
+      cdk.Stack.of(this).account ===
+        this.props.accountsConfig.getAccountId(this.props.networkConfig.firewallManagerService?.delegatedAdminAccount)
+    ) {
+      const roleName = `${this.props.prefixes.accelerator}-FMS-Notifications`;
+      const auditAccountId = this.props.accountsConfig.getAuditAccountId();
 
-    //Create Role for SNS Topic access from security config and global config
-    this.logger.info('Creating FMS Notification Channel Role AWSAccelerator - FMS');
-    const fmsRole = new cdk.aws_iam.Role(this, `aws-accelerator-fms`, {
-      roleName,
-      assumedBy: new cdk.aws_iam.ServicePrincipal('fms.amazonaws.com'),
-      inlinePolicies: {
-        default: new cdk.aws_iam.PolicyDocument({
-          statements: [
-            new cdk.aws_iam.PolicyStatement({
-              effect: cdk.aws_iam.Effect.ALLOW,
-              actions: ['sns:Publish'],
-              resources: ['*'],
-            }),
-            new cdk.aws_iam.PolicyStatement({
-              effect: cdk.aws_iam.Effect.ALLOW,
-              actions: ['kms:Encrypt', 'kms:Decrypt', 'kms:GenerateDataKey*', 'kms:DescribeKey'],
-              resources: [
-                `arn:${cdk.Stack.of(this).partition}:kms:*:${auditAccountId}:key/*`,
-                `arn:${cdk.Stack.of(this).partition}:kms:*:${cdk.Stack.of(this).account}:key/*`,
-              ],
-            }),
-          ],
-        }),
-      },
-    });
+      //Create Role for SNS Topic access from security config and global config
+      this.logger.info('Creating FMS Notification Channel Role AWSAccelerator - FMS');
+      const fmsRole = new cdk.aws_iam.Role(this, `aws-accelerator-fms`, {
+        roleName,
+        assumedBy: new cdk.aws_iam.ServicePrincipal('fms.amazonaws.com'),
+        inlinePolicies: {
+          default: new cdk.aws_iam.PolicyDocument({
+            statements: [
+              new cdk.aws_iam.PolicyStatement({
+                effect: cdk.aws_iam.Effect.ALLOW,
+                actions: ['sns:Publish'],
+                resources: ['*'],
+              }),
+              new cdk.aws_iam.PolicyStatement({
+                effect: cdk.aws_iam.Effect.ALLOW,
+                actions: ['kms:Encrypt', 'kms:Decrypt', 'kms:GenerateDataKey*', 'kms:DescribeKey'],
+                resources: [
+                  `arn:${cdk.Stack.of(this).partition}:kms:*:${auditAccountId}:key/*`,
+                  `arn:${cdk.Stack.of(this).partition}:kms:*:${cdk.Stack.of(this).account}:key/*`,
+                ],
+              }),
+            ],
+          }),
+        },
+      });
 
-    NagSuppressions.addResourceSuppressions(fmsRole, [
-      { id: 'AwsSolutions-IAM5', reason: 'Allow cross-account resources to encrypt KMS under this path.' },
-    ]);
+      NagSuppressions.addResourceSuppressions(fmsRole, [
+        { id: 'AwsSolutions-IAM5', reason: 'Allow cross-account resources to encrypt KMS under this path.' },
+      ]);
+    }
   }
 
   private elbLogBucketAddResourcePolicies(elbLogBucket: cdk.aws_s3.IBucket) {
     this.logger.info(`Adding elb log bucket resource policies to S3`);
     for (const attachment of this.props.globalConfig.logging.elbLogBucket?.s3ResourcePolicyAttachments ?? []) {
       const policyDocument = JSON.parse(
-        this.generatePolicyReplacements(path.join(this.props.configDirPath, attachment.policy), false),
+        this.generatePolicyReplacements(
+          path.join(this.props.configDirPath, attachment.policy),
+          false,
+          this.organizationId,
+        ),
       );
       // Create a statements list using the PolicyStatement factory
       const statements: cdk.aws_iam.PolicyStatement[] = [];
@@ -1761,8 +1745,8 @@ export class LoggingStack extends AcceleratorStack {
 
   private setupCertificateAssets() {
     const assetsKmsKey = new cdk.aws_kms.Key(this, 'AssetsKmsKey', {
-      alias: AcceleratorStack.ACCELERATOR_ASSETS_KEY_ARN_PARAMETER_NAME,
-      description: AcceleratorStack.ACCELERATOR_ASSETS_KEY_DESCRIPTION,
+      alias: this.acceleratorResourceNames.customerManagedKeys.assetsBucket.alias,
+      description: this.acceleratorResourceNames.customerManagedKeys.assetsBucket.description,
       enableKeyRotation: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
@@ -1806,7 +1790,7 @@ export class LoggingStack extends AcceleratorStack {
       }),
     );
 
-    //grant AWSAccelerator-AssetsAccessRole access to KMS
+    //grant AssetsAccessRole access to KMS
     assetsKmsKey.addToResourcePolicy(
       new cdk.aws_iam.PolicyStatement({
         principals: [new cdk.aws_iam.AnyPrincipal()],
@@ -1814,7 +1798,9 @@ export class LoggingStack extends AcceleratorStack {
         resources: ['*'],
         conditions: {
           StringLike: {
-            'aws:PrincipalARN': `arn:${cdk.Stack.of(this).partition}:iam::*:role/AWSAccelerator-AssetsAccessRole`,
+            'aws:PrincipalARN': `arn:${cdk.Stack.of(this).partition}:iam::*:role/${
+              this.props.prefixes.accelerator
+            }-AssetsAccessRole`,
             ...this.getPrincipalOrgIdCondition(this.organizationId),
           },
         },
@@ -1822,7 +1808,9 @@ export class LoggingStack extends AcceleratorStack {
     );
     const serverAccessLogsBucket = new Bucket(this, 'AssetsAccessLogsBucket', {
       encryptionType: BucketEncryptionType.SSE_S3, // Server access logging does not support SSE-KMS
-      s3BucketName: `aws-accelerator-assets-logs-${cdk.Stack.of(this).account}-${cdk.Stack.of(this).region}`,
+      s3BucketName: `${this.acceleratorResourceNames.bucketPrefixes.assetsAccessLog}-${cdk.Stack.of(this).account}-${
+        cdk.Stack.of(this).region
+      }`,
       s3LifeCycleRules: this.getS3LifeCycleRules(this.props.globalConfig.logging.accessLogBucket?.lifecycleRules),
     });
 
@@ -1837,7 +1825,9 @@ export class LoggingStack extends AcceleratorStack {
     //create assets bucket
     const assetsBucket = new Bucket(this, 'CertificateAssetBucket', {
       encryptionType: BucketEncryptionType.SSE_KMS,
-      s3BucketName: `aws-accelerator-assets-${cdk.Stack.of(this).account}-${cdk.Stack.of(this).region}`,
+      s3BucketName: `${this.acceleratorResourceNames.bucketPrefixes.assets}-${cdk.Stack.of(this).account}-${
+        cdk.Stack.of(this).region
+      }`,
       kmsKey: assetsKmsKey,
       serverAccessLogsBucketName: serverAccessLogsBucket.getS3Bucket().bucketName,
     });
@@ -1851,7 +1841,9 @@ export class LoggingStack extends AcceleratorStack {
             ...this.getPrincipalOrgIdCondition(this.organizationId),
           },
           StringLike: {
-            'aws:PrincipalARN': `arn:${cdk.Stack.of(this).partition}:iam::*:role/AWSAccelerator-AssetsAccessRole`,
+            'aws:PrincipalARN': `arn:${cdk.Stack.of(this).partition}:iam::*:role/${
+              this.props.prefixes.accelerator
+            }-AssetsAccessRole`,
           },
         },
       }),
@@ -1865,14 +1857,14 @@ export class LoggingStack extends AcceleratorStack {
       this,
       'SsmParamAssetsAccountBucketKMSArn',
       {
-        parameterName: AcceleratorStack.ACCELERATOR_ASSETS_KEY_ARN_PARAMETER_NAME,
+        parameterName: this.acceleratorResourceNames.parameters.assetsBucketCmkArn,
         stringValue: assetsKmsKey.keyArn,
       },
     );
 
     // SSM parameter access IAM Role for
     new cdk.aws_iam.Role(this, 'CrossAccountAssetsBucketKMSArnSsmParamAccessRole', {
-      roleName: AcceleratorStack.ACCELERATOR_ASSETS_CROSS_ACCOUNT_SSM_PARAMETER_ACCESS_ROLE_NAME,
+      roleName: this.acceleratorResourceNames.roles.crossAccountAssetsBucketCmkArnSsmParameterAccess,
       assumedBy: this.getOrgPrincipals(this.organizationId),
       inlinePolicies: {
         default: new cdk.aws_iam.PolicyDocument({
@@ -1883,7 +1875,9 @@ export class LoggingStack extends AcceleratorStack {
               resources: [assetBucketKmsKeyArnSsmParameter.parameterArn],
               conditions: {
                 ArnLike: {
-                  'aws:PrincipalARN': [`arn:${cdk.Stack.of(this).partition}:iam::*:role/AWSAccelerator-*`],
+                  'aws:PrincipalARN': [
+                    `arn:${cdk.Stack.of(this).partition}:iam::*:role/${this.props.prefixes.accelerator}-*`,
+                  ],
                 },
               },
             }),
@@ -1893,7 +1887,9 @@ export class LoggingStack extends AcceleratorStack {
               resources: ['*'],
               conditions: {
                 ArnLike: {
-                  'aws:PrincipalARN': [`arn:${cdk.Stack.of(this).partition}:iam::*:role/AWSAccelerator-*`],
+                  'aws:PrincipalARN': [
+                    `arn:${cdk.Stack.of(this).partition}:iam::*:role/${this.props.prefixes.accelerator}-*`,
+                  ],
                 },
               },
             }),
@@ -1922,9 +1918,9 @@ export class LoggingStack extends AcceleratorStack {
       ) {
         const metadataBucket = new Bucket(this, 'AcceleratorMetadataBucket', {
           encryptionType: BucketEncryptionType.SSE_KMS,
-          kmsAliasName: AcceleratorStack.ACCELERATOR_METADATA_KEY_ALIAS,
-          kmsDescription: AcceleratorStack.ACCELERATOR_METADATA_KEY_DESCRIPTION,
-          s3BucketName: `${AcceleratorStack.ACCELERATOR_METADATA_BUCKET_NAME_PREFIX}-${cdk.Stack.of(this).account}-${
+          kmsAliasName: this.acceleratorResourceNames.customerManagedKeys.metadataBucket.alias,
+          kmsDescription: this.acceleratorResourceNames.customerManagedKeys.metadataBucket.description,
+          s3BucketName: `${this.acceleratorResourceNames.bucketPrefixes.metadata}-${cdk.Stack.of(this).account}-${
             cdk.Stack.of(this).region
           }`,
           serverAccessLogsBucket: serverAccessLogsBucket.getS3Bucket(),
@@ -1945,7 +1941,9 @@ export class LoggingStack extends AcceleratorStack {
                 ...this.getPrincipalOrgIdCondition(this.organizationId),
               },
               ArnLike: {
-                'aws:PrincipalARN': `arn:${cdk.Stack.of(this).partition}:iam::*:role/AWSAccelerator-*`,
+                'aws:PrincipalARN': `arn:${cdk.Stack.of(this).partition}:iam::*:role/${
+                  this.props.prefixes.accelerator
+                }-*`,
               },
             },
           }),
@@ -1961,7 +1959,9 @@ export class LoggingStack extends AcceleratorStack {
                 ...this.getPrincipalOrgIdCondition(this.organizationId),
               },
               ArnLike: {
-                'aws:PrincipalARN': `arn:${cdk.Stack.of(this).partition}:iam::*:role/AWSAccelerator-*`,
+                'aws:PrincipalARN': `arn:${cdk.Stack.of(this).partition}:iam::*:role/${
+                  this.props.prefixes.accelerator
+                }-*`,
               },
             },
           }),
@@ -1988,19 +1988,14 @@ export class LoggingStack extends AcceleratorStack {
         }
         this.ssmParameters.push({
           logicalId: 'AcceleratorS3MetadataBucket',
-          parameterName: AcceleratorStack.ACCELERATOR_METADATA_BUCKET_PARAMETER_NAME,
+          parameterName: this.acceleratorResourceNames.parameters.metadataBucketArn,
           stringValue: bucket.bucketArn,
         });
 
         this.ssmParameters.push({
           logicalId: 'AcceleratorKmsMetadataKey',
-          parameterName: AcceleratorStack.ACCELERATOR_METADATA_KEY_ARN,
+          parameterName: this.acceleratorResourceNames.parameters.metadataBucketCmkArn,
           stringValue: key.keyArn,
-        });
-        this.ssmParameters.push({
-          logicalId: 'AcceleratorKmsMetadataAlias',
-          parameterName: AcceleratorStack.ACCELERATOR_METADATA_KEY_ALIAS,
-          stringValue: AcceleratorStack.ACCELERATOR_METADATA_KEY_ALIAS,
         });
       }
     }

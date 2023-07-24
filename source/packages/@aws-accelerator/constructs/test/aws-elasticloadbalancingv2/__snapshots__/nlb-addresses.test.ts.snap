@@ -42,7 +42,7 @@ exports[`ConfigServiceTags Construct(NLBAddresses):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 15,
       },
       "Type": "AWS::Lambda::Function",
@@ -130,7 +130,18 @@ exports[`ConfigServiceTags Construct(NLBAddresses):  Snapshot Test 1`] = `
             {
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
-              "Resource": "*",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iam::*:role/test123",
+                  ],
+                ],
+              },
               "Sid": "StsAssumeRole",
             },
           ],

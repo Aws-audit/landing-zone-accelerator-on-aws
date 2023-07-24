@@ -47,6 +47,10 @@ export interface AcceleratorMetadataProps {
    */
   readonly acceleratorPrefix: string;
   /**
+   * Accelerator SSM parameter Prefix
+   */
+  readonly acceleratorSsmParamPrefix: string;
+  /**
    * The Accelerator Organization Id
    */
   readonly organizationId: string;
@@ -65,7 +69,7 @@ export interface AcceleratorMetadataProps {
   /**
    * Global Region
    */
-  readonly globalRegion?: string;
+  readonly globalRegion: string;
 }
 
 /**
@@ -162,7 +166,7 @@ export class AcceleratorMetadata extends Construct {
       functionName,
       role,
       code,
-      runtime: cdk.aws_lambda.Runtime.NODEJS_14_X,
+      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
       timeout: cdk.Duration.minutes(10),
       handler: 'index.handler',
       environment: {
@@ -175,7 +179,8 @@ export class AcceleratorMetadata extends Construct {
         ELB_LOGGING_BUCKET: props.elbLogBucketName,
         METADATA_BUCKET: props.metadataLogBucketName,
         ACCELERATOR_PREFIX: props.acceleratorPrefix,
-        GLOBAL_REGION: props.globalRegion || 'us-east-1',
+        GLOBAL_REGION: props.globalRegion,
+        ACCELERATOR_VERSION_SSM_PATH: `${props.acceleratorSsmParamPrefix}/${props.acceleratorPrefix}-InstallerStack/version`,
       },
     });
 

@@ -38,6 +38,10 @@ export interface LoadAcceleratorConfigTableProps {
    * Custom resource lambda log retention in days
    */
   readonly logRetentionInDays: number;
+  /**
+   * Boolean for single account mode (i.e. AWS Jam or Workshop)
+   */
+  readonly enableSingleAccountMode: boolean;
 }
 
 /**
@@ -51,12 +55,20 @@ export class LoadAcceleratorConfigTable extends Construct {
 
     const LOAD_CONFIG_TABLE_RESOURCE_TYPE = 'Custom::LoadAcceleratorConfigTable';
 
+    const environment: {
+      [key: string]: string;
+    } = {};
+
+    if (props.enableSingleAccountMode) {
+      environment['ACCELERATOR_ENABLE_SINGLE_ACCOUNT_MODE'] = 'true';
+    }
+
     //
     // Function definition for the custom resource
     //
     const provider = cdk.CustomResourceProvider.getOrCreateProvider(this, LOAD_CONFIG_TABLE_RESOURCE_TYPE, {
       codeDirectory: path.join(__dirname, 'lambdas/load-config-table/dist'),
-      runtime: cdk.CustomResourceProviderRuntime.NODEJS_14_X,
+      runtime: cdk.CustomResourceProviderRuntime.NODEJS_16_X,
       timeout: cdk.Duration.minutes(15),
       policyStatements: [
         {

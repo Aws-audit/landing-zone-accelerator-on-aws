@@ -26,6 +26,10 @@ export interface GetPermissionSetRoleArnProps {
    */
   readonly accountId: string;
   /**
+   * Custom resource provider (single provider shared by multiple resources)
+   */
+  readonly serviceToken: string;
+  /**
    * The name of the permission set
    */
   readonly permissionSetName?: string;
@@ -40,18 +44,17 @@ export interface GetPermissionSetRoleArnProps {
 }
 
 /**
- * Class for IdentityCenterGetPermissionRoleArn
+ * Class for IdentityCenterGetPermissionRoleArnProvider
  */
-export class IdentityCenterGetPermissionRoleArn extends Construct {
+export class IdentityCenterGetPermissionRoleArnProvider extends Construct {
   readonly provider: cdk.custom_resources.Provider;
-  readonly resource: cdk.CustomResource;
-  readonly roleArn: string;
-  constructor(scope: Construct, id: string, props: GetPermissionSetRoleArnProps) {
+  readonly serviceToken: string;
+  constructor(scope: Construct, id: string) {
     super(scope, id);
     const functionId = `${id}ProviderLambda`;
     const providerLambda = new cdk.aws_lambda.Function(this, functionId, {
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, 'get-permission-set-role-arn/dist')),
-      runtime: cdk.aws_lambda.Runtime.NODEJS_14_X,
+      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
       timeout: cdk.Duration.seconds(60),
       initialPolicy: [
         new cdk.aws_iam.PolicyStatement({
@@ -67,17 +70,9 @@ export class IdentityCenterGetPermissionRoleArn extends Construct {
       onEventHandler: providerLambda,
     });
 
-    this.resource = new cdk.CustomResource(this, `getPermissionSetRoleArn`, {
-      serviceToken: this.provider.serviceToken,
-      properties: {
-        permissionSetName: props.permissionSetName,
-        uuid: uuidv4(),
-      },
-    });
+    this.serviceToken = this.provider.serviceToken;
 
     const stack = cdk.Stack.of(scope);
-    this.roleArn = this.resource.getAtt('roleArn').toString();
-
     // AwsSolutions-IAM4: The IAM user, role, or group uses AWS managed policies
     NagSuppressions.addResourceSuppressionsByPath(
       stack,
@@ -125,5 +120,24 @@ export class IdentityCenterGetPermissionRoleArn extends Construct {
         },
       ],
     );
+  }
+}
+/**
+ * Class for IdentityCenterGetPermissionRoleArn
+ */
+export class IdentityCenterGetPermissionRoleArn extends Construct {
+  readonly resource: cdk.CustomResource;
+  readonly roleArn: string;
+  constructor(scope: Construct, id: string, props: GetPermissionSetRoleArnProps) {
+    super(scope, id);
+    this.resource = new cdk.CustomResource(this, `getPermissionSetRoleArn`, {
+      serviceToken: props.serviceToken,
+      properties: {
+        permissionSetName: props.permissionSetName,
+        uuid: uuidv4(),
+      },
+    });
+
+    this.roleArn = this.resource.getAtt('roleArn').toString();
   }
 }

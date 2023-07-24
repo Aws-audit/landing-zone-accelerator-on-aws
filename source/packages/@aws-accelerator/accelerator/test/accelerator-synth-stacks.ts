@@ -12,8 +12,8 @@
  */
 
 import * as cdk from 'aws-cdk-lib';
-import * as path from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
 
 import {
   AccountConfig,
@@ -27,30 +27,31 @@ import {
   SecurityConfig,
 } from '@aws-accelerator/config';
 
+import { Stack } from 'aws-cdk-lib';
 import { AcceleratorStackNames } from '../lib/accelerator';
 import { AcceleratorStage } from '../lib/accelerator-stage';
 import { AcceleratorStack, AcceleratorStackProps } from '../lib/stacks/accelerator-stack';
 import { AccountsStack } from '../lib/stacks/accounts-stack';
+import { ApplicationsStack } from '../lib/stacks/applications-stack';
 import { BootstrapStack } from '../lib/stacks/bootstrap-stack';
+import { CustomStack, generateCustomStackMappings, isIncluded } from '../lib/stacks/custom-stack';
 import { CustomizationsStack } from '../lib/stacks/customizations-stack';
+import { DependenciesStack } from '../lib/stacks/dependencies-stack';
 import { FinalizeStack } from '../lib/stacks/finalize-stack';
 import { KeyStack } from '../lib/stacks/key-stack';
 import { LoggingStack } from '../lib/stacks/logging-stack';
-import { NetworkAssociationsGwlbStack } from '../lib/stacks/network-associations-gwlb-stack';
-import { NetworkAssociationsStack } from '../lib/stacks/network-associations-stack';
-import { NetworkPrepStack } from '../lib/stacks/network-prep-stack';
-import { NetworkVpcDnsStack } from '../lib/stacks/network-vpc-dns-stack';
-import { NetworkVpcEndpointsStack } from '../lib/stacks/network-vpc-endpoints-stack';
-import { NetworkVpcStack } from '../lib/stacks/network-vpc-stack';
+import { NetworkAssociationsGwlbStack } from '../lib/stacks/network-stacks/network-associations-gwlb-stack/network-associations-gwlb-stack';
+import { NetworkAssociationsStack } from '../lib/stacks/network-stacks/network-associations-stack/network-associations-stack';
+import { NetworkPrepStack } from '../lib/stacks/network-stacks/network-prep-stack/network-prep-stack';
+import { NetworkVpcDnsStack } from '../lib/stacks/network-stacks/network-vpc-dns-stack/network-vpc-dns-stack';
+import { NetworkVpcEndpointsStack } from '../lib/stacks/network-stacks/network-vpc-endpoints-stack/network-vpc-endpoints-stack';
+import { NetworkVpcStack } from '../lib/stacks/network-stacks/network-vpc-stack/network-vpc-stack';
 import { OperationsStack } from '../lib/stacks/operations-stack';
-import { PrepareStack } from '../lib/stacks/prepare-stack';
 import { OrganizationsStack } from '../lib/stacks/organizations-stack';
+import { PrepareStack } from '../lib/stacks/prepare-stack';
 import { SecurityAuditStack } from '../lib/stacks/security-audit-stack';
 import { SecurityResourcesStack } from '../lib/stacks/security-resources-stack';
 import { SecurityStack } from '../lib/stacks/security-stack';
-import { ApplicationsStack } from '../lib/stacks/applications-stack';
-import { CustomStack, generateCustomStackMappings, isIncluded } from '../lib/stacks/custom-stack';
-import { Stack } from 'aws-cdk-lib';
 
 export class AcceleratorSynthStacks {
   private readonly configFolderName: string;
@@ -106,6 +107,18 @@ export class AcceleratorSynthStacks {
       globalRegion: this.globalRegion,
       centralizedLoggingRegion: globalConfig.logging.centralizedLoggingRegion ?? globalConfig.homeRegion,
       configRepositoryName: 'aws-accelerator-config',
+      prefixes: {
+        accelerator: 'AWSAccelerator',
+        kmsAlias: 'alias/accelerator',
+        bucketName: 'aws-accelerator',
+        ssmParamName: '/accelerator',
+        snsTopicName: 'aws-accelerator',
+        repoName: 'aws-accelerator',
+        secretName: '/accelerator',
+        trailLogName: 'aws-accelerator',
+        databaseName: 'aws-accelerator',
+      },
+      enableSingleAccountMode: false,
     };
 
     this.homeRegion = this.props.globalConfig.homeRegion;
@@ -178,6 +191,9 @@ export class AcceleratorSynthStacks {
         break;
       case AcceleratorStage.BOOTSTRAP:
         this.synthBootstrapStacks();
+        break;
+      case AcceleratorStage.DEPENDENCIES:
+        this.synthDependenciesStacks();
         break;
     }
   }
@@ -305,6 +321,7 @@ export class AcceleratorSynthStacks {
             terminationProtection: stack.stackConfig.terminationProtection,
             ...this.props,
             parameters: stack.stackConfig.parameters,
+            ssmParamNamePrefix: '/accelerator',
           });
 
           if (stack.dependsOn) {
@@ -693,6 +710,34 @@ export class AcceleratorSynthStacks {
           },
         ),
       );
+    }
+  }
+
+  /**
+   * Synth Dependencies stacks
+   */
+  private synthDependenciesStacks() {
+    for (const region of this.props.globalConfig.enabledRegions) {
+      for (const account of [
+        ...this.props.accountsConfig.mandatoryAccounts,
+        ...this.props.accountsConfig.workloadAccounts,
+      ]) {
+        const accountId = this.props.accountsConfig.getAccountId(account.name);
+        this.stacks.set(
+          `${account.name}-${region}`,
+          new DependenciesStack(
+            this.app,
+            `${AcceleratorStackNames[AcceleratorStage.DEPENDENCIES]}-${accountId}-${region}`,
+            {
+              env: {
+                account: accountId,
+                region: region,
+              },
+              ...this.props,
+            },
+          ),
+        );
+      }
     }
   }
 }

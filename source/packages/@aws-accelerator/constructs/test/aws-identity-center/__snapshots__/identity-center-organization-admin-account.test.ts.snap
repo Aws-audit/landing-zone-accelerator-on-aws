@@ -22,7 +22,7 @@ exports[`IdentityCenterOrganizationAdminAccount Construct(IdentityCenterOrganiza
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs16.x",
         "Timeout": 160,
       },
       "Type": "AWS::Lambda::Function",
@@ -252,6 +252,8 @@ exports[`IdentityCenterOrganizationAdminAccount Construct(IdentityCenterOrganiza
           ],
         },
         "adminAccountId": "adminAccountId",
+        "lzaManagedAssignments": [],
+        "lzaManagedPermissionSets": [],
         "partition": {
           "Ref": "AWS::Partition",
         },

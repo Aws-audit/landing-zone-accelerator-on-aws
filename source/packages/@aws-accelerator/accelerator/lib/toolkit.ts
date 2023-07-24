@@ -17,14 +17,16 @@ import { CloudFormationDeployments } from 'aws-cdk/lib/api/cloudformation-deploy
 import { StackSelector } from 'aws-cdk/lib/api/cxapp/cloud-assembly';
 import { CloudExecutable } from 'aws-cdk/lib/api/cxapp/cloud-executable';
 import { execProgram } from 'aws-cdk/lib/api/cxapp/exec';
+import { ILock } from 'aws-cdk/lib/api/util/rwlock';
 import { ToolkitInfo } from 'aws-cdk/lib/api/toolkit-info';
 import { CdkToolkit } from 'aws-cdk/lib/cdk-toolkit';
 import { RequireApproval } from 'aws-cdk/lib/diff';
 import { Command, Configuration } from 'aws-cdk/lib/settings';
+import { HotswapMode } from 'aws-cdk/lib/api/hotswap/common';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { AccountsConfig, CustomizationsConfig, OrganizationConfig } from '@aws-accelerator/config';
+import { AccountsConfig, cdkOptionsConfig, CustomizationsConfig, OrganizationConfig } from '@aws-accelerator/config';
 import { createLogger } from '@aws-accelerator/utils';
 
 import { AcceleratorStackNames } from './accelerator';
@@ -36,6 +38,8 @@ process.on('unhandledRejection', err => {
   logger.error(err);
   throw new Error('Runtime Error');
 });
+
+const stackPrefix = process.env['ACCELERATOR_PREFIX']!;
 
 /**
  *
@@ -89,6 +93,8 @@ export class AcceleratorToolkit {
     ec2Creds?: boolean;
     proxyAddress?: string;
     centralizeCdkBootstrap?: boolean;
+    cdkOptions?: cdkOptionsConfig;
+    enableSingleAccountMode: boolean;
   }): Promise<void> {
     if (options.accountId || options.region) {
       if (options.stage) {
@@ -148,13 +154,19 @@ export class AcceleratorToolkit {
 
     const cloudFormation = new CloudFormationDeployments({ sdkProvider });
 
+    let outDirLock: ILock | undefined;
     const cloudExecutable = new CloudExecutable({
       configuration,
       sdkProvider,
-      synthesizer: execProgram,
+      synthesizer: async (aws, config) => {
+        await outDirLock?.release();
+        const { assembly, lock } = await execProgram(aws, config);
+        outDirLock = lock;
+        return assembly;
+      },
     });
 
-    const toolkitStackName: string = ToolkitInfo.determineName('AWSAccelerator-CDKToolkit');
+    const toolkitStackName: string = ToolkitInfo.determineName(`${stackPrefix}-CDKToolkit`);
 
     const cli = new CdkToolkit({
       cloudExecutable,
@@ -184,8 +196,12 @@ export class AcceleratorToolkit {
           },
         };
 
-        // Use custom bootstrapping template if centralizing CDK assets in a single S3 bucket
-        if (options.centralizeCdkBootstrap) {
+        // Use custom bootstrapping template if cdk options are set
+        if (
+          options.centralizeCdkBootstrap ||
+          options.cdkOptions?.centralizeBuckets ||
+          options.cdkOptions?.useManagementAccessRole
+        ) {
           process.env['CDK_NEW_BOOTSTRAP'] = '1';
           const templatePath = `./cdk.out/${AcceleratorStackNames[AcceleratorStage.BOOTSTRAP]}-${options.accountId}-${
             options.region
@@ -226,6 +242,13 @@ export class AcceleratorToolkit {
             : [`${AcceleratorStackNames[options.stage]}-${options.accountId}-${options.region}`];
         }
 
+        if (options.stage === AcceleratorStage.KEY) {
+          stackName = [
+            `${AcceleratorStackNames[AcceleratorStage.KEY]}-${options.accountId}-${options.region}`,
+            `${AcceleratorStackNames[AcceleratorStage.DEPENDENCIES]}-${options.accountId}-${options.region}`,
+          ];
+        }
+
         if (options.stage === AcceleratorStage.NETWORK_VPC) {
           stackName = [
             `${AcceleratorStackNames[AcceleratorStage.NETWORK_VPC_DNS]}-${options.accountId}-${options.region}`,
@@ -249,7 +272,7 @@ export class AcceleratorToolkit {
           if (fs.existsSync(path.join(options.configDirPath, 'customizations-config.yaml'))) {
             const customizationsConfig = CustomizationsConfig.load(options.configDirPath);
             const accountsConfig = AccountsConfig.load(options.configDirPath);
-            await accountsConfig.loadAccountIds(options.partition);
+            await accountsConfig.loadAccountIds(options.partition, options.enableSingleAccountMode);
             const customStacks = customizationsConfig.getCustomStacks();
             for (const stack of customStacks) {
               const deploymentAccts = accountsConfig.getAccountIdsFromDeploymentTarget(stack.deploymentTargets);
@@ -270,7 +293,7 @@ export class AcceleratorToolkit {
                   organizationConfig,
                 )
               ) {
-                const applicationStackName = `AWSAccelerator-App-${
+                const applicationStackName = `${stackPrefix}-App-${
                   application.name
                 }-${options.accountId!}-${options.region!}`;
                 stackName.push(applicationStackName);
@@ -292,6 +315,7 @@ export class AcceleratorToolkit {
             toolkitStackName,
             requireApproval: options.requireApproval,
             changeSetName: changeSetName,
+            hotswap: HotswapMode.FULL_DEPLOYMENT,
           })
           .catch(err => {
             logger.error(err);

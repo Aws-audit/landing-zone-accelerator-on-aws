@@ -30,12 +30,14 @@ export class NetworkValidatorFunctions {
   private accounts: (AccountConfig | GovCloudAccountConfig)[];
   private snsTopicNames: string[];
   private values: NetworkConfig;
+  private enabledRegions: t.Region[];
 
   constructor(
     values: NetworkConfig,
     ouIdNames: string[],
     accounts: (AccountConfig | GovCloudAccountConfig)[],
     snsTopicNames: string[],
+    enabledRegions: t.Region[],
   ) {
     this.ouIdNames = ouIdNames;
     this.accounts = accounts;
@@ -43,7 +45,18 @@ export class NetworkValidatorFunctions {
     this.accountNames = accounts.map(account => {
       return account.name;
     });
+    this.enabledRegions = enabledRegions;
     this.values = values;
+  }
+  /**
+   * Get deployment regions for a deployment target object
+   * @param targets
+   * @returns
+   */
+  public getRegionsFromDeploymentTarget(targets: t.DeploymentTargets): t.Region[] {
+    const enabledRegions: t.Region[] = this.enabledRegions;
+
+    return enabledRegions.filter(region => !targets.excludedRegions?.includes(region));
   }
 
   /**
@@ -119,17 +132,17 @@ export class NetworkValidatorFunctions {
   }
 
   /**
-   * Given two arrays of account names, returns true if arr1 has items not in arr2
+   * Given two arrays of account names, returns items in arr1 not included in arr2
    * @param arr1
    * @param arr2
    * @returns
    */
-  public hasTargetMismatch(arr1: string[], arr2: string[]): boolean {
-    return arr1.some(item => !arr2.includes(item));
+  public compareTargetAccounts(arr1: string[], arr2: string[]): string[] {
+    return arr1.filter(item => !arr2.includes(item));
   }
 
   /**
-   * Returns true if an array contains deplicate values
+   * Returns true if an array contains duplicate values
    * @param arr
    * @returns
    */
@@ -218,7 +231,7 @@ export class NetworkValidatorFunctions {
    * @param obj
    * @returns
    */
-  public getObjectKeys(obj: Object): string[] {
+  public getObjectKeys(obj: object): string[] {
     const keys: string[] = [];
     for (const [key, val] of Object.entries(obj)) {
       if (val !== undefined) {
