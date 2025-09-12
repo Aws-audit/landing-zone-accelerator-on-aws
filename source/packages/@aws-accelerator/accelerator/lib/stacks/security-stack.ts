@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -14,40 +14,42 @@
 import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
-import { NagSuppressions } from 'cdk-nag';
 
-import { Region } from '@aws-accelerator/config';
+import { EbsDefaultVolumeEncryptionConfig, GuardDutyConfig, Region, SecurityHubConfig } from '@aws-accelerator/config';
 import {
   AcceleratorMetadata,
   EbsDefaultEncryption,
   GuardDutyPublishingDestination,
-  KeyLookup,
   MacieExportConfigClassification,
   PasswordPolicy,
   SecurityHubStandards,
   ConfigAggregation,
 } from '@aws-accelerator/constructs';
 
-import { AcceleratorStack, AcceleratorStackProps } from './accelerator-stack';
+import {
+  AcceleratorKeyType,
+  AcceleratorStack,
+  AcceleratorStackProps,
+  NagSuppressionRuleIds,
+} from './accelerator-stack';
 import { pascalCase } from 'pascal-case';
 
 /**
  * Security Stack, configures local account security services
  */
 export class SecurityStack extends AcceleratorStack {
-  readonly cloudwatchKey: cdk.aws_kms.Key;
   readonly auditAccountId: string;
   readonly logArchiveAccountId: string;
   readonly auditAccountName: string;
-  readonly centralLogsBucketName: string;
-  readonly centralLogsBucketKey: cdk.aws_kms.Key;
+  readonly centralLogsBucketKey: cdk.aws_kms.IKey;
   readonly configAggregationAccountId: string;
+  readonly cloudwatchKey?: cdk.aws_kms.IKey;
   readonly metadataRule: AcceleratorMetadata | undefined;
+  readonly securityHubConfig: SecurityHubConfig;
+
   constructor(scope: Construct, id: string, props: AcceleratorStackProps) {
     super(scope, id, props);
-    const elbLogBucketName = `${
-      this.acceleratorResourceNames.bucketPrefixes.elbLogs
-    }-${this.props.accountsConfig.getLogArchiveAccountId()}-${this.props.centralizedLoggingRegion}`;
+    const elbLogBucketName = this.getElbLogsBucketName();
     this.auditAccountName = props.securityConfig.getDelegatedAccountName();
     this.auditAccountId = props.accountsConfig.getAuditAccountId();
     this.logArchiveAccountId = props.accountsConfig.getLogArchiveAccountId();
@@ -60,27 +62,9 @@ export class SecurityStack extends AcceleratorStack {
         props.securityConfig.awsConfig.aggregation.delegatedAdminAccount,
       );
     }
-    this.centralLogsBucketName = `${
-      this.acceleratorResourceNames.bucketPrefixes.centralLogs
-    }-${this.props.accountsConfig.getLogArchiveAccountId()}-${this.props.centralizedLoggingRegion}`;
-
-    this.centralLogsBucketKey = new KeyLookup(this, 'CentralLogsBucketKey', {
-      accountId: props.accountsConfig.getLogArchiveAccountId(),
-      keyRegion: props.centralizedLoggingRegion,
-      roleName: this.acceleratorResourceNames.roles.crossAccountCentralLogBucketCmkArnSsmParameterAccess,
-      keyArnParameterName: this.acceleratorResourceNames.parameters.centralLogBucketCmkArn,
-      logRetentionInDays: props.globalConfig.cloudwatchLogRetentionInDays,
-      acceleratorPrefix: props.prefixes.accelerator,
-    }).getKey();
-
-    this.cloudwatchKey = cdk.aws_kms.Key.fromKeyArn(
-      this,
-      'AcceleratorGetCloudWatchKey',
-      cdk.aws_ssm.StringParameter.valueForStringParameter(
-        this,
-        this.acceleratorResourceNames.parameters.cloudWatchLogCmkArn,
-      ),
-    ) as cdk.aws_kms.Key;
+    this.cloudwatchKey = this.getAcceleratorKey(AcceleratorKeyType.CLOUDWATCH_KEY);
+    this.centralLogsBucketKey = this.getCentralLogsBucketKey(this.cloudwatchKey);
+    this.securityHubConfig = this.props.securityConfig.centralSecurityServices.securityHub;
 
     //
     // MacieSession configuration
@@ -100,7 +84,7 @@ export class SecurityStack extends AcceleratorStack {
     //
     // Ebs Default Volume Encryption configuration
     //
-    this.configureDefaultEbsEncryption();
+    this.configureDefaultEbsEncryption(props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption);
 
     //
     // Update IAM Password Policy
@@ -129,7 +113,25 @@ export class SecurityStack extends AcceleratorStack {
       this.enableConfigAggregation();
     }
 
+    //
+    // Create NagSuppressions
+    //
+    this.addResourceSuppressionsByPath();
+
     this.logger.info('Completed stack synthesis');
+  }
+
+  /**
+   * Validate Delegated Admin Account name for the given security service is part of account config
+   * @param securityServiceName string
+   */
+  private validateDelegatedAdminAccountName(securityServiceName: string) {
+    if (!this.props.accountsConfig.containsAccount(this.auditAccountName)) {
+      this.logger.error(
+        `${securityServiceName} audit delegated admin account name "${this.auditAccountName}" not found.`,
+      );
+      throw new Error(`Configuration validation failed at runtime.`);
+    }
   }
 
   /**
@@ -142,18 +144,22 @@ export class SecurityStack extends AcceleratorStack {
         cdk.Stack.of(this).region as Region,
       ) === -1
     ) {
-      if (this.props.accountsConfig.containsAccount(this.auditAccountName)) {
-        new MacieExportConfigClassification(this, 'AwsMacieUpdateExportConfigClassification', {
-          bucketName: this.centralLogsBucketName,
-          bucketKmsKey: this.centralLogsBucketKey,
-          logKmsKey: this.cloudwatchKey,
-          keyPrefix: `macie/${cdk.Stack.of(this).account}/`,
-          logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
-        });
-      } else {
-        this.logger.error(`Macie audit delegated admin account name "${this.auditAccountName}" not found.`);
-        throw new Error(`Configuration validation failed at runtime.`);
-      }
+      // Validate Delegated Admin Account name is part of account config
+      this.validateDelegatedAdminAccountName('Macie');
+
+      new MacieExportConfigClassification(this, 'AwsMacieUpdateExportConfigClassification', {
+        bucketName: this.centralLogsBucketName,
+        bucketKmsKey: this.centralLogsBucketKey,
+        logKmsKey: this.cloudwatchKey,
+        keyPrefix: `macie/${cdk.Stack.of(this).account}/`,
+        logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+        findingPublishingFrequency:
+          this.props.securityConfig.centralSecurityServices.macie.policyFindingsPublishingFrequency ??
+          'FIFTEEN_MINUTES',
+        publishClassificationFindings:
+          this.props.securityConfig.centralSecurityServices.macie.publishSensitiveDataFindings ?? false,
+        publishPolicyFindings: this.props.securityConfig.centralSecurityServices.macie.publishPolicyFindings ?? true,
+      });
     }
   }
 
@@ -161,110 +167,201 @@ export class SecurityStack extends AcceleratorStack {
    * Function to configure GuardDuty
    */
   private configureGuardDuty() {
+    const guardDutyConfig: GuardDutyConfig = this.props.securityConfig.centralSecurityServices.guardduty;
     if (
-      this.props.securityConfig.centralSecurityServices.guardduty.enable &&
-      this.props.securityConfig.centralSecurityServices.guardduty.excludeRegions.indexOf(
-        cdk.Stack.of(this).region as Region,
-      ) === -1
+      guardDutyConfig.enable &&
+      (guardDutyConfig.excludeRegions
+        ? guardDutyConfig.excludeRegions.indexOf(this.region as Region) === -1
+        : guardDutyConfig.deploymentTargets
+        ? this.isIncluded(guardDutyConfig.deploymentTargets)
+        : true)
     ) {
-      if (this.props.accountsConfig.containsAccount(this.auditAccountName)) {
-        if (this.props.accountsConfig.containsAccount(this.auditAccountName)) {
-          new GuardDutyPublishingDestination(this, 'GuardDutyPublishingDestination', {
-            exportDestinationType:
-              this.props.securityConfig.centralSecurityServices.guardduty.exportConfiguration.destinationType,
-            exportDestinationOverride:
-              this.props.securityConfig.centralSecurityServices.guardduty.exportConfiguration.overrideExisting ?? false,
-            destinationArn: `arn:${cdk.Stack.of(this).partition}:s3:::${this.centralLogsBucketName}/guardduty`,
-            destinationKmsKey: this.centralLogsBucketKey,
-            logKmsKey: this.cloudwatchKey,
-            logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
-          });
-        } else {
-          this.logger.error(`Guardduty audit delegated admin account name "${this.auditAccountName}" not found.`);
-          throw new Error(`Configuration validation failed at runtime.`);
+      if (guardDutyConfig.exportConfiguration.enable) {
+        // Validate Delegated Admin Account name is part of account config
+        this.validateDelegatedAdminAccountName('Guardduty');
+        let destinationPrefix = 'guardduty';
+        if (guardDutyConfig.exportConfiguration.overrideGuardDutyPrefix?.useCustomPrefix) {
+          destinationPrefix = guardDutyConfig.exportConfiguration.overrideGuardDutyPrefix?.customOverride ?? '';
         }
+
+        const destinationArn = `arn:${cdk.Stack.of(this).partition}:s3:::${
+          this.centralLogsBucketName
+        }/${destinationPrefix}`;
+
+        new GuardDutyPublishingDestination(this, 'GuardDutyPublishingDestination', {
+          exportDestinationType: guardDutyConfig.exportConfiguration.destinationType,
+          exportDestinationOverride: guardDutyConfig.exportConfiguration.overrideExisting ?? false,
+          destinationArn: destinationArn,
+          destinationKmsKey: this.centralLogsBucketKey,
+          logKmsKey: this.cloudwatchKey,
+          logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+        });
       }
     }
+  }
+
+  /**
+   * Function to initialize SecurityHub standards
+   * @returns
+   */
+  private initializeSecurityHubStandards(): { name: string; enable: boolean; controlsToDisable: string[] }[] {
+    const standards: { name: string; enable: boolean; controlsToDisable: string[] }[] = [];
+    for (const standard of this.securityHubConfig.standards) {
+      if (standard.deploymentTargets) {
+        if (!this.isIncluded(standard.deploymentTargets)) {
+          this.logger.info(`Item excluded`);
+          continue;
+        }
+      }
+      // add to standards list
+      standards.push({
+        name: standard.name,
+        enable: standard.enable,
+        controlsToDisable: standard.controlsToDisable,
+      });
+    }
+
+    return standards;
   }
 
   /**
    * Function to configure SecurityHub
    */
   private configureSecurityHub() {
-    if (
-      this.props.securityConfig.centralSecurityServices.securityHub.enable &&
-      this.props.securityConfig.centralSecurityServices.securityHub.excludeRegions.indexOf(
-        cdk.Stack.of(this).region as Region,
-      ) === -1
-    ) {
-      if (this.props.accountsConfig.containsAccount(this.auditAccountName)) {
-        const standards: { name: string; enable: boolean; controlsToDisable: string[] }[] = [];
-        for (const standard of this.props.securityConfig.centralSecurityServices.securityHub.standards) {
-          if (standard.deploymentTargets) {
-            if (!this.isIncluded(standard.deploymentTargets)) {
-              this.logger.info(`Item excluded`);
-              continue;
-            }
-          }
-          // add to standards list
-          standards.push({
-            name: standard.name,
-            enable: standard.enable,
-            controlsToDisable: standard.controlsToDisable,
-          });
-        }
-        if (standards.length > 0) {
-          new SecurityHubStandards(this, 'SecurityHubStandards', {
-            standards,
-            kmsKey: this.cloudwatchKey,
-            logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
-          });
-        }
-      } else {
-        this.logger.error(`SecurityHub audit delegated admin account name "${this.auditAccountName}" not found.`);
-        throw new Error(`Configuration validation failed at runtime.`);
+    if (this.validateExcludeRegionsAndDeploymentTargets(this.securityHubConfig)) {
+      // Validate Delegated Admin Account name is part of account config
+      this.validateDelegatedAdminAccountName('SecurityHub');
+
+      const standards = this.initializeSecurityHubStandards();
+
+      if (standards.length > 0) {
+        new SecurityHubStandards(this, 'SecurityHubStandards', {
+          standards,
+          kmsKey: this.cloudwatchKey,
+          logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+        });
       }
     }
   }
 
   /**
    * Function to configure default EBS encryption
+   * @param ebsEncryptionConfig EbsDefaultVolumeEncryptionConfig
    */
-  private configureDefaultEbsEncryption() {
-    if (
-      this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.enable &&
-      this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.excludeRegions.indexOf(
-        cdk.Stack.of(this).region as Region,
-      ) === -1
-    ) {
-      let ebsEncryptionKey: cdk.aws_kms.Key;
+  private configureDefaultEbsEncryption(ebsEncryptionConfig: EbsDefaultVolumeEncryptionConfig) {
+    if (ebsEncryptionConfig.enable && this.deployEbsEncryption(ebsEncryptionConfig)) {
+      new EbsDefaultEncryption(this, 'EbsDefaultVolumeEncryption', {
+        ebsEncryptionKmsKey: this.getOrCreateEbsEncryptionKey(ebsEncryptionConfig),
+        logGroupKmsKey: this.cloudwatchKey,
+        logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+      });
+    }
+  }
 
-      if (this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.kmsKey) {
-        ebsEncryptionKey = cdk.aws_kms.Key.fromKeyArn(
+  /**
+   * Determines if EBS default volume encryption should be deployed to
+   * this stack's account/region
+   * @param ebsEncryptionConfig EbsDefaultVolumeEncryptionConfig
+   * @returns boolean
+   */
+  private deployEbsEncryption(ebsEncryptionConfig: EbsDefaultVolumeEncryptionConfig): boolean {
+    if (ebsEncryptionConfig.excludeRegions) {
+      return ebsEncryptionConfig.excludeRegions.indexOf(this.region as Region) === -1;
+    } else {
+      return ebsEncryptionConfig.deploymentTargets ? this.isIncluded(ebsEncryptionConfig.deploymentTargets) : true;
+    }
+  }
+
+  /**
+   * Get custom key or create LZA-managed KMS key
+   * @param ebsEncryptionConfig EbsDefaultVolumeEncryptionConfig
+   * @returns cdk.aws_kms.IKey
+   */
+  private getOrCreateEbsEncryptionKey(ebsEncryptionConfig: EbsDefaultVolumeEncryptionConfig): cdk.aws_kms.IKey {
+    let ebsEncryptionKey: cdk.aws_kms.IKey;
+
+    if (ebsEncryptionConfig.kmsKey) {
+      ebsEncryptionKey = cdk.aws_kms.Key.fromKeyArn(
+        this,
+        pascalCase(ebsEncryptionConfig.kmsKey) + `-KmsKey`,
+        cdk.aws_ssm.StringParameter.valueForStringParameter(
           this,
-          pascalCase(this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.kmsKey) + `-KmsKey`,
-          cdk.aws_ssm.StringParameter.valueForStringParameter(
-            this,
-            `${this.props.prefixes.ssmParamName}/kms/${this.props.securityConfig.centralSecurityServices.ebsDefaultVolumeEncryption.kmsKey}/key-arn`,
-          ),
-        ) as cdk.aws_kms.Key;
-      } else {
-        ebsEncryptionKey = new cdk.aws_kms.Key(this, 'EbsEncryptionKey', {
-          alias: this.acceleratorResourceNames.customerManagedKeys.ebsDefault.alias,
-          description: this.acceleratorResourceNames.customerManagedKeys.ebsDefault.description,
-          removalPolicy: cdk.RemovalPolicy.RETAIN,
-          enableKeyRotation: true,
-        });
+          `${this.props.prefixes.ssmParamName}/kms/${ebsEncryptionConfig.kmsKey}/key-arn`,
+        ),
+      );
+    } else {
+      ebsEncryptionKey = new cdk.aws_kms.Key(this, 'EbsEncryptionKey', {
+        alias: this.acceleratorResourceNames.customerManagedKeys.ebsDefault.alias,
+        description: this.acceleratorResourceNames.customerManagedKeys.ebsDefault.description,
+        removalPolicy: cdk.RemovalPolicy.RETAIN,
+        enableKeyRotation: true,
+      });
+      ebsEncryptionKey.addToResourcePolicy(
+        new iam.PolicyStatement({
+          sid: 'Allow service-linked role use',
+          effect: cdk.aws_iam.Effect.ALLOW,
+          actions: ['kms:Decrypt', 'kms:DescribeKey', 'kms:Encrypt', 'kms:GenerateDataKey*', 'kms:ReEncrypt*'],
+          principals: [
+            new cdk.aws_iam.ArnPrincipal(
+              `arn:${cdk.Stack.of(this).partition}:iam::${
+                cdk.Stack.of(this).account
+              }:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling`,
+            ),
+          ],
+          resources: ['*'],
+        }),
+      );
+      ebsEncryptionKey.addToResourcePolicy(
+        new iam.PolicyStatement({
+          sid: 'Allow Autoscaling to create grant',
+          effect: cdk.aws_iam.Effect.ALLOW,
+          actions: ['kms:CreateGrant'],
+          principals: [
+            new cdk.aws_iam.ArnPrincipal(
+              `arn:${cdk.Stack.of(this).partition}:iam::${
+                cdk.Stack.of(this).account
+              }:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling`,
+            ),
+          ],
+          resources: ['*'],
+          conditions: { Bool: { 'kms:GrantIsForAWSResource': 'true' } },
+        }),
+      );
+      ebsEncryptionKey.addToResourcePolicy(
+        new iam.PolicyStatement({
+          sid: 'Account Access',
+          effect: cdk.aws_iam.Effect.ALLOW,
+          principals: [new cdk.aws_iam.AccountPrincipal(cdk.Stack.of(this).account)],
+          actions: ['kms:*'],
+          resources: ['*'],
+        }),
+      );
+      ebsEncryptionKey.addToResourcePolicy(
+        new iam.PolicyStatement({
+          sid: 'ec2',
+          effect: cdk.aws_iam.Effect.ALLOW,
+          principals: [new cdk.aws_iam.AnyPrincipal()],
+          actions: ['kms:*'],
+          resources: ['*'],
+          conditions: {
+            StringEquals: {
+              'kms:CallerAccount': cdk.Stack.of(this).account,
+              'kms:ViaService': `ec2.${cdk.Stack.of(this).region}.amazonaws.com`,
+            },
+          },
+        }),
+      );
+      if (this.props.partition === 'aws') {
         ebsEncryptionKey.addToResourcePolicy(
           new iam.PolicyStatement({
-            sid: 'Allow service-linked role use',
+            sid: 'Allow cloud9 service-linked role use',
             effect: cdk.aws_iam.Effect.ALLOW,
             actions: ['kms:Decrypt', 'kms:DescribeKey', 'kms:Encrypt', 'kms:GenerateDataKey*', 'kms:ReEncrypt*'],
             principals: [
               new cdk.aws_iam.ArnPrincipal(
                 `arn:${cdk.Stack.of(this).partition}:iam::${
                   cdk.Stack.of(this).account
-                }:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling`,
+                }:role/aws-service-role/cloud9.amazonaws.com/AWSServiceRoleForAWSCloud9`,
               ),
             ],
             resources: ['*'],
@@ -272,97 +369,36 @@ export class SecurityStack extends AcceleratorStack {
         );
         ebsEncryptionKey.addToResourcePolicy(
           new iam.PolicyStatement({
-            sid: 'Allow Autoscaling to create grant',
+            sid: 'Allow cloud9 attachment of persistent resources',
             effect: cdk.aws_iam.Effect.ALLOW,
-            actions: ['kms:CreateGrant'],
+            actions: ['kms:CreateGrant', 'kms:ListGrants', 'kms:RevokeGrant'],
             principals: [
               new cdk.aws_iam.ArnPrincipal(
                 `arn:${cdk.Stack.of(this).partition}:iam::${
                   cdk.Stack.of(this).account
-                }:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling`,
+                }:role/aws-service-role/cloud9.amazonaws.com/AWSServiceRoleForAWSCloud9`,
               ),
             ],
             resources: ['*'],
             conditions: { Bool: { 'kms:GrantIsForAWSResource': 'true' } },
           }),
         );
-        ebsEncryptionKey.addToResourcePolicy(
-          new iam.PolicyStatement({
-            sid: 'Account Access',
-            effect: cdk.aws_iam.Effect.ALLOW,
-            principals: [new cdk.aws_iam.AccountPrincipal(cdk.Stack.of(this).account)],
-            actions: ['kms:*'],
-            resources: ['*'],
-          }),
-        );
-        ebsEncryptionKey.addToResourcePolicy(
-          new iam.PolicyStatement({
-            sid: 'ec2',
-            effect: cdk.aws_iam.Effect.ALLOW,
-            principals: [new cdk.aws_iam.AnyPrincipal()],
-            actions: ['kms:*'],
-            resources: ['*'],
-            conditions: {
-              StringEquals: {
-                'kms:CallerAccount': cdk.Stack.of(this).account,
-                'kms:ViaService': `ec2.${cdk.Stack.of(this).region}.${cdk.Aws.URL_SUFFIX}`,
-              },
-            },
-          }),
-        );
-        if (this.props.partition === 'aws') {
-          ebsEncryptionKey.addToResourcePolicy(
-            new iam.PolicyStatement({
-              sid: 'Allow cloud9 service-linked role use',
-              effect: cdk.aws_iam.Effect.ALLOW,
-              actions: ['kms:Decrypt', 'kms:DescribeKey', 'kms:Encrypt', 'kms:GenerateDataKey*', 'kms:ReEncrypt*'],
-              principals: [
-                new cdk.aws_iam.ArnPrincipal(
-                  `arn:${cdk.Stack.of(this).partition}:iam::${
-                    cdk.Stack.of(this).account
-                  }:role/aws-service-role/cloud9.amazonaws.com/AWSServiceRoleForAWSCloud9`,
-                ),
-              ],
-              resources: ['*'],
-            }),
-          );
-          ebsEncryptionKey.addToResourcePolicy(
-            new iam.PolicyStatement({
-              sid: 'Allow cloud9 attachment of persistent resources',
-              effect: cdk.aws_iam.Effect.ALLOW,
-              actions: ['kms:CreateGrant', 'kms:ListGrants', 'kms:RevokeGrant'],
-              principals: [
-                new cdk.aws_iam.ArnPrincipal(
-                  `arn:${cdk.Stack.of(this).partition}:iam::${
-                    cdk.Stack.of(this).account
-                  }:role/aws-service-role/cloud9.amazonaws.com/AWSServiceRoleForAWSCloud9`,
-                ),
-              ],
-              resources: ['*'],
-              conditions: { Bool: { 'kms:GrantIsForAWSResource': 'true' } },
-            }),
-          );
-        }
       }
-      new EbsDefaultEncryption(this, 'EbsDefaultVolumeEncryption', {
-        ebsEncryptionKmsKey: ebsEncryptionKey,
-        logGroupKmsKey: this.cloudwatchKey,
-        logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
-      });
-
-      this.ssmParameters.push({
-        logicalId: 'EbsDefaultVolumeEncryptionParameter',
-        parameterName: `${this.props.prefixes.ssmParamName}/security-stack/ebsDefaultVolumeEncryptionKeyArn`,
-        stringValue: ebsEncryptionKey.keyArn,
-      });
     }
+    this.ssmParameters.push({
+      logicalId: 'EbsDefaultVolumeEncryptionParameter',
+      parameterName: `${this.props.prefixes.ssmParamName}/security-stack/ebsDefaultVolumeEncryptionKeyArn`,
+      stringValue: ebsEncryptionKey.keyArn,
+    });
+
+    return ebsEncryptionKey;
   }
 
   /**
    * Function to update IAM password policy
    */
   private updateIamPasswordPolicy() {
-    if (this.props.enableSingleAccountMode) {
+    if (this.props.enableSingleAccountMode || this.props.useExistingRoles) {
       return;
     } else {
       if (this.props.globalConfig.homeRegion === cdk.Stack.of(this).region) {
@@ -386,23 +422,22 @@ export class SecurityStack extends AcceleratorStack {
     });
 
     // AwsSolutions-IAM4: The IAM user, role, or group uses AWS managed policies
-    NagSuppressions.addResourceSuppressionsByPath(
-      this,
-      `${this.stackName}/EnableConfigAggregation/ConfigAggregatorRole/Resource`,
-      [
+    this.nagSuppressionInputs.push({
+      id: NagSuppressionRuleIds.IAM4,
+      details: [
         {
-          id: 'AwsSolutions-IAM4',
+          path: `${this.stackName}/EnableConfigAggregation/ConfigAggregatorRole/Resource`,
           reason: 'AWS Config managed role required.',
         },
       ],
-    );
+    });
   }
 
   private acceleratorMetadataRule(
     acceleratorProps: AcceleratorStackProps,
     centralLogBucketName: string,
     elbLogBucketName: string,
-    cloudwatchKmsKey: cdk.aws_kms.Key,
+    cloudwatchKmsKey?: cdk.aws_kms.IKey,
   ): AcceleratorMetadata | undefined {
     const isManagementAccountAndHomeRegion =
       cdk.Stack.of(this).account === acceleratorProps.accountsConfig.getManagementAccountId() &&
@@ -427,6 +462,8 @@ export class SecurityStack extends AcceleratorStack {
       acceleratorSsmParamPrefix: this.props.prefixes.ssmParamName,
       assumeRole: acceleratorProps.globalConfig.managementAccountAccessRole,
       centralLogBucketName,
+      configRepositoryLocation: acceleratorProps.configRepositoryLocation,
+      configBucketName: `${this.props.qualifier}-config-${cdk.Stack.of(this).account}-${cdk.Stack.of(this).region}`,
       elbLogBucketName,
       cloudwatchKmsKey,
       loggingAccountId: acceleratorProps.accountsConfig.getAccountId(

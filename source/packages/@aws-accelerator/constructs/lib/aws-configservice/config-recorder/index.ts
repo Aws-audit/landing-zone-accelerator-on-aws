@@ -1,5 +1,5 @@
 /**
- *  Copyright 2023 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,7 +11,7 @@
  *  and limitations under the License.
  */
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
 import {
   ConfigServiceClient,
   DeleteDeliveryChannelCommand,
@@ -25,6 +25,12 @@ import {
   StartConfigurationRecorderCommand,
   StopConfigurationRecorderCommand,
 } from '@aws-sdk/client-config-service';
+import {
+  CloudFormationCustomResourceEvent,
+  CloudFormationCustomResourceCreateEvent,
+  CloudFormationCustomResourceUpdateEvent,
+  CloudFormationCustomResourceDeleteEvent,
+} from '@aws-accelerator/utils/lib/common-types';
 import { v4 as uuidv4 } from 'uuid';
 let configClient: ConfigServiceClient;
 
@@ -37,7 +43,7 @@ let configClient: ConfigServiceClient;
 export const handler = onEvent;
 
 export async function onEvent(
-  event: AWSLambda.CloudFormationCustomResourceEvent,
+  event: CloudFormationCustomResourceEvent,
 ): Promise<{ PhysicalResourceId: string | undefined; StatusCode: number; Status: string }> {
   //console.debug(`Event: ${JSON.stringify(event)}`);
   const solutionId = process.env['SOLUTION_ID'];
@@ -52,13 +58,16 @@ export async function onEvent(
   }
 }
 
-export async function onCreate(event: AWSLambda.CloudFormationCustomResourceCreateEvent) {
+export async function onCreate(event: CloudFormationCustomResourceCreateEvent) {
   const s3BucketName = event.ResourceProperties['s3BucketName'];
   const s3BucketKmsKeyArn = event.ResourceProperties['s3BucketKmsKeyArn'];
   const recorderRoleArn = event.ResourceProperties['recorderRoleArn'];
+  const includeGlobalResourceTypes = JSON.parse(event.ResourceProperties['includeGlobalResourceTypes']);
 
   console.log('check config recorders');
-  const configRecorders = await configClient.send(new DescribeConfigurationRecordersCommand({}));
+  const configRecorders = await throttlingBackOff(() =>
+    configClient.send(new DescribeConfigurationRecordersCommand({})),
+  );
   console.log(`${JSON.stringify(configRecorders)}`);
 
   let existingConfigRecorderName: string | undefined = undefined;
@@ -68,19 +77,23 @@ export async function onCreate(event: AWSLambda.CloudFormationCustomResourceCrea
 
   if (existingConfigRecorderName) {
     console.info('Stopping config recorder');
-    await configClient.send(
-      new StopConfigurationRecorderCommand({ ConfigurationRecorderName: existingConfigRecorderName }),
+    await throttlingBackOff(() =>
+      configClient.send(
+        new StopConfigurationRecorderCommand({ ConfigurationRecorderName: existingConfigRecorderName }),
+      ),
     );
   }
 
   let configRecorderName = existingConfigRecorderName;
 
-  configRecorderName = await createUpdateRecorder(recorderRoleArn);
+  configRecorderName = await createUpdateRecorder(recorderRoleArn, includeGlobalResourceTypes);
 
   await createUpdateDeliveryChannel(s3BucketName, s3BucketKmsKeyArn);
 
   console.info('Starting config recorder');
-  await configClient.send(new StartConfigurationRecorderCommand({ ConfigurationRecorderName: configRecorderName }));
+  await throttlingBackOff(() =>
+    configClient.send(new StartConfigurationRecorderCommand({ ConfigurationRecorderName: configRecorderName })),
+  );
 
   return {
     PhysicalResourceId: uuidv4(),
@@ -89,12 +102,15 @@ export async function onCreate(event: AWSLambda.CloudFormationCustomResourceCrea
   };
 }
 
-async function onUpdate(event: AWSLambda.CloudFormationCustomResourceUpdateEvent) {
+async function onUpdate(event: CloudFormationCustomResourceUpdateEvent) {
   const s3BucketName = event.ResourceProperties['s3BucketName'];
   const s3BucketKmsKeyArn = event.ResourceProperties['s3BucketKmsKeyArn'];
   const recorderRoleArn = event.ResourceProperties['recorderRoleArn'];
+  const includeGlobalResourceTypes = event.ResourceProperties['includeGlobalResourceTypes'];
 
-  const configRecorders = await configClient.send(new DescribeConfigurationRecordersCommand({}));
+  const configRecorders = await throttlingBackOff(() =>
+    configClient.send(new DescribeConfigurationRecordersCommand({})),
+  );
   let existingConfigRecorderName: string | undefined = undefined;
 
   if (configRecorders.ConfigurationRecorders?.length === 1) {
@@ -103,18 +119,22 @@ async function onUpdate(event: AWSLambda.CloudFormationCustomResourceUpdateEvent
 
   if (existingConfigRecorderName) {
     console.info('Stopping config recorder');
-    await configClient.send(
-      new StopConfigurationRecorderCommand({ ConfigurationRecorderName: existingConfigRecorderName }),
+    await throttlingBackOff(() =>
+      configClient.send(
+        new StopConfigurationRecorderCommand({ ConfigurationRecorderName: existingConfigRecorderName }),
+      ),
     );
   }
 
   let configRecorderName = existingConfigRecorderName;
-  configRecorderName = await createUpdateRecorder(recorderRoleArn);
+  configRecorderName = await createUpdateRecorder(recorderRoleArn, includeGlobalResourceTypes);
 
   await createUpdateDeliveryChannel(s3BucketName, s3BucketKmsKeyArn);
 
   console.info('Starting config recorder');
-  await configClient.send(new StartConfigurationRecorderCommand({ ConfigurationRecorderName: configRecorderName }));
+  await throttlingBackOff(() =>
+    configClient.send(new StartConfigurationRecorderCommand({ ConfigurationRecorderName: configRecorderName })),
+  );
 
   return {
     PhysicalResourceId: event.PhysicalResourceId,
@@ -123,8 +143,10 @@ async function onUpdate(event: AWSLambda.CloudFormationCustomResourceUpdateEvent
   };
 }
 
-async function onDelete(event: AWSLambda.CloudFormationCustomResourceDeleteEvent) {
-  const configRecorders = await configClient.send(new DescribeConfigurationRecordersCommand({}));
+async function onDelete(event: CloudFormationCustomResourceDeleteEvent) {
+  const configRecorders = await throttlingBackOff(() =>
+    configClient.send(new DescribeConfigurationRecordersCommand({})),
+  );
   let existingConfigRecorderName: string | undefined = undefined;
 
   if (configRecorders.ConfigurationRecorders?.length === 1) {
@@ -133,8 +155,10 @@ async function onDelete(event: AWSLambda.CloudFormationCustomResourceDeleteEvent
 
   if (existingConfigRecorderName) {
     console.info('Stopping config recorder');
-    await configClient.send(
-      new StopConfigurationRecorderCommand({ ConfigurationRecorderName: existingConfigRecorderName }),
+    await throttlingBackOff(() =>
+      configClient.send(
+        new StopConfigurationRecorderCommand({ ConfigurationRecorderName: existingConfigRecorderName }),
+      ),
     );
   }
 
@@ -151,7 +175,9 @@ async function onDelete(event: AWSLambda.CloudFormationCustomResourceDeleteEvent
 
 async function createUpdateDeliveryChannel(s3BucketName: string, s3BucketKmsKeyArn: string): Promise<void> {
   console.log('In create update delivery channel');
-  const deliveryChannels = await configClient.send(new DescribeDeliveryChannelStatusCommand({}));
+  const deliveryChannels = await throttlingBackOff(() =>
+    configClient.send(new DescribeDeliveryChannelStatusCommand({})),
+  );
   console.info(`Delivery channels: ${JSON.stringify(deliveryChannels)}`);
   let existingDeliveryChannelName: string | undefined = undefined;
   // should return one or none
@@ -185,7 +211,9 @@ async function createUpdateDeliveryChannel(s3BucketName: string, s3BucketKmsKeyA
 
 async function deleteConfigRecorder(): Promise<void> {
   console.log('In delete config recorder');
-  const configRecorders = await configClient.send(new DescribeConfigurationRecordersCommand({}));
+  const configRecorders = await throttlingBackOff(() =>
+    configClient.send(new DescribeConfigurationRecordersCommand({})),
+  );
   let existingConfigRecorderName: string | undefined = undefined;
 
   if (configRecorders.ConfigurationRecorders?.length === 1) {
@@ -202,14 +230,15 @@ async function deleteConfigRecorder(): Promise<void> {
       console.debug(`Delete config recorder response: ${JSON.stringify(response)}`);
     } catch (error) {
       console.error(JSON.stringify(error));
-      throw new Error(`Failed to delete configuration recorder ${existingConfigRecorderName}`);
     }
   }
 }
 
 async function deleteDeliveryChannel() {
   console.log('In delete delivery channel');
-  const deliveryChannels = await configClient.send(new DescribeDeliveryChannelStatusCommand({}));
+  const deliveryChannels = await throttlingBackOff(() =>
+    configClient.send(new DescribeDeliveryChannelStatusCommand({})),
+  );
   let existingDeliveryChannelName: string | undefined = undefined;
 
   if (deliveryChannels.DeliveryChannelsStatus?.length === 1) {
@@ -224,14 +253,15 @@ async function deleteDeliveryChannel() {
       console.debug(`Delete delivery channel response: ${JSON.stringify(response)}`);
     } catch (error) {
       console.error(JSON.stringify(error));
-      throw new Error(`Failed to delete delivery channel ${existingDeliveryChannelName}`);
     }
   }
 }
 
-async function createUpdateRecorder(recorderRoleArn: string): Promise<string> {
+async function createUpdateRecorder(recorderRoleArn: string, includeGlobalResourceTypes: boolean): Promise<string> {
   console.log('In create update recorder');
-  const configRecorders = await configClient.send(new DescribeConfigurationRecordersCommand({}));
+  const configRecorders = await throttlingBackOff(() =>
+    configClient.send(new DescribeConfigurationRecordersCommand({})),
+  );
   let existingConfigRecorderName: string | undefined = undefined;
   if (configRecorders.ConfigurationRecorders?.length === 1) {
     existingConfigRecorderName = configRecorders.ConfigurationRecorders[0].name;
@@ -243,7 +273,7 @@ async function createUpdateRecorder(recorderRoleArn: string): Promise<string> {
       roleARN: recorderRoleArn,
       recordingGroup: {
         allSupported: true,
-        includeGlobalResourceTypes: true,
+        includeGlobalResourceTypes: includeGlobalResourceTypes,
       },
     },
   };

@@ -1,5 +1,5 @@
 /**
- *  Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -13,7 +13,9 @@
 
 import * as AWS from 'aws-sdk';
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
+import { getGlobalRegion } from '@aws-accelerator/utils/lib/common-functions';
 
 AWS.config.logger = console;
 
@@ -23,9 +25,41 @@ AWS.config.logger = console;
  * @param event
  * @returns
  */
+interface NotificationConfig {
+  threshold: string;
+  thresholdType: 'PERCENTAGE' | 'ABSOLUTE_VALUE';
+  type: 'ACTUAL' | 'FORECASTED';
+  comparisonOperator: 'GREATER_THAN' | 'LESS_THAN';
+  address: string;
+  recipients: string[];
+  subscriptionType: 'EMAIL' | 'SNS';
+}
+interface SubscribersDefinition {
+  readonly SubscriptionType: 'SNS' | 'EMAIL';
+  readonly Address: string;
+}
+interface BudgetDefinition {
+  amount: number;
+  includeCredit: string;
+  includeDiscount: string;
+  includeOtherSubscription: string;
+  includeRecurring: string;
+  includeRefund: string;
+  includeSubscription: string;
+  includeSupport: string;
+  includeTax: string;
+  includeUpfront: string;
+  name: string;
+  notifications?: NotificationConfig[];
+  timeUnit: string;
+  type: string;
+  useAmortized: string;
+  useBlended: string;
+  unit: string;
+}
 
 export async function handler(
-  event: AWSLambda.CloudFormationCustomResourceEvent,
+  event: CloudFormationCustomResourceEvent,
   context: { invokedFunctionArn: string },
 ): Promise<
   | {
@@ -34,49 +68,15 @@ export async function handler(
     }
   | undefined
 > {
-  interface BudgetDefinition {
-    amount: number;
-    includeCredit: string;
-    includeDiscount: string;
-    includeOtherSubscription: string;
-    includeRecurring: string;
-    includeRefund: string;
-    includeSubscription: string;
-    includeSupport: string;
-    includeTax: string;
-    includeUpfront: string;
-    name: string;
-    notifications?: {
-      threshold: string;
-      thresholdType: 'PERCENTAGE' | 'ABSOLUTE_VALUE';
-      type: 'ACTUAL' | 'FORECASTED';
-      comparisonOperator: 'GREATER_THAN' | 'LESS_THAN';
-      address: string;
-      subscriptionType: 'EMAIL' | 'SNS';
-    }[];
-    timeUnit: string;
-    type: string;
-    useAmortized: string;
-    useBlended: string;
-    unit: string;
-  }
-
   const budgetDefinition: BudgetDefinition = event.ResourceProperties['budgetDefinition'];
 
   if (!budgetDefinition) {
     throw new Error('Budget definition is missing from Resource Properties.');
   }
 
-  let budgetClient = new AWS.Budgets();
   const partition = event.ResourceProperties['partition'];
-  if (partition === 'aws-us-gov') {
-    console.log(`AWS GovCloud does not have an AWS Budgets endpoints.`);
-    return;
-  } else if (partition === 'aws-cn') {
-    budgetClient = new AWS.Budgets({ region: 'cn-northwest-1' });
-  } else {
-    budgetClient = new AWS.Budgets({ region: 'us-east-1' });
-  }
+  const globalRegion = getGlobalRegion(partition);
+  const budgetClient = new AWS.Budgets({ region: globalRegion });
 
   //AccountId retrieved from context
   const awsAccountId = context.invokedFunctionArn.split(':')[4];
@@ -91,7 +91,7 @@ export async function handler(
   const includeOtherSubscription = JSON.parse(budgetDefinition.includeOtherSubscription);
   const includeRecurring = JSON.parse(budgetDefinition.includeRecurring);
   const includeRefund = JSON.parse(budgetDefinition.includeRefund);
-  const inscludeSubscription = JSON.parse(budgetDefinition.includeCredit);
+  const includeSubscription = JSON.parse(budgetDefinition.includeCredit);
   const includeSupport = JSON.parse(budgetDefinition.includeSupport);
   const includeUpfront = JSON.parse(budgetDefinition.includeUpfront);
   const includeTax = JSON.parse(budgetDefinition.includeTax);
@@ -111,12 +111,7 @@ export async function handler(
             Threshold: Number(budgetNotifications.threshold),
             ThresholdType: `${budgetNotifications.thresholdType}`,
           },
-          Subscribers: [
-            {
-              Address: budgetNotifications.address,
-              SubscriptionType: budgetNotifications.subscriptionType,
-            },
-          ],
+          Subscribers: JSON.parse(JSON.stringify(getRecipients(budgetNotifications))),
         };
         notifications.push(budgetNotification);
       }
@@ -136,7 +131,7 @@ export async function handler(
             IncludeOtherSubscription: includeOtherSubscription,
             IncludeRecurring: includeRecurring,
             IncludeRefund: includeRefund,
-            IncludeSubscription: inscludeSubscription,
+            IncludeSubscription: includeSubscription,
             IncludeSupport: includeSupport,
             IncludeTax: includeTax,
             IncludeUpfront: includeUpfront,
@@ -175,7 +170,7 @@ export async function handler(
             IncludeOtherSubscription: includeOtherSubscription,
             IncludeRecurring: includeRecurring,
             IncludeRefund: includeRefund,
-            IncludeSubscription: inscludeSubscription,
+            IncludeSubscription: includeSubscription,
             IncludeSupport: includeSupport,
             IncludeTax: includeTax,
             IncludeUpfront: includeUpfront,
@@ -206,4 +201,20 @@ export async function handler(
         Status: 'SUCCESS',
       };
   }
+}
+export function getRecipients(notify: NotificationConfig) {
+  const recipients: SubscribersDefinition[] = [];
+  for (const recipient of notify.recipients ?? []) {
+    recipients.push({
+      SubscriptionType: notify.subscriptionType,
+      Address: recipient,
+    });
+  }
+  if (notify.address) {
+    recipients.push({
+      SubscriptionType: notify.subscriptionType,
+      Address: notify.address,
+    });
+  }
+  return recipients;
 }

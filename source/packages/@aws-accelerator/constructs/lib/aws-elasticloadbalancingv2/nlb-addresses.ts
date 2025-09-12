@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -15,6 +15,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { NagSuppressions } from 'cdk-nag';
 import { NlbTargetTypeConfig } from '@aws-accelerator/config';
+import { DEFAULT_LAMBDA_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 
 const path = require('path');
 
@@ -39,9 +40,9 @@ export interface NLBAddressesProps {
    */
   readonly partition: string;
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly kmsKey: cdk.aws_kms.Key;
+  readonly kmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
@@ -60,7 +61,7 @@ export class NLBAddresses extends cdk.Resource implements INLBAddresses {
 
     const providerLambda = new cdk.aws_lambda.Function(this, functionId, {
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, 'nlb-ip-lookup/dist')),
-      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
+      runtime: DEFAULT_LAMBDA_RUNTIME,
       timeout: cdk.Duration.seconds(15),
       handler: 'index.handler',
     });
@@ -78,7 +79,7 @@ export class NLBAddresses extends cdk.Resource implements INLBAddresses {
       onEventHandler: providerLambda,
     });
 
-    new cdk.aws_logs.LogGroup(this, `${providerLambda.node.id}LogGroup`, {
+    const logGroup = new cdk.aws_logs.LogGroup(this, `${providerLambda.node.id}LogGroup`, {
       logGroupName: `/aws/lambda/${providerLambda.functionName}`,
       retention: props.logRetentionInDays,
       encryptionKey: props.kmsKey,
@@ -94,7 +95,8 @@ export class NLBAddresses extends cdk.Resource implements INLBAddresses {
         partition: cdk.Stack.of(scope).partition,
       },
     });
-
+    // Ensure that the LogGroup is created by Cloudformation prior to Lambda execution
+    resource.node.addDependency(logGroup);
     this.ipAddresses = resource.getAtt('ipAddresses');
 
     const stack = cdk.Stack.of(scope);

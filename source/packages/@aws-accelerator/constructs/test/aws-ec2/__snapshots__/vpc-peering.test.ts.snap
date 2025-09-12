@@ -2,6 +2,130 @@
 
 exports[`VpcPeering Construct(VpcPeering):  Snapshot Test 1`] = `
 {
+  "Mappings": {
+    "LatestNodeRuntimeMap": {
+      "af-south-1": {
+        "value": "nodejs20.x",
+      },
+      "ap-east-1": {
+        "value": "nodejs20.x",
+      },
+      "ap-northeast-1": {
+        "value": "nodejs20.x",
+      },
+      "ap-northeast-2": {
+        "value": "nodejs20.x",
+      },
+      "ap-northeast-3": {
+        "value": "nodejs20.x",
+      },
+      "ap-south-1": {
+        "value": "nodejs20.x",
+      },
+      "ap-south-2": {
+        "value": "nodejs20.x",
+      },
+      "ap-southeast-1": {
+        "value": "nodejs20.x",
+      },
+      "ap-southeast-2": {
+        "value": "nodejs20.x",
+      },
+      "ap-southeast-3": {
+        "value": "nodejs20.x",
+      },
+      "ap-southeast-4": {
+        "value": "nodejs20.x",
+      },
+      "ap-southeast-5": {
+        "value": "nodejs20.x",
+      },
+      "ap-southeast-7": {
+        "value": "nodejs20.x",
+      },
+      "ca-central-1": {
+        "value": "nodejs20.x",
+      },
+      "ca-west-1": {
+        "value": "nodejs20.x",
+      },
+      "cn-north-1": {
+        "value": "nodejs18.x",
+      },
+      "cn-northwest-1": {
+        "value": "nodejs18.x",
+      },
+      "eu-central-1": {
+        "value": "nodejs20.x",
+      },
+      "eu-central-2": {
+        "value": "nodejs20.x",
+      },
+      "eu-isoe-west-1": {
+        "value": "nodejs18.x",
+      },
+      "eu-north-1": {
+        "value": "nodejs20.x",
+      },
+      "eu-south-1": {
+        "value": "nodejs20.x",
+      },
+      "eu-south-2": {
+        "value": "nodejs20.x",
+      },
+      "eu-west-1": {
+        "value": "nodejs20.x",
+      },
+      "eu-west-2": {
+        "value": "nodejs20.x",
+      },
+      "eu-west-3": {
+        "value": "nodejs20.x",
+      },
+      "il-central-1": {
+        "value": "nodejs20.x",
+      },
+      "me-central-1": {
+        "value": "nodejs20.x",
+      },
+      "me-south-1": {
+        "value": "nodejs20.x",
+      },
+      "mx-central-1": {
+        "value": "nodejs20.x",
+      },
+      "sa-east-1": {
+        "value": "nodejs20.x",
+      },
+      "us-east-1": {
+        "value": "nodejs20.x",
+      },
+      "us-east-2": {
+        "value": "nodejs20.x",
+      },
+      "us-gov-east-1": {
+        "value": "nodejs18.x",
+      },
+      "us-gov-west-1": {
+        "value": "nodejs18.x",
+      },
+      "us-iso-east-1": {
+        "value": "nodejs18.x",
+      },
+      "us-iso-west-1": {
+        "value": "nodejs18.x",
+      },
+      "us-isob-east-1": {
+        "value": "nodejs18.x",
+      },
+      "us-west-1": {
+        "value": "nodejs20.x",
+      },
+      "us-west-2": {
+        "value": "nodejs20.x",
+      },
+    },
+  },
   "Resources": {
     "CustomPrefixListRouteCustomResourceProviderHandler5B28D077": {
       "DependsOn": [
@@ -22,7 +146,7 @@ exports[`VpcPeering Construct(VpcPeering):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -32,7 +156,7 @@ exports[`VpcPeering Construct(VpcPeering):  Snapshot Test 1`] = `
       "Properties": {
         "KmsKeyId": {
           "Fn::GetAtt": [
-            "kmsKey2EF55D91A",
+            "kmsKey3BB021CC",
             "Arn",
           ],
         },
@@ -124,7 +248,42 @@ exports[`VpcPeering Construct(VpcPeering):  Snapshot Test 1`] = `
       },
       "Type": "AWS::EC2::VPCPeeringConnection",
     },
-    "TestPeeringcrossAccountPeerRouteA647E009": {
+    "TestPeeringcrossAccountPeerRoutepl9DA94FD5": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "myProviderframeworkonEventAB595BBA",
+            "Arn",
+          ],
+        },
+        "region": {
+          "Ref": "AWS::Region",
+        },
+        "roleArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":iam::111111111111:role/role",
+            ],
+          ],
+        },
+        "routeDefinition": {
+          "DestinationPrefixListId": "pl-test",
+          "RouteTableId": "rt-3456",
+          "VpcPeeringConnectionId": {
+            "Ref": "TestPeeringF63C5812",
+          },
+        },
+      },
+      "Type": "Custom::CrossAccountRoute",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestPeeringcrossAccountPeerRoutev4CAB8D1B0": {
       "DeletionPolicy": "Delete",
       "Properties": {
         "ServiceToken": {
@@ -159,15 +318,40 @@ exports[`VpcPeering Construct(VpcPeering):  Snapshot Test 1`] = `
       "Type": "Custom::CrossAccountRoute",
       "UpdateReplacePolicy": "Delete",
     },
-    "TestPeeringvpcPeeringRoute112B3732": {
+    "TestPeeringcrossAccountPeerRoutev6CB7B447F": {
+      "DeletionPolicy": "Delete",
       "Properties": {
-        "DestinationCidrBlock": "10.0.0.5/32",
-        "RouteTableId": "rt-12345",
-        "VpcPeeringConnectionId": {
-          "Ref": "TestPeeringF63C5812",
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "myProviderframeworkonEventAB595BBA",
+            "Arn",
+          ],
+        },
+        "region": {
+          "Ref": "AWS::Region",
+        },
+        "roleArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":iam::111111111111:role/role",
+            ],
+          ],
+        },
+        "routeDefinition": {
+          "DestinationIpv6CidrBlock": "fd00::/8",
+          "RouteTableId": "rt-3456",
+          "VpcPeeringConnectionId": {
+            "Ref": "TestPeeringF63C5812",
+          },
         },
       },
-      "Type": "AWS::EC2::Route",
+      "Type": "Custom::CrossAccountRoute",
+      "UpdateReplacePolicy": "Delete",
     },
     "TestPeeringvpcPeeringRoute313B0AACD": {
       "DeletionPolicy": "Delete",
@@ -191,6 +375,49 @@ exports[`VpcPeering Construct(VpcPeering):  Snapshot Test 1`] = `
       },
       "Type": "Custom::PrefixListRoute",
       "UpdateReplacePolicy": "Delete",
+    },
+    "TestPeeringvpcPeeringRoutepl5A3561CF": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomPrefixListRouteCustomResourceProviderLogGroup68DB81A5",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomPrefixListRouteCustomResourceProviderHandler5B28D077",
+            "Arn",
+          ],
+        },
+        "routeDefinition": {
+          "DestinationPrefixListId": "pl-test",
+          "RouteTableId": "rt-12345",
+          "VpcPeeringConnectionId": {
+            "Ref": "TestPeeringF63C5812",
+          },
+        },
+      },
+      "Type": "Custom::PrefixListRoute",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "TestPeeringvpcPeeringRoutev49F442833": {
+      "Properties": {
+        "DestinationCidrBlock": "10.0.0.5/32",
+        "RouteTableId": "rt-12345",
+        "VpcPeeringConnectionId": {
+          "Ref": "TestPeeringF63C5812",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "TestPeeringvpcPeeringRoutev64A0FC377": {
+      "Properties": {
+        "DestinationIpv6CidrBlock": "fd00::/8",
+        "RouteTableId": "rt-12345",
+        "VpcPeeringConnectionId": {
+          "Ref": "TestPeeringF63C5812",
+        },
+      },
+      "Type": "AWS::EC2::Route",
     },
     "kmsKey1A3FA0EFA": {
       "DeletionPolicy": "Retain",
@@ -362,7 +589,15 @@ exports[`VpcPeering Construct(VpcPeering):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": {
+          "Fn::FindInMap": [
+            "LatestNodeRuntimeMap",
+            {
+              "Ref": "AWS::Region",
+            },
+            "value",
+          ],
+        },
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -455,7 +690,7 @@ exports[`VpcPeering Construct(VpcPeering):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs18.x",
       },
       "Type": "AWS::Lambda::Function",
     },

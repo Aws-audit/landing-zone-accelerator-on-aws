@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -28,6 +28,44 @@ new VpnConnection(stack, 'TestVpn', {
   transitGatewayId: 'Test-tgw',
   vpnTunnelOptionsSpecifications: [
     {
+      preSharedKey: 'test-key-1',
+      tunnelInsideCidr: '169.254.200.0/30',
+    },
+    {
+      preSharedKey: 'test-key-1',
+      tunnelInsideCidr: '169.254.100.0/30',
+    },
+  ],
+  tags: [{ key: 'Test-Key', value: 'Test-Value' }],
+});
+
+new VpnConnection(stack, 'AdvancedVpn', {
+  name: 'Advanced-Vpn',
+  amazonIpv4NetworkCidr: '10.0.0.0/16',
+  customerIpv4NetworkCidr: '192.168.0.0/16',
+  customResourceHandler: cdk.aws_lambda.Function.fromFunctionName(stack, 'TestFunction', 'TestFunction'),
+  enableVpnAcceleration: true,
+  customerGatewayId: 'Test-Cgw',
+  staticRoutesOnly: true,
+  transitGatewayId: 'Test-tgw',
+  vpnTunnelOptionsSpecifications: [
+    {
+      dpdTimeoutAction: 'restart',
+      dpdTimeoutSeconds: 60,
+      ikeVersions: [2],
+      logging: {
+        enable: true,
+      },
+      phase1: {
+        dhGroups: [14, 20],
+        encryptionAlgorithms: ['AES256'],
+        integrityAlgorithms: ['SHA2-256'],
+      },
+      phase2: {
+        dhGroups: [14, 20],
+        encryptionAlgorithms: ['AES256'],
+        integrityAlgorithms: ['SHA2-256'],
+      },
       preSharedKey: 'test-key-1',
       tunnelInsideCidr: '169.254.200.0/30',
     },

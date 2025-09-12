@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -16,6 +16,7 @@ import { Construct } from 'constructs';
 import { NagSuppressions } from 'cdk-nag';
 import { pascalCase } from 'change-case';
 const path = require('path');
+import { DEFAULT_LAMBDA_RUNTIME } from '../../../utils/lib/lambda';
 
 /**
  * Initialized AcceleratorMetadataProps properties
@@ -32,7 +33,6 @@ export interface AcceleratorMetadataProps {
   /**
    * Central logging Bucket name
    */
-
   readonly centralLogBucketName: string;
   /**
    * ELB log bucket name
@@ -51,13 +51,21 @@ export interface AcceleratorMetadataProps {
    */
   readonly acceleratorSsmParamPrefix: string;
   /**
+   * The service used to store LZA config files
+   */
+  readonly configRepositoryLocation: string;
+  /**
+   * Config bucket name
+   */
+  readonly configBucketName: string;
+  /**
    * The Accelerator Organization Id
    */
   readonly organizationId: string;
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly cloudwatchKmsKey: cdk.aws_kms.Key;
+  readonly cloudwatchKmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
@@ -88,13 +96,25 @@ export class AcceleratorMetadata extends Construct {
     const functionName = `${props.acceleratorPrefix}-metadata-collection`;
 
     const lambdaCode = cdk.aws_lambda.Code.fromAsset(path.join(__dirname, 'get-accelerator-metadata/dist'));
-    this.role = this.createLambdaRole(props.acceleratorPrefix, account, region, props.metadataLogBucketName);
+    this.role = this.createLambdaRole(
+      props.acceleratorPrefix,
+      account,
+      region,
+      props.metadataLogBucketName,
+      props.configBucketName,
+    );
     this.lambdaFunction = this.createLambdaFunction(functionName, stack, lambdaCode, this.role, props);
-    this.rule = this.createMetadataCloudwatchRule(props.acceleratorPrefix, this.lambdaFunction.lambda);
+    this.rule = this.createMetadataCloudwatchRule(stack, props.acceleratorPrefix, this.lambdaFunction.lambda);
     this.setCdkNagSuppressions(stack, id, this.role);
   }
 
-  private createLambdaRole(acceleratorPrefix: string, account: string, region: string, metadataLogBucketName: string) {
+  private createLambdaRole(
+    acceleratorPrefix: string,
+    account: string,
+    region: string,
+    metadataLogBucketName: string,
+    configBucketName: string,
+  ) {
     const lambdaRole = new cdk.aws_iam.Role(this, 'MetadataLambda', {
       assumedBy: new cdk.aws_iam.ServicePrincipal('lambda.amazonaws.com'),
       roleName: `${acceleratorPrefix}-${account}-${region}-metadata-lambda-role`,
@@ -149,6 +169,8 @@ export class AcceleratorMetadata extends Construct {
         resources: [
           `arn:${cdk.Stack.of(this).partition}:s3:::${metadataLogBucketName}`,
           `arn:${cdk.Stack.of(this).partition}:s3:::${metadataLogBucketName}/*`,
+          `arn:${cdk.Stack.of(this).partition}:s3:::${configBucketName}`,
+          `arn:${cdk.Stack.of(this).partition}:s3:::${configBucketName}/*`,
         ],
       }),
     );
@@ -161,12 +183,12 @@ export class AcceleratorMetadata extends Construct {
     role: cdk.aws_iam.Role,
     props: AcceleratorMetadataProps,
   ) {
-    const logGroup = this.setCloudwatchLogGroup(stack, functionName, props.cloudwatchKmsKey, props.logRetentionInDays);
+    const logGroup = this.setCloudwatchLogGroup(stack, functionName, props.logRetentionInDays, props.cloudwatchKmsKey);
     const lambda = new cdk.aws_lambda.Function(this, functionName, {
       functionName,
       role,
       code,
-      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
+      runtime: DEFAULT_LAMBDA_RUNTIME,
       timeout: cdk.Duration.minutes(10),
       handler: 'index.handler',
       environment: {
@@ -174,6 +196,8 @@ export class AcceleratorMetadata extends Construct {
         LOG_ACCOUNT_ID: props.loggingAccountId,
         PARTITION: cdk.Stack.of(this).partition,
         CONFIG_REPOSITORY_NAME: props.acceleratorConfigRepositoryName,
+        CONFIG_REPOSITORY_LOCATION: props.configRepositoryLocation,
+        CONFIG_BUCKET_NAME: props.configBucketName,
         ORGANIZATION_ID: props.organizationId,
         CENTRAL_LOG_BUCKET: props.centralLogBucketName,
         ELB_LOGGING_BUCKET: props.elbLogBucketName,
@@ -190,8 +214,25 @@ export class AcceleratorMetadata extends Construct {
       logGroup,
     };
   }
-  private createMetadataCloudwatchRule(acceleratorPrefix: string, targetFunction: cdk.aws_lambda.Function) {
+  private createMetadataCloudwatchRule(
+    stack: cdk.Stack,
+    acceleratorPrefix: string,
+    targetFunction: cdk.aws_lambda.Function,
+  ) {
     const rule = new cdk.aws_events.Rule(this, pascalCase(`${acceleratorPrefix}MetadataCollectionRule`), {
+      eventPattern: {
+        source: ['aws.cloudformation'],
+        account: [stack.account],
+        region: [stack.region],
+        resources: [stack.stackId],
+        detailType: ['CloudFormation Stack Status Change'],
+        detail: {
+          'stack-id': [stack.stackId],
+          'status-details': {
+            status: ['CREATE_COMPLETE', 'UPDATE_COMPLETE'],
+          },
+        },
+      },
       schedule: cdk.aws_events.Schedule.rate(cdk.Duration.days(1)),
       ruleName: `${acceleratorPrefix}-metadata-collection-rule`,
     });
@@ -203,8 +244,8 @@ export class AcceleratorMetadata extends Construct {
   private setCloudwatchLogGroup(
     stack: cdk.Stack,
     lambdaFunctionName: string,
-    kmsKey: cdk.aws_kms.Key,
     retention: number,
+    kmsKey?: cdk.aws_kms.IKey,
   ) {
     return new cdk.aws_logs.LogGroup(stack, `${lambdaFunctionName}LogGroup`, {
       logGroupName: `/aws/lambda/${lambdaFunctionName}`,

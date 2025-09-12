@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,9 +11,17 @@
  *  and limitations under the License.
  */
 
-import { IpamConfig, OutpostsConfig, SubnetConfig, VpcConfig, VpcTemplatesConfig } from '@aws-accelerator/config';
+import {
+  AseaResourceType,
+  IpamConfig,
+  OutpostsConfig,
+  SubnetConfig,
+  VpcConfig,
+  VpcTemplatesConfig,
+} from '@aws-accelerator/config';
 import { PutSsmParameter, RouteTable, SsmParameterProps, Subnet, Vpc } from '@aws-accelerator/constructs';
-import { SsmResourceType } from '@aws-accelerator/utils';
+import { getAvailabilityZoneMap } from '@aws-accelerator/utils/lib/regions';
+import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
 import * as cdk from 'aws-cdk-lib';
 import { pascalCase } from 'pascal-case';
 import { LogLevel } from '../network-stack';
@@ -41,6 +49,66 @@ export class SubnetResources {
   }
 
   /**
+   * Function to create Subnet
+   * @param vpcItem {@link VpcConfig} | {@link VpcTemplatesConfig}
+   * @param subnetItem {@link SubnetConfig}
+   * @param maps
+   * @param index number
+   * @param ipamConfig {@link IpamConfig} []
+   * @returns
+   */
+  private createSubnet(
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    subnetItem: SubnetConfig,
+    maps: {
+      vpcs: Map<string, Vpc>;
+      routeTables: Map<string, RouteTable>;
+      subnets: Map<string, Subnet>;
+      ipamSubnets: Map<number, Subnet>;
+      outposts: Map<string, OutpostsConfig>;
+    },
+    index: number,
+    ipamConfig?: IpamConfig[],
+  ): number {
+    // Retrieve items required to create subnet
+    const vpc = getVpc(maps.vpcs, vpcItem.name) as Vpc;
+    const routeTable = subnetItem.routeTable
+      ? (getRouteTable(maps.routeTables, vpcItem.name, subnetItem.routeTable) as RouteTable)
+      : undefined;
+    const basePool = subnetItem.ipamAllocation ? this.getBasePool(subnetItem, ipamConfig) : undefined;
+    const outpost = subnetItem.outpost
+      ? this.stack.getOutpost(maps.outposts, vpcItem.name, subnetItem.outpost)
+      : undefined;
+    const availabilityZone = this.setAvailabilityZone(subnetItem, outpost);
+
+    // Create subnet
+    const subnet = this.createSubnetItem(vpcItem, subnetItem, availabilityZone, vpc, routeTable, basePool, outpost);
+    maps.subnets.set(`${vpcItem.name}_${subnetItem.name}`, subnet);
+
+    // Need to ensure IPAM subnets are created one at a time to avoid duplicate allocations
+    // Add dependency on previously-created IPAM subnet, if it exists
+    if (subnetItem.ipamAllocation) {
+      maps.ipamSubnets.set(index, subnet);
+
+      if (index > 0) {
+        const lastSubnet = maps.ipamSubnets.get(index - 1);
+
+        if (!lastSubnet) {
+          this.stack.addLogs(
+            LogLevel.ERROR,
+            `Error creating subnet ${subnetItem.name}: previous IPAM subnet undefined`,
+          );
+          throw new Error(`Configuration validation failed at runtime.`);
+        }
+        subnet.node.addDependency(lastSubnet);
+      }
+      index += 1;
+    }
+
+    return index;
+  }
+
+  /**
    * Create subnets for each VPC
    * @param vpcResources
    * @param vpcMap
@@ -64,38 +132,19 @@ export class SubnetResources {
       let index = 0;
 
       for (const subnetItem of vpcItem.subnets ?? []) {
-        // Retrieve items required to create subnet
-        const vpc = getVpc(vpcMap, vpcItem.name) as Vpc;
-        const routeTable = getRouteTable(routeTableMap, vpcItem.name, subnetItem.routeTable) as RouteTable;
-        const basePool = subnetItem.ipamAllocation ? this.getBasePool(subnetItem, ipamConfig) : undefined;
-        const outpost = subnetItem.outpost
-          ? this.stack.getOutpost(outpostMap, vpcItem.name, subnetItem.outpost)
-          : undefined;
-        const availabilityZone = this.setAvailabilityZone(subnetItem);
-
-        // Create subnet
-        const subnet = this.createSubnetItem(vpcItem, subnetItem, availabilityZone, routeTable, vpc, basePool, outpost);
-        subnetMap.set(`${vpcItem.name}_${subnetItem.name}`, subnet);
-
-        // Need to ensure IPAM subnets are created one at a time to avoid duplicate allocations
-        // Add dependency on previously-created IPAM subnet, if it exists
-        if (subnetItem.ipamAllocation) {
-          ipamSubnetMap.set(index, subnet);
-
-          if (index > 0) {
-            const lastSubnet = ipamSubnetMap.get(index - 1);
-
-            if (!lastSubnet) {
-              this.stack.addLogs(
-                LogLevel.ERROR,
-                `Error creating subnet ${subnetItem.name}: previous IPAM subnet undefined`,
-              );
-              throw new Error(`Configuration validation failed at runtime.`);
-            }
-            subnet.node.addDependency(lastSubnet);
-          }
-          index += 1;
-        }
+        index = this.createSubnet(
+          vpcItem,
+          subnetItem,
+          {
+            vpcs: vpcMap,
+            routeTables: routeTableMap,
+            subnets: subnetMap,
+            ipamSubnets: ipamSubnetMap,
+            outposts: outpostMap,
+          },
+          index,
+          ipamConfig,
+        );
       }
     }
     return subnetMap;
@@ -131,20 +180,25 @@ export class SubnetResources {
    * @param outpost
    * @returns
    */
-  private setAvailabilityZone(subnetItem: SubnetConfig, outpost?: OutpostsConfig) {
-    let availabilityZone: string | undefined = undefined;
+  private setAvailabilityZone(subnetItem: SubnetConfig, outpost?: OutpostsConfig): string {
+    let availabilityZone = outpost?.availabilityZone ? outpost.availabilityZone : subnetItem.availabilityZone;
 
-    if (subnetItem.availabilityZone) {
-      availabilityZone = `${cdk.Stack.of(this.stack).region}${subnetItem.availabilityZone}`;
-    } else if (outpost?.availabilityZone) {
-      availabilityZone = outpost.availabilityZone;
-    }
-
-    if (!availabilityZone) {
-      this.stack.addLogs(LogLevel.ERROR, `Error creating subnet ${subnetItem.name}: Availability Zone not defined.`);
+    if (!availabilityZone && !subnetItem.localZone) {
+      this.stack.addLogs(
+        LogLevel.ERROR,
+        `Error creating subnet ${subnetItem.name}: Neither Local Zone or Availability Zone are defined.`,
+      );
       throw new Error(`Configuration validation failed at runtime.`);
     }
-    return availabilityZone;
+
+    if (subnetItem.localZone) {
+      return (availabilityZone = `${cdk.Stack.of(this.stack).region}-${subnetItem.localZone}`);
+    }
+
+    return (availabilityZone =
+      typeof availabilityZone === 'string'
+        ? `${cdk.Stack.of(this.stack).region}${availabilityZone}`
+        : `${getAvailabilityZoneMap(cdk.Stack.of(this.stack).region)}${availabilityZone}`);
   }
 
   /**
@@ -164,38 +218,60 @@ export class SubnetResources {
     vpcItem: VpcConfig | VpcTemplatesConfig,
     subnetItem: SubnetConfig,
     availabilityZone: string,
-    routeTable: RouteTable,
     vpc: Vpc,
+    routeTable?: RouteTable,
     basePool?: string[],
     outpost?: OutpostsConfig,
   ): Subnet {
     this.stack.addLogs(LogLevel.INFO, `Adding subnet ${subnetItem.name} to VPC ${vpcItem.name}`);
-    const subnet = new Subnet(this.stack, pascalCase(`${vpcItem.name}Vpc`) + pascalCase(`${subnetItem.name}Subnet`), {
-      name: subnetItem.name,
-      availabilityZone,
-      basePool,
-      ipamAllocation: subnetItem.ipamAllocation,
-      ipv4CidrBlock: subnetItem.ipv4CidrBlock,
-      kmsKey: this.stack.cloudwatchKey,
-      logRetentionInDays: this.stack.logRetention,
-      mapPublicIpOnLaunch: subnetItem.mapPublicIpOnLaunch,
-      routeTable,
-      vpc,
-      tags: subnetItem.tags,
-      outpost,
-    });
 
-    this.stack.addSsmParameter({
-      logicalId: pascalCase(`SsmParam${pascalCase(vpcItem.name) + pascalCase(subnetItem.name)}SubnetId`),
-      parameterName: this.stack.getSsmPath(SsmResourceType.SUBNET, [vpcItem.name, subnetItem.name]),
-      stringValue: subnet.subnetId,
-    });
+    const isAvailabilityZoneId = !availabilityZone.includes(cdk.Stack.of(this.stack).region);
+    let subnet;
+    if (this.stack.isManagedByAsea(AseaResourceType.EC2_SUBNET, `${vpcItem.name}/${subnetItem.name}`)) {
+      const subnetId = this.stack.getExternalResourceParameter(
+        this.stack.getSsmPath(SsmResourceType.SUBNET, [vpcItem.name, subnetItem.name]),
+      );
+      subnet = Subnet.fromSubnetAttributes(
+        this.stack,
+        pascalCase(`${vpcItem.name}Vpc`) + pascalCase(`${subnetItem.name}Subnet`),
+        {
+          subnetId,
+          routeTable,
+          name: subnetItem.name,
+          ipv4CidrBlock: subnetItem.ipv4CidrBlock ?? '', // Import Subnet is only supported for static cidr configuration
+        },
+      );
+    } else {
+      subnet = new Subnet(this.stack, pascalCase(`${vpcItem.name}Vpc`) + pascalCase(`${subnetItem.name}Subnet`), {
+        name: subnetItem.name,
+        assignIpv6OnCreation: subnetItem.assignIpv6OnCreation,
+        availabilityZone: isAvailabilityZoneId ? undefined : availabilityZone,
+        availabilityZoneId: isAvailabilityZoneId ? availabilityZone : undefined,
+        basePool,
+        enableDns64: subnetItem.enableDns64,
+        ipamAllocation: subnetItem.ipamAllocation,
+        ipv4CidrBlock: subnetItem.ipv4CidrBlock,
+        ipv6CidrBlock: subnetItem.ipv6CidrBlock,
+        kmsKey: this.stack.cloudwatchKey,
+        logRetentionInDays: this.stack.logRetention,
+        mapPublicIpOnLaunch: subnetItem.mapPublicIpOnLaunch,
+        privateDnsOptions: subnetItem.privateDnsOptions,
+        routeTable,
+        vpc,
+        tags: subnetItem.tags,
+        outpost,
+      });
 
-    // If the VPC has additional CIDR blocks, depend on those CIDRs to be associated
-    for (const cidr of vpc.cidrs ?? []) {
-      subnet.node.addDependency(cidr);
+      this.stack.addSsmParameter({
+        logicalId: pascalCase(`SsmParam${pascalCase(vpcItem.name) + pascalCase(subnetItem.name)}SubnetId`),
+        parameterName: this.stack.getSsmPath(SsmResourceType.SUBNET, [vpcItem.name, subnetItem.name]),
+        stringValue: subnet.subnetId,
+      });
+      // If the VPC has additional CIDR blocks, depend on those CIDRs to be associated
+      for (const cidr of [...vpc.cidrs.ipv4, ...vpc.cidrs.ipv6]) {
+        subnet.node.addDependency(cidr);
+      }
     }
-
     if (subnetItem.shareTargets) {
       this.stack.addLogs(LogLevel.INFO, `Share subnet ${subnetItem.name}`);
       this.stack.addResourceShare(subnetItem, `${subnetItem.name}_SubnetShare`, [subnet.subnetArn]);
@@ -272,6 +348,12 @@ export class SubnetResources {
         name: this.stack.getSsmPath(SsmResourceType.SUBNET, [vpcItem.name, subnetItem.name]),
         value: subnet.subnetId,
       });
+      if (subnet.ipv4CidrBlock) {
+        parameters.push({
+          name: this.stack.getSsmPath(SsmResourceType.SUBNET_IPV4_CIDR_BLOCK, [vpcItem.name, subnetItem.name]),
+          value: subnet.ipv4CidrBlock,
+        });
+      }
 
       // Retrieve accounts to share parameters with
       const subnetAccountIds = this.stack.getAccountIdsFromShareTarget(subnetItem.shareTargets!);

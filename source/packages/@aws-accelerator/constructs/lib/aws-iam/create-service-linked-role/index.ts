@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,7 +11,14 @@
  *  and limitations under the License.
  */
 
-import { GetRoleCommand, IAMClient, CreateServiceLinkedRoleCommand, NoSuchEntityException } from '@aws-sdk/client-iam';
+import {
+  GetRoleCommand,
+  IAMClient,
+  CreateServiceLinkedRoleCommand,
+  NoSuchEntityException,
+  InvalidInputException,
+} from '@aws-sdk/client-iam';
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
 
 /**
  * create-service-linked-role - lambda handler
@@ -20,7 +27,7 @@ import { GetRoleCommand, IAMClient, CreateServiceLinkedRoleCommand, NoSuchEntity
  * @returns
  */
 
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent): Promise<
+export async function handler(event: CloudFormationCustomResourceEvent): Promise<
   | {
       Status: string;
       Data: { roleArn: string; roleName: string } | undefined;
@@ -34,11 +41,15 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
       //check if role exists if it does return success
       if (!(await isRoleExists(iamClient, event.ResourceProperties['roleName']))) {
         // role needs to be created
-        return await createServiceLinkedRole(
+        const createServiceLinkedRoleResponse = await createServiceLinkedRole(
           iamClient,
           event.ResourceProperties['serviceName'],
           event.ResourceProperties['description'] ?? undefined,
         );
+
+        // Delay to allow service linked role to propagate after creation of SLR
+        await delay(60000);
+        return createServiceLinkedRoleResponse;
       } else {
         //role does not need to be created
         return {
@@ -89,6 +100,13 @@ export async function createServiceLinkedRole(
       throw new Error(`Response did not have Role. ${JSON.stringify(resp)}`);
     }
   } catch (error) {
+    if (error instanceof InvalidInputException && error.message.includes('has been taken in this account')) {
+      //role does not need to be created
+      return {
+        Status: 'SUCCESS',
+        Data: undefined,
+      };
+    }
     throw new Error(`There was an error in service linked role creation: ${JSON.stringify(error)}`);
   }
 }

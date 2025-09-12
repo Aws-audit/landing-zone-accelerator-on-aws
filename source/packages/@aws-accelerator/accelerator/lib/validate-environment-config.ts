@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Construct } from 'constructs';
 import path = require('path');
 import { NagSuppressions } from 'cdk-nag';
+import { DEFAULT_LAMBDA_RUNTIME } from '../../utils/lib/lambda';
 
 export interface ValidateEnvironmentConfigProps {
   readonly acceleratorConfigTable: cdk.aws_dynamodb.ITable;
@@ -37,13 +38,14 @@ export interface ValidateEnvironmentConfigProps {
   }[];
   readonly policyTagKey: string;
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly kmsKey: cdk.aws_kms.Key;
+  readonly kmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
   readonly logRetentionInDays: number;
+  readonly vpcsCidrs: { vpcName: string; logicalId: string; cidrs: string[]; parameterName: string }[];
 }
 
 /**
@@ -101,15 +103,22 @@ export class ValidateEnvironmentConfig extends Construct {
         `arn:${props.partition}:cloudformation:${props.region}:${props.managementAccountId}:stack/${props.stackName}*`,
       ],
     });
+    const validationParameters = props.vpcsCidrs.map(
+      p => `arn:${props.partition}:ssm:${props.region}:${props.managementAccountId}:parameter${p.parameterName}`,
+    );
     const ssmPolicy = new cdk.aws_iam.PolicyStatement({
       sid: 'sms',
       effect: cdk.aws_iam.Effect.ALLOW,
       actions: ['ssm:GetParameter'],
-      resources: [props.driftDetectionParameter.parameterArn, props.driftDetectionMessageParameter.parameterArn],
+      resources: [
+        props.driftDetectionParameter.parameterArn,
+        props.driftDetectionMessageParameter.parameterArn,
+        ...validationParameters,
+      ],
     });
 
     const providerLambda = new cdk.aws_lambda.Function(this, 'ValidateEnvironmentFunction', {
-      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
+      runtime: DEFAULT_LAMBDA_RUNTIME,
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, './lambdas/validate-environment/dist')),
       handler: 'index.handler',
       timeout: cdk.Duration.minutes(15),
@@ -124,7 +133,7 @@ export class ValidateEnvironmentConfig extends Construct {
     providerLambda.addToRolePolicy(ssmPolicy);
 
     // Custom resource lambda log group
-    new cdk.aws_logs.LogGroup(this, `${providerLambda.node.id}LogGroup`, {
+    const logGroup = new cdk.aws_logs.LogGroup(this, `${providerLambda.node.id}LogGroup`, {
       logGroupName: `/aws/lambda/${providerLambda.functionName}`,
       retention: props.logRetentionInDays,
       encryptionKey: props.kmsKey,
@@ -150,9 +159,13 @@ export class ValidateEnvironmentConfig extends Construct {
         driftDetectionParameterName: props.driftDetectionParameter.parameterName,
         driftDetectionMessageParameterName: props.driftDetectionMessageParameter.parameterName,
         serviceControlPolicies: props.serviceControlPolicies,
-        uuid: uuidv4(), // Generates a new UUID to force the resource to update
+        skipScpValidation: process.env['ACCELERATOR_SKIP_SCP_VALIDATION'] ?? 'no',
+        uuid: uuidv4(), // Generates a new UUID to force the resource to update,
+        vpcCidrs: props.vpcsCidrs,
       },
     });
+    // Ensure that the LogGroup is created by Cloudformation prior to Lambda execution
+    resource.node.addDependency(logGroup);
 
     NagSuppressions.addResourceSuppressionsByPath(
       stack,

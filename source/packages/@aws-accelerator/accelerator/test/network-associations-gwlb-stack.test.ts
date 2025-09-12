@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -14,19 +14,12 @@
 import { describe } from '@jest/globals';
 
 import { AcceleratorStage } from '../lib/accelerator-stage';
-import { AcceleratorSynthStacks } from './accelerator-synth-stacks';
 import { snapShotTest } from './snapshot-test';
-
-const testNamePrefix = 'Construct(NetworkAssociationsGwlbStack): ';
-
-const acceleratorTestStacks = new AcceleratorSynthStacks(
-  AcceleratorStage.NETWORK_ASSOCIATIONS_GWLB,
-  'all-enabled',
-  'aws',
-  'us-east-1',
-);
-const stack = acceleratorTestStacks.stacks.get(`Network-us-east-1`)!;
+import { Create } from './accelerator-test-helpers';
 
 describe('NetworkAssociationsGwlbStack', () => {
-  snapShotTest(testNamePrefix, stack);
+  snapShotTest(
+    'Construct(NetworkAssociationsGwlbStack): ',
+    Create.stackProvider(`Network-us-east-1`, AcceleratorStage.NETWORK_ASSOCIATIONS_GWLB),
+  );
 });

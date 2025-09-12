@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -58,13 +58,13 @@ export interface ActiveDirectoryProps {
    */
   readonly logRetentionInDays: number;
   /**
-   * Custom resource lambda key
+   * Custom resource lambda key, when undefined default AWS managed key will be used
    */
-  readonly lambdaKey: cdk.aws_kms.IKey;
+  readonly lambdaKey?: cdk.aws_kms.IKey;
   /**
-   * Custom resource CloudWatch log group encryption key
+   * Custom resource CloudWatch log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly cloudwatchKey: cdk.aws_kms.IKey;
+  readonly cloudwatchKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource CloudWatch log retention in days
    */

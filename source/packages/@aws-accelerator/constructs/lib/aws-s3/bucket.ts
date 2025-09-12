@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -15,30 +15,12 @@ import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as s3 from 'aws-cdk-lib/aws-s3';
-import { StorageClass } from '@aws-accelerator/config/lib/common-types/types';
+import { StorageClass } from '@aws-accelerator/config/lib/common/types';
 import { BucketReplication, BucketReplicationProps } from './bucket-replication';
 import { BucketPrefix, BucketPrefixProps } from './bucket-prefix';
 import { Construct } from 'constructs';
 import { pascalCase } from 'change-case';
-
-export enum BucketAccessType {
-  /**
-   * When service need read only access to bucket and CMK
-   */
-  READONLY = 'readonly',
-  /**
-   * When service need write only access to bucket and CMK
-   */
-  WRITEONLY = 'writeonly',
-  /**
-   * When service need read write access to bucket and CMK
-   */
-  READWRITE = 'readwrite',
-  /**
-   * When service need no access like SessionManager, but the service name required for other logical changes in bucket or CMK policy
-   */
-  NO_ACCESS = 'no_access',
-}
+import { BucketAccessType } from '@aws-accelerator/utils/lib/common-resources';
 
 export enum BucketEncryptionType {
   SSE_S3 = 'sse-s3',
@@ -53,12 +35,13 @@ interface Transition {
 export interface S3LifeCycleRule {
   abortIncompleteMultipartUploadAfter: number;
   enabled: boolean;
-  expiration: number;
+  expiration?: number;
   expiredObjectDeleteMarker: boolean;
   id: string;
   noncurrentVersionExpiration: number;
   transitions: Transition[];
   noncurrentVersionTransitions: Transition[];
+  prefix?: string;
 }
 
 /**
@@ -84,7 +67,7 @@ export interface BucketProps {
   /**
    * The kms key for bucket encryption.
    */
-  kmsKey?: kms.Key;
+  kmsKey?: kms.IKey;
   /**
    * The name of the alias.
    */
@@ -139,6 +122,14 @@ export interface BucketProps {
    * Optional bucket prefix property
    */
   bucketPrefixProps?: BucketPrefixProps;
+  /**
+   * Prefix for nag suppression
+   */
+  readonly nagSuppressionPrefix?: string;
+  /**
+   * Determines if objects are deleted from the bucket on destroy
+   */
+  autoDeleteObjects?: boolean;
 }
 
 /**
@@ -152,7 +143,7 @@ export class Bucket extends Construct {
    * which will be determined later based on other properties
    */
   private encryptionType: s3.BucketEncryption = s3.BucketEncryption.KMS;
-  private cmk?: kms.Key;
+  private cmk?: kms.IKey;
   private serverAccessLogsPrefix: string | undefined;
   private serverAccessLogBucket: cdk.aws_s3.IBucket | undefined;
   private lifecycleRules: cdk.aws_s3.LifecycleRule[] = [];
@@ -188,6 +179,7 @@ export class Bucket extends Construct {
       serverAccessLogsBucket: this.serverAccessLogBucket,
       // Trailing slash for folder-like prefix in S3
       serverAccessLogsPrefix: this.serverAccessLogsPrefix?.concat('/'),
+      autoDeleteObjects: props.autoDeleteObjects,
     });
     // Had to be removed to allow CloudTrail access
     // this.bucket.addToResourcePolicy(
@@ -250,6 +242,8 @@ export class Bucket extends Construct {
         },
         kmsKey: props.replicationProps.kmsKey,
         logRetentionInDays: props.replicationProps.logRetentionInDays,
+        useExistingRoles: props.replicationProps.useExistingRoles,
+        acceleratorPrefix: props.replicationProps.acceleratorPrefix,
       });
     }
 
@@ -258,8 +252,12 @@ export class Bucket extends Construct {
       new BucketPrefix(this, id + 'Prefix', {
         source: { bucket: this.bucket },
         bucketPrefixes: props.bucketPrefixProps.bucketPrefixes,
-        kmsKey: props.bucketPrefixProps.kmsKey,
-        logRetentionInDays: props.bucketPrefixProps.logRetentionInDays,
+        customResourceLambdaEnvironmentEncryptionKmsKey:
+          props.bucketPrefixProps.customResourceLambdaEnvironmentEncryptionKmsKey,
+        customResourceLambdaCloudWatchLogKmsKey: props.bucketPrefixProps.customResourceLambdaCloudWatchLogKmsKey,
+        customResourceLambdaLogRetentionInDays: props.bucketPrefixProps.customResourceLambdaLogRetentionInDays,
+        nagSuppressionPrefix:
+          props.nagSuppressionPrefix !== undefined ? `${props.nagSuppressionPrefix}/${id}Prefix` : undefined,
       });
     }
   }
@@ -268,7 +266,7 @@ export class Bucket extends Construct {
     return this.bucket;
   }
 
-  public getKey(): kms.Key {
+  public getKey(): kms.IKey {
     if (this.cmk) {
       return this.cmk;
     } else {
@@ -355,12 +353,16 @@ export class Bucket extends Construct {
             lifecycleRuleConfig.abortIncompleteMultipartUploadAfter,
           ),
           enabled: lifecycleRuleConfig.enabled,
-          expiration: cdk.Duration.days(lifecycleRuleConfig.expiration),
+          expiration:
+            lifecycleRuleConfig.expiration !== undefined
+              ? cdk.Duration.days(lifecycleRuleConfig.expiration)
+              : undefined,
           transitions,
           noncurrentVersionTransitions,
           noncurrentVersionExpiration: cdk.Duration.days(lifecycleRuleConfig.noncurrentVersionExpiration),
           expiredObjectDeleteMarker: lifecycleRuleConfig.expiredObjectDeleteMarker,
-          id: `LifecycleRule${this.props.s3BucketName}`,
+          id: `LifecycleRule${this.props.s3BucketName}${lifecycleRuleConfig.id}`,
+          prefix: lifecycleRuleConfig.prefix,
         });
       }
     } else {

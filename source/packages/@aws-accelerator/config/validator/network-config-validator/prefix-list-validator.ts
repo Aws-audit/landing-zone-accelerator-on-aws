@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -101,8 +101,19 @@ export class PrefixListValidator {
       }
       // Validate CIDR ranges
       list.entries.forEach(entry => {
-        if (!helpers.isValidIpv4Cidr(entry)) {
-          errors.push(`[Prefix list ${list.name}]: entry "${entry}" is invalid. Value must be a valid IPv4 CIDR range`);
+        if (list.addressFamily === 'IPv4') {
+          if (!helpers.isValidIpv4Cidr(entry)) {
+            errors.push(
+              `[Prefix list ${list.name}]: entry "${entry}" is invalid. Value must be a valid IPv4 CIDR range`,
+            );
+          }
+        }
+        if (list.addressFamily === 'IPv6') {
+          if (!helpers.isValidIpv6Cidr(entry)) {
+            errors.push(
+              `[Prefix list ${list.name}]: entry "${entry}" is invalid. Value must be a valid IPv6 CIDR range`,
+            );
+          }
         }
       });
     });

@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -10,9 +10,9 @@
  *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions
  *  and limitations under the License.
  */
+import { isNetworkType } from '../../lib/common';
 import {
   NetworkConfig,
-  NetworkConfigTypes,
   TransitGatewayConfig,
   TransitGatewayRouteTableConfig,
   TransitGatewayRouteEntryConfig,
@@ -58,6 +58,10 @@ export class TransitGatewayValidator {
     // Validate TGW configurations
     //
     this.validateTgwConfiguration(values, helpers, errors);
+    //
+    // Validate TGW Connect attachment configurations
+    //
+    this.validateTgwConnectConfiguration(values, errors);
   }
 
   /**
@@ -87,7 +91,12 @@ export class TransitGatewayValidator {
     for (const transitGateway of values.transitGateways) {
       for (const routeTable of transitGateway.routeTables) {
         for (const route of routeTable.routes) {
-          if (NetworkConfigTypes.transitGatewayRouteTableTgwPeeringEntryConfig.is(route.attachment)) {
+          if (
+            isNetworkType<TransitGatewayRouteTableTgwPeeringEntryConfig>(
+              'ITransitGatewayRouteTableTgwPeeringEntryConfig',
+              route.attachment,
+            )
+          ) {
             const attachment: TransitGatewayRouteTableTgwPeeringEntryConfig = route.attachment;
             if (!values.transitGatewayPeering?.find(item => item.name === attachment.transitGatewayPeeringName)) {
               errors.push(
@@ -224,6 +233,10 @@ export class TransitGatewayValidator {
     //
     this.validateTgwAsns(values, errors);
     //
+    // Validate transit gateway static CIDRs
+    //
+    this.validateTgwCidrs(values, helpers, errors);
+    //
     // Validate transit gateway route table structure
     //
     const allValid = this.validateTransitGatewayRouteStructure(values, errors);
@@ -238,6 +251,83 @@ export class TransitGatewayValidator {
           // Validate static route entries
           this.validateTgwStaticRouteEntries(values, tgw, routeTable, helpers, errors);
         }
+      }
+    }
+  }
+
+  /**
+   * Function to validate Transit Gateway Connect configurations
+   * @param values
+   * @param helpers
+   * @param errors
+   */
+  private validateTgwConnectConfiguration(values: NetworkConfig, errors: string[]) {
+    // Validate use of VPC of Direct Connect configurations
+    this.validateDxVpcTgwConnectConfigurations(values, errors);
+    // Validate resources specified in Transit Gateway Connect
+    this.validateTgwConnectResources(values, errors);
+    // Validate Transit Gateway region for connect attachment
+    this.validateTgwConnectRegion(values, errors);
+  }
+
+  /**
+   * Function to validate attachments referenced for Transit Gateway Connect configuration
+   * @param values
+   * @param errors
+   */
+  private validateDxVpcTgwConnectConfigurations(values: NetworkConfig, errors: string[]) {
+    for (const connectItem of values.transitGatewayConnects ?? []) {
+      if (connectItem.directConnect && connectItem.vpc) {
+        errors.push(
+          `[Transit Gateway Connect ${connectItem.name}]: Direct Connect VPC and VPC cannot be specified together`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Function to validate if resources specified in Transit Gateway Connect Attachments exist.
+   */
+  private validateTgwConnectResources(values: NetworkConfig, errors: string[]) {
+    for (const connectItem of values.transitGatewayConnects ?? []) {
+      const validTransitGateway = values.transitGateways.find(item => item.name === connectItem.transitGateway.name);
+      if (!validTransitGateway) {
+        errors.push(
+          `[Transit Gateway Connect ${connectItem.name}]: The Transit Gateway ${connectItem.transitGateway.name} not found in configuration`,
+        );
+      }
+      if (connectItem.directConnect) {
+        const validDirectConnectGateway = values.directConnectGateways!.find(
+          item => item.name === connectItem.directConnect,
+        );
+        if (!validDirectConnectGateway) {
+          errors.push(
+            `[Transit Gateway Connect ${connectItem.name}]: Direct Connect ${connectItem.directConnect} not found in configuration`,
+          );
+        }
+      }
+      if (connectItem.vpc) {
+        const validVpcName = values.vpcs.find(item => item.name === connectItem.vpc?.vpcName);
+        if (!validVpcName) {
+          errors.push(
+            `[Transit Gateway Connect ${connectItem.name}]: VPC ${connectItem.vpc.vpcName} not found in configuration`,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Function to validate if resources specified in Transit Gateway Connect Attachments reside in the same region..
+   */
+  private validateTgwConnectRegion(values: NetworkConfig, errors: string[]) {
+    for (const connectItem of values.transitGatewayConnects ?? []) {
+      const vpcItem = values.vpcs.find(item => item.name === connectItem.vpc?.vpcName);
+      const tgwItem = values.transitGateways.find(item => item.name === connectItem.transitGateway.name);
+      if (vpcItem?.region !== tgwItem?.region) {
+        errors.push(
+          `[Transit Gateway Connect ${connectItem.name}]: The VPC: ${vpcItem?.name} and Transit Gateway: ${tgwItem?.name} must be in the same region for a Transit Gateway Connect attachment.`,
+        );
       }
     }
   }
@@ -279,6 +369,38 @@ export class TransitGatewayValidator {
     });
   }
 
+  /**
+   * Validate transit gateway static CIDRs
+   * @param values
+   * @param helpers
+   * @param errors
+   */
+  private validateTgwCidrs(values: NetworkConfig, helpers: NetworkValidatorFunctions, errors: string[]) {
+    values.transitGateways.forEach(tgw => {
+      if (tgw.transitGatewayCidrBlocks) {
+        tgw.transitGatewayCidrBlocks.forEach(ipv4Cidr => {
+          if (!helpers.isValidIpv4Cidr(ipv4Cidr)) {
+            errors.push(
+              `[Transit gateway ${tgw.name}]: static IPv4 CIDR ${ipv4Cidr} is not valid. Static CIDRs must be in CIDR notation`,
+            );
+          }
+        });
+      }
+      if (tgw.transitGatewayIpv6CidrBlocks) {
+        tgw.transitGatewayIpv6CidrBlocks.forEach(ipv6Cidr => {
+          if (!helpers.isValidIpv6Cidr(ipv6Cidr)) {
+            errors.push(
+              `[Transit gateway ${tgw.name}]: static IPv6 CIDR ${ipv6Cidr} is not valid. Static CIDRs must be in CIDR notation`,
+            );
+          }
+        });
+      }
+      const totalCidrBlocks = [...(tgw.transitGatewayCidrBlocks ?? []), ...(tgw.transitGatewayIpv6CidrBlocks ?? [])];
+      if (totalCidrBlocks.length > 5) {
+        errors.push(`[Transit gateway ${tgw.name}]: cannot have more than 5 static CIDRs. `);
+      }
+    });
+  }
   /**
    * Validate route entries are using the correct structure
    * @param values
@@ -355,9 +477,9 @@ export class TransitGatewayValidator {
 
     // Validate CIDRs
     cidrs.forEach(cidr => {
-      if (!helpers.isValidIpv4Cidr(cidr)) {
+      if (!helpers.isValidIpv4Cidr(cidr) && !helpers.isValidIpv6Cidr(cidr)) {
         errors.push(
-          `[Transit gateway ${tgw.name} route table ${routeTable.name}]: destination CIDR "${cidr}" is invalid. Value must be a valid IPv4 CIDR range`,
+          `[Transit gateway ${tgw.name} route table ${routeTable.name}]: destination CIDR "${cidr}" is invalid. Value must be a valid IPv4/v6 CIDR range`,
         );
       }
     });
@@ -467,7 +589,10 @@ export class TransitGatewayValidator {
     helpers: NetworkValidatorFunctions,
     errors: string[],
   ) {
-    if (entry.attachment && NetworkConfigTypes.transitGatewayRouteTableVpcEntryConfig.is(entry.attachment)) {
+    if (
+      entry.attachment &&
+      isNetworkType<TransitGatewayRouteTableVpcEntryConfig>('ITransitGatewayRouteTableVpcEntryConfig', entry.attachment)
+    ) {
       const vpcAttachment = entry.attachment as TransitGatewayRouteTableVpcEntryConfig;
       const vpc = helpers.getVpc(vpcAttachment.vpcName);
 
@@ -500,7 +625,13 @@ export class TransitGatewayValidator {
     entry: TransitGatewayRouteEntryConfig,
     errors: string[],
   ) {
-    if (entry.attachment && NetworkConfigTypes.transitGatewayRouteTableDxGatewayEntryConfig.is(entry.attachment)) {
+    if (
+      entry.attachment &&
+      isNetworkType<TransitGatewayRouteTableDxGatewayEntryConfig>(
+        'ITransitGatewayRouteTableDxGatewayEntryConfig',
+        entry.attachment,
+      )
+    ) {
       const dxAttachment = entry.attachment as TransitGatewayRouteTableDxGatewayEntryConfig;
       const dxgw = dxgws.find(item => item.name === dxAttachment.directConnectGatewayName);
       // Catch error if DXGW doesn't exist
@@ -540,7 +671,10 @@ export class TransitGatewayValidator {
     entry: TransitGatewayRouteEntryConfig,
     errors: string[],
   ) {
-    if (entry.attachment && NetworkConfigTypes.transitGatewayRouteTableVpnEntryConfig.is(entry.attachment)) {
+    if (
+      entry.attachment &&
+      isNetworkType<TransitGatewayRouteTableVpnEntryConfig>('ITransitGatewayRouteTableVpnEntryConfig', entry.attachment)
+    ) {
       const vpnAttachment = entry.attachment as TransitGatewayRouteTableVpnEntryConfig;
       const cgw = cgws.find(cgwItem =>
         cgwItem.vpnConnections?.find(vpnItem => vpnItem.name === vpnAttachment.vpnConnectionName),

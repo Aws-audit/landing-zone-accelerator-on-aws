@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -54,6 +54,10 @@ interface VirtualInterfaceAttributeProps {
    */
   readonly amazonAddress?: string;
   /**
+   * The BGP Authentication Key
+   */
+  readonly authKey?: string;
+  /**
    * The customer side peer IP address
    */
   readonly customerAddress?: string;
@@ -74,11 +78,13 @@ export class VirtualInterfaceAttributes {
   public readonly virtualInterfaceType: 'private' | 'transit';
   public readonly vlan: number;
   public readonly amazonAddress?: string;
+  public readonly authKey?: string;
   public readonly customerAddress?: string;
   public readonly tags?: DirectConnect.TagList;
   constructor(props: VirtualInterfaceAttributeProps) {
     this.addressFamily = props.addressFamily;
     this.amazonAddress = props.amazonAddress;
+    this.authKey = props.authKey;
     this.asn = props.asn;
     this.connectionId = props.connectionId;
     this.customerAddress = props.customerAddress;

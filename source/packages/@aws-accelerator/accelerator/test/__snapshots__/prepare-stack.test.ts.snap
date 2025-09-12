@@ -183,17 +183,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
               },
               "Effect": "Allow",
               "Principal": {
-                "Service": {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "logs.us-east-1.",
-                      {
-                        "Ref": "AWS::URLSuffix",
-                      },
-                    ],
-                  ],
-                },
+                "Service": "logs.us-east-1.amazonaws.com",
               },
               "Resource": "*",
               "Sid": "Allow Cloudwatch logs to use the encryption key",
@@ -339,6 +329,47 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
+    "AcceleratorResourceTable4013A9E6": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "pk",
+            "AttributeType": "S",
+          },
+          {
+            "AttributeName": "sk",
+            "AttributeType": "S",
+          },
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "KeySchema": [
+          {
+            "AttributeName": "pk",
+            "KeyType": "HASH",
+          },
+          {
+            "AttributeName": "sk",
+            "KeyType": "RANGE",
+          },
+        ],
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true,
+        },
+        "SSESpecification": {
+          "KMSMasterKeyId": {
+            "Fn::GetAtt": [
+              "ManagementKey0813A4D9",
+              "Arn",
+            ],
+          },
+          "SSEEnabled": true,
+          "SSEType": "KMS",
+        },
+      },
+      "Type": "AWS::DynamoDB::Table",
+      "UpdateReplacePolicy": "Delete",
+    },
     "ConfigTableArnParameter0395C8F4": {
       "Properties": {
         "Name": "/accelerator/prepare-stack/configTable/arn",
@@ -471,7 +502,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -620,7 +651,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -725,7 +756,18 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                 "organizations:ListParents",
               ],
               "Effect": "Allow",
-              "Resource": "arn:aws:organizations::111111111111:account/o-*/*",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":organizations::111111111111:account/o-*/*",
+                  ],
+                ],
+              },
               "Sid": "organizations",
             },
           ],
@@ -797,6 +839,9 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
     "CreateCTAccounts3049A752": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
+        "CreateCTAccountsCreateControlTowerAccountLogGroup7DD19087",
+        "CreateCTAccountsCreateControlTowerAccountStatusLogGroup18D2531C",
+        "CreateCTAccountsCreateControlTowerAccountWaiterLogGroup1A71123A",
         "CreateOrganizationAccountsDDA8AFE1",
         "CreateOrganizationAccountsServiceRole99CB3720",
         "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
@@ -816,6 +861,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -861,6 +907,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -900,7 +947,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -926,6 +973,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -997,6 +1045,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -1107,6 +1156,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -1149,7 +1199,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1175,6 +1225,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -1246,6 +1297,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -1363,6 +1415,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -1402,7 +1455,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1428,6 +1481,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -1499,6 +1553,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -1609,6 +1664,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -1619,6 +1675,20 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
         "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
       ],
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "AWS Custom resource provider role created by cdk.",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "AWS Custom resource provider role created by cdk.",
+            },
+          ],
+        },
+      },
       "Properties": {
         "DefinitionString": {
           "Fn::Join": [
@@ -1641,6 +1711,22 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
               ""}}}",
             ],
           ],
+        },
+        "LoggingConfiguration": {
+          "Destinations": [
+            {
+              "CloudWatchLogsLogGroup": {
+                "LogGroupArn": {
+                  "Fn::GetAtt": [
+                    "CreateCTAccountsCreateControlTowerAccountWaiterLogGroup1A71123A",
+                    "Arn",
+                  ],
+                },
+              },
+            },
+          ],
+          "IncludeExecutionData": true,
+          "Level": "ERROR",
         },
         "RoleArn": {
           "Fn::GetAtt": [
@@ -1672,6 +1758,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -1747,6 +1834,22 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                 },
               ],
             },
+            {
+              "Action": [
+                "logs:CreateLogDelivery",
+                "logs:CreateLogStream",
+                "logs:GetLogDelivery",
+                "logs:UpdateLogDelivery",
+                "logs:DeleteLogDelivery",
+                "logs:ListLogDeliveries",
+                "logs:PutLogEvents",
+                "logs:PutResourcePolicy",
+                "logs:DescribeResourcePolicies",
+                "logs:DescribeLogGroups",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -1780,6 +1883,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -1797,7 +1901,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
               "Principal": {
-                "Service": "states.us-east-1.amazonaws.com",
+                "Service": "states.amazonaws.com",
               },
             },
           ],
@@ -1828,6 +1932,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -1857,7 +1962,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 60,
       },
       "Type": "AWS::Lambda::Function",
@@ -1884,6 +1989,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -1938,6 +2044,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -2011,6 +2118,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -2047,7 +2155,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -2074,6 +2182,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -2128,6 +2237,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -2211,6 +2321,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -2327,6 +2438,52 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
+    "CreateCTAccountsCreateControlTowerAccountWaiterLogGroup1A71123A": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CreateOrganizationAccountsDDA8AFE1",
+        "CreateOrganizationAccountsServiceRole99CB3720",
+        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
+        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
+        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
+        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
+        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
+        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
+        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
+        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
+        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
+        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
+        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
+        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
+        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
+        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
+        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
+        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
+        "CreateOrganizationAccounts49A5350C",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
+        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
+        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
+      ],
+      "Properties": {
+        "KmsKeyId": {
+          "Fn::GetAtt": [
+            "AcceleratorManagementCloudWatchKeyE630915F",
+            "Arn",
+          ],
+        },
+        "LogGroupName": "/aws/vendedlogs/states/waiter-state-machine/CreateControlTowerAccount",
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
     "CreateCTAccountsLambdaPrincipalAssociationFAD34BEB": {
       "DependsOn": [
         "CreateOrganizationAccountsDDA8AFE1",
@@ -2348,6 +2505,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
         "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "CreateOrganizationAccounts49A5350C",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
@@ -2375,6 +2533,9 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
     "CreateOrganizationAccounts49A5350C": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
+        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
+        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
+        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
         "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
@@ -2439,7 +2600,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -2717,7 +2878,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2906,7 +3067,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3099,7 +3260,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3256,6 +3417,20 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
         "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
       ],
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "AWS Custom resource provider role created by cdk.",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "AWS Custom resource provider role created by cdk.",
+            },
+          ],
+        },
+      },
       "Properties": {
         "DefinitionString": {
           "Fn::Join": [
@@ -3278,6 +3453,22 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
               ""}}}",
             ],
           ],
+        },
+        "LoggingConfiguration": {
+          "Destinations": [
+            {
+              "CloudWatchLogsLogGroup": {
+                "LogGroupArn": {
+                  "Fn::GetAtt": [
+                    "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
+                    "Arn",
+                  ],
+                },
+              },
+            },
+          ],
+          "IncludeExecutionData": true,
+          "Level": "ERROR",
         },
         "RoleArn": {
           "Fn::GetAtt": [
@@ -3306,7 +3497,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
               "Principal": {
-                "Service": "states.us-east-1.amazonaws.com",
+                "Service": "states.amazonaws.com",
               },
             },
           ],
@@ -3391,6 +3582,22 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                 },
               ],
             },
+            {
+              "Action": [
+                "logs:CreateLogDelivery",
+                "logs:CreateLogStream",
+                "logs:GetLogDelivery",
+                "logs:UpdateLogDelivery",
+                "logs:DeleteLogDelivery",
+                "logs:ListLogDeliveries",
+                "logs:PutLogEvents",
+                "logs:PutResourcePolicy",
+                "logs:DescribeResourcePolicies",
+                "logs:DescribeLogGroups",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -3402,6 +3609,31 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         ],
       },
       "Type": "AWS::IAM::Policy",
+    },
+    "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
+        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
+        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
+      ],
+      "Properties": {
+        "KmsKeyId": {
+          "Fn::GetAtt": [
+            "AcceleratorManagementCloudWatchKeyE630915F",
+            "Arn",
+          ],
+        },
+        "LogGroupName": "/aws/vendedlogs/states/waiter-state-machine/CreateOrganizationAccounts",
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
     },
     "CreateOrganizationAccountsDDA8AFE1": {
       "DependsOn": [
@@ -3434,7 +3666,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 30,
       },
       "Type": "AWS::Lambda::Function",
@@ -3534,7 +3766,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3621,7 +3853,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3738,14 +3970,14 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 1024,
         "Role": {
           "Fn::GetAtt": [
             "CustomLoadAcceleratorConfigTableCustomResourceProviderRole18CA864F",
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3807,6 +4039,14 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                   "Effect": "Allow",
                   "Resource": "*",
                   "Sid": "organizations",
+                },
+                {
+                  "Action": [
+                    "ssm:GetParameter",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                  "Sid": "getReplacements",
                 },
                 {
                   "Action": [
@@ -3899,7 +4139,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4058,7 +4298,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "accountConfigS3Key": "7862daf1a54c347eedca1c3083aa8d03a12033fbb398666b50ba926cfb64ce14.yaml",
+        "accountConfigS3Key": "63719fee842b919b4c18317c680c63ac7aee966fbc80ad273eeade6349c40186.yaml",
         "auditAccountEmail": "all-enabled-audit-account@example.com",
         "commitId": "",
         "configRepositoryName": "aws-accelerator-config",
@@ -4066,10 +4306,12 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "configTableName": {
           "Ref": "AcceleratorConfigTable590367C4",
         },
+        "isOrgsEnabled": true,
         "logArchiveAccountEmail": "all-enabled-logarchive-account@example.com",
         "managementAccountEmail": "all-enabled-management-account@example.com",
-        "organizationsConfigS3Key": "f041192e85508146304663e03a7290e74c9b765850b286388201977a065879de.yaml",
+        "organizationsConfigS3Key": "424303e536ae2b4ba5e2dbe75b69a0bbfb9c54a18133b94c07d3856114de2c30.yaml",
         "partition": "aws",
+        "replacementsConfigS3Key": "e075bcecb878a10a77f0f4650b85c3ab1692fabf90da3e07131fc7006192385f.yaml",
         "stackName": "AWSAccelerator-PrepareStack-111111111111-us-east-1",
         "uuid": "REPLACED-UUID",
       },
@@ -4161,17 +4403,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
               },
               "Effect": "Allow",
               "Principal": {
-                "Service": {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "logs.us-east-1.",
-                      {
-                        "Ref": "AWS::URLSuffix",
-                      },
-                    ],
-                  ],
-                },
+                "Service": "logs.us-east-1.amazonaws.com",
               },
               "Resource": "*",
               "Sid": "Allow Cloudwatch logs to use the encryption key",
@@ -4349,11 +4581,165 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::SSM::Parameter",
     },
+    "ResourceTableNameParameter1A8224BE": {
+      "Properties": {
+        "Name": "/accelerator/prepare-stack/resourceTable/name",
+        "Type": "String",
+        "Value": {
+          "Ref": "AcceleratorResourceTable4013A9E6",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
     "SsmParamAcceleratorVersionFF83282D": {
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-PrepareStack-111111111111-us-east-1/version",
         "Type": "String",
-        "Value": "1.4.3",
+        "Value": "1.12.0",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamNetworkVpcNetworkInspectionDeployedCidrs81BCF58C": {
+      "DependsOn": [
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
+        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
+        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
+      ],
+      "Properties": {
+        "Name": "/accelerator/validation/Network/network/vpc/Network-Inspection/deployedCidrs",
+        "Type": "String",
+        "Value": "10.2.0.0/22,10.3.0.0/16",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamNetworkVpcNetworkNonTemplateStaticCentralDeployedCidrs162B65AA": {
+      "DependsOn": [
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
+        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
+        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
+      ],
+      "Properties": {
+        "Name": "/accelerator/validation/Network/network/vpc/Network-NonTemplate-Static-Central/deployedCidrs",
+        "Type": "String",
+        "Value": "172.17.0.0/24",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamNetworkVpcNetworkNonTemplateStaticWestDeployedCidrsFEE887A1": {
+      "DependsOn": [
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
+        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
+        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
+      ],
+      "Properties": {
+        "Name": "/accelerator/validation/Network/network/vpc/Network-NonTemplate-Static-West/deployedCidrs",
+        "Type": "String",
+        "Value": "172.18.0.0/24",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamSharedServicesVpcSharedServicesAppVpcDeployedCidrs7BF2BF03": {
+      "DependsOn": [
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
+        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
+        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
+      ],
+      "Properties": {
+        "Name": "/accelerator/validation/SharedServices/network/vpc/SharedServices-appVpc/deployedCidrs",
+        "Type": "String",
+        "Value": "10.1.0.0/16",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamSharedServicesVpcSharedServicesMainDeployedCidrs0F5DC317": {
+      "DependsOn": [
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
+        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
+        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
+      ],
+      "Properties": {
+        "Name": "/accelerator/validation/SharedServices/network/vpc/SharedServices-Main/deployedCidrs",
+        "Type": "String",
+        "Value": "10.4.0.0/16",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamSharedServicesVpcSharedServicesNonTemplateStaticCentral2DeployedCidrsAAC9F02F": {
+      "DependsOn": [
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
+        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
+        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
+      ],
+      "Properties": {
+        "Name": "/accelerator/validation/SharedServices/network/vpc/SharedServices-NonTemplate-Static-Central-2/deployedCidrs",
+        "Type": "String",
+        "Value": "172.20.0.0/24",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamSharedServicesVpcSharedServicesNonTemplateStaticCentralDeployedCidrs0E5FEC95": {
+      "DependsOn": [
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
+        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
+        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
+      ],
+      "Properties": {
+        "Name": "/accelerator/validation/SharedServices/network/vpc/SharedServices-NonTemplate-Static-Central/deployedCidrs",
+        "Type": "String",
+        "Value": "172.19.0.0/24",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamSharedServicesVpcSharedServicesNonTemplateStaticWestDeployedCidrs48185C42": {
+      "DependsOn": [
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
+        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
+        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
+        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
+      ],
+      "Properties": {
+        "Name": "/accelerator/validation/SharedServices/network/vpc/SharedServices-NonTemplate-Static-West/deployedCidrs",
+        "Type": "String",
+        "Value": "172.26.0.0/24",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -4395,7 +4781,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4512,7 +4898,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4703,6 +5089,14 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                     ],
                   ],
                 },
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/Network/network/vpc/Network-Inspection/deployedCidrs",
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/SharedServices/network/vpc/SharedServices-Main/deployedCidrs",
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/SharedServices/network/vpc/SharedServices-appVpc/deployedCidrs",
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/Network/network/vpc/Network-NonTemplate-Static-Central/deployedCidrs",
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/Network/network/vpc/Network-NonTemplate-Static-West/deployedCidrs",
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/SharedServices/network/vpc/SharedServices-NonTemplate-Static-Central/deployedCidrs",
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/SharedServices/network/vpc/SharedServices-NonTemplate-Static-Central-2/deployedCidrs",
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/SharedServices/network/vpc/SharedServices-NonTemplate-Static-West/deployedCidrs",
               ],
               "Sid": "sms",
             },
@@ -4720,6 +5114,9 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
     },
     "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179": {
       "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
+      ],
       "Properties": {
         "ServiceToken": {
           "Fn::GetAtt": [
@@ -4782,9 +5179,88 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
               },
             ],
           },
+          {
+            "name": "DataPerimeter",
+            "strategy": "deny-list",
+            "targetType": "ou",
+            "targets": [
+              {
+                "id": "ou-asdf-22222222",
+                "name": "Infrastructure",
+              },
+            ],
+          },
         ],
+        "skipScpValidation": "no",
         "stackName": "AWSAccelerator-PrepareStack-111111111111-us-east-1",
         "uuid": "REPLACED-UUID",
+        "vpcCidrs": [
+          {
+            "cidrs": [
+              "10.2.0.0/22",
+              "10.3.0.0/16",
+            ],
+            "logicalId": "SsmParamNetworkVpcNetworkInspectionDeployedCidrs",
+            "parameterName": "/accelerator/validation/Network/network/vpc/Network-Inspection/deployedCidrs",
+            "vpcName": "Network/Network-Inspection",
+          },
+          {
+            "cidrs": [
+              "10.4.0.0/16",
+            ],
+            "logicalId": "SsmParamSharedServicesVpcSharedServicesMainDeployedCidrs",
+            "parameterName": "/accelerator/validation/SharedServices/network/vpc/SharedServices-Main/deployedCidrs",
+            "vpcName": "SharedServices/SharedServices-Main",
+          },
+          {
+            "cidrs": [
+              "10.1.0.0/16",
+            ],
+            "logicalId": "SsmParamSharedServicesVpcSharedServicesAppVpcDeployedCidrs",
+            "parameterName": "/accelerator/validation/SharedServices/network/vpc/SharedServices-appVpc/deployedCidrs",
+            "vpcName": "SharedServices/SharedServices-appVpc",
+          },
+          {
+            "cidrs": [
+              "172.17.0.0/24",
+            ],
+            "logicalId": "SsmParamNetworkVpcNetworkNonTemplateStaticCentralDeployedCidrs",
+            "parameterName": "/accelerator/validation/Network/network/vpc/Network-NonTemplate-Static-Central/deployedCidrs",
+            "vpcName": "Network/Network-NonTemplate-Static-Central",
+          },
+          {
+            "cidrs": [
+              "172.18.0.0/24",
+            ],
+            "logicalId": "SsmParamNetworkVpcNetworkNonTemplateStaticWestDeployedCidrs",
+            "parameterName": "/accelerator/validation/Network/network/vpc/Network-NonTemplate-Static-West/deployedCidrs",
+            "vpcName": "Network/Network-NonTemplate-Static-West",
+          },
+          {
+            "cidrs": [
+              "172.19.0.0/24",
+            ],
+            "logicalId": "SsmParamSharedServicesVpcSharedServicesNonTemplateStaticCentralDeployedCidrs",
+            "parameterName": "/accelerator/validation/SharedServices/network/vpc/SharedServices-NonTemplate-Static-Central/deployedCidrs",
+            "vpcName": "SharedServices/SharedServices-NonTemplate-Static-Central",
+          },
+          {
+            "cidrs": [
+              "172.20.0.0/24",
+            ],
+            "logicalId": "SsmParamSharedServicesVpcSharedServicesNonTemplateStaticCentral_2DeployedCidrs",
+            "parameterName": "/accelerator/validation/SharedServices/network/vpc/SharedServices-NonTemplate-Static-Central-2/deployedCidrs",
+            "vpcName": "SharedServices/SharedServices-NonTemplate-Static-Central-2",
+          },
+          {
+            "cidrs": [
+              "172.26.0.0/24",
+            ],
+            "logicalId": "SsmParamSharedServicesVpcSharedServicesNonTemplateStaticWestDeployedCidrs",
+            "parameterName": "/accelerator/validation/SharedServices/network/vpc/SharedServices-NonTemplate-Static-West/deployedCidrs",
+            "vpcName": "SharedServices/SharedServices-NonTemplate-Static-West",
+          },
+        ],
       },
       "Type": "Custom::ValidateEnvironmentConfiguration",
       "UpdateReplacePolicy": "Delete",

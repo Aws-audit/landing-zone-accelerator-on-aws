@@ -1,5 +1,5 @@
 /**
- *  Copyright 2023 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -13,6 +13,7 @@
 
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import { DEFAULT_LAMBDA_RUNTIME } from '../../../utils/lib/lambda';
 const path = require('path');
 
 export interface ConfigServiceRecorderProps {
@@ -29,17 +30,17 @@ export interface ConfigServiceRecorderProps {
    */
   configRecorderRoleArn: string;
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly cloudwatchKmsKey: cdk.aws_kms.IKey;
+  readonly cloudwatchKmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
   readonly logRetentionInDays: number;
   /**
-   * Lambda environment encryption key
+   * Lambda environment encryption key, when undefined default AWS managed key will be used
    */
-  readonly lambdaKmsKey: cdk.aws_kms.IKey;
+  readonly lambdaKmsKey?: cdk.aws_kms.IKey;
   /**
    * Partition
    */
@@ -48,6 +49,10 @@ export interface ConfigServiceRecorderProps {
    * Accelerator prefix
    */
   readonly acceleratorPrefix: string;
+  //**
+  // * Home Region
+  // */
+  readonly homeRegion: string;
 }
 
 /**
@@ -74,6 +79,7 @@ export class ConfigServiceRecorder extends Construct {
             'config:PutDeliveryChannel',
             'config:StartConfigurationRecorder',
             'config:StopConfigurationRecorder',
+            'config:DeleteConfigurationRecorder',
           ],
           resources: ['*'],
         }),
@@ -102,7 +108,6 @@ export class ConfigServiceRecorder extends Construct {
     });
 
     const lambdaRole = new cdk.aws_iam.Role(this, 'ConfigServiceRecorderFunctionRole', {
-      roleName: `${props.acceleratorPrefix}-Config`,
       assumedBy: new cdk.aws_iam.ServicePrincipal('lambda.amazonaws.com'),
       managedPolicies: [cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole')],
       inlinePolicies: { configRecorder: configRecorderFunctionPolicies },
@@ -110,15 +115,15 @@ export class ConfigServiceRecorder extends Construct {
 
     const lambdaFunction = new cdk.aws_lambda.Function(this, 'ConfigServiceRecorderFunction', {
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, 'config-recorder/dist')),
-      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
+      runtime: DEFAULT_LAMBDA_RUNTIME,
       handler: 'index.handler',
-      timeout: cdk.Duration.minutes(5),
+      timeout: cdk.Duration.minutes(10),
       description: 'Create/Update Config Recorder',
       environmentEncryption: props.lambdaKmsKey,
       role: lambdaRole,
     });
 
-    new cdk.aws_logs.LogGroup(this, `${lambdaFunction.node.id}LogGroup`, {
+    const logGroup = new cdk.aws_logs.LogGroup(this, `${lambdaFunction.node.id}LogGroup`, {
       logGroupName: `/aws/lambda/${lambdaFunction.functionName}`,
       retention: props.logRetentionInDays,
       encryptionKey: props.cloudwatchKmsKey,
@@ -129,6 +134,10 @@ export class ConfigServiceRecorder extends Construct {
       onEventHandler: lambdaFunction,
     });
 
+    let includeGlobalResourceTypes = false;
+    if (props.homeRegion === cdk.Stack.of(this).region) {
+      includeGlobalResourceTypes = true;
+    }
     const resource = new cdk.CustomResource(this, 'ConfigServiceRecorderResource', {
       resourceType: CONFIGSERVICE_RECORDER,
       serviceToken: provider.serviceToken,
@@ -136,9 +145,12 @@ export class ConfigServiceRecorder extends Construct {
         s3BucketName: props.s3BucketName,
         s3BucketKmsKeyArn: props.s3BucketKmsKey.keyArn,
         recorderRoleArn: props.configRecorderRoleArn,
+        includeGlobalResourceTypes,
       },
     });
 
+    // Ensure that the LogGroup is created by Cloudformation prior to Lambda execution
+    resource.node.addDependency(logGroup);
     this.id = resource.ref;
   }
 }

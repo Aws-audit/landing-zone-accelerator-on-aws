@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,6 +11,7 @@
  *  and limitations under the License.
  */
 
+import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
@@ -29,13 +30,21 @@ export interface GuardDutyMembersProps {
    */
   readonly enableEksProtection: boolean;
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly kmsKey: cdk.aws_kms.IKey;
+  readonly kmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
   readonly logRetentionInDays: number;
+  /**
+   * List of GuardDuty member accountIds populated only when deploymentTargets are defined
+   */
+  readonly guardDutyMemberAccountIds: string[];
+  /**
+   * Enable/disable autoEnableOrgMembers
+   */
+  readonly autoEnableOrgMembers: boolean;
 }
 
 /**
@@ -52,10 +61,9 @@ export class GuardDutyMembers extends Construct {
 
     const servicePrincipal = 'guardduty.amazonaws.com';
 
-    console.log('Create provider');
     const provider = cdk.CustomResourceProvider.getOrCreateProvider(this, RESOURCE_TYPE, {
       codeDirectory: path.join(__dirname, 'create-members/dist'),
-      runtime: cdk.CustomResourceProviderRuntime.NODEJS_16_X,
+      runtime: CUSTOM_RESOURCE_PROVIDER_RUNTIME,
       policyStatements: [
         {
           Sid: 'GuardDutyCreateMembersTaskOrganizationAction',
@@ -92,7 +100,6 @@ export class GuardDutyMembers extends Construct {
       ],
     });
 
-    console.log('Create resource');
     const resource = new cdk.CustomResource(this, 'Resource', {
       resourceType: RESOURCE_TYPE,
       serviceToken: provider.serviceToken,
@@ -101,6 +108,8 @@ export class GuardDutyMembers extends Construct {
         partition: cdk.Aws.PARTITION,
         enableS3Protection: props.enableS3Protection,
         enableEksProtection: props.enableEksProtection,
+        guardDutyMemberAccountIds: props.guardDutyMemberAccountIds,
+        autoEnableOrgMembers: props.autoEnableOrgMembers,
       },
     });
 
@@ -109,7 +118,6 @@ export class GuardDutyMembers extends Construct {
      * in the stack
      */
     const stack = cdk.Stack.of(scope);
-    console.log('Update log group');
     const logGroup =
       (stack.node.tryFindChild(`${provider.node.id}LogGroup`) as cdk.aws_logs.LogGroup) ??
       new cdk.aws_logs.LogGroup(stack, `${provider.node.id}LogGroup`, {

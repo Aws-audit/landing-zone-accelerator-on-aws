@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -12,10 +12,10 @@
  */
 
 import * as cdk from 'aws-cdk-lib';
-import { Construct } from 'constructs';
-import { FirewallProps, IFirewall, Firewall } from './firewall';
 import { AutoScalingConfig } from '@aws-accelerator/config';
+import { Construct } from 'constructs';
 import { AutoscalingGroup } from '../aws-autoscaling/create-autoscaling-group';
+import { Firewall, FirewallProps, IFirewall } from './firewall';
 
 export interface IFirewallAutoScalingGroup extends IFirewall {
   /**
@@ -30,13 +30,13 @@ interface FirewallAutoScalingGroupProps extends FirewallProps {
    */
   readonly autoscaling: AutoScalingConfig;
   /**
-   * Custom resource lambda environment encryption key
+   * Custom resource lambda environment encryption key, when undefined default AWS managed key will be used
    */
-  readonly lambdaKey: cdk.aws_kms.IKey;
+  readonly lambdaKey?: cdk.aws_kms.IKey;
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly cloudWatchLogKmsKey: cdk.aws_kms.IKey;
+  readonly cloudWatchLogKmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
@@ -66,6 +66,8 @@ export class FirewallAutoScalingGroup extends Firewall implements IFirewallAutoS
       lambdaKey: props.lambdaKey,
       cloudWatchLogKmsKey: props.cloudWatchLogKmsKey,
       cloudWatchLogRetentionInDays: props.cloudWatchLogRetentionInDays,
+      maxInstanceLifetime: props.autoscaling.maxInstanceLifetime,
+      nagSuppressionPrefix: `${id}/Resource`,
     });
 
     this.groupName = asg.autoscalingGroupName;

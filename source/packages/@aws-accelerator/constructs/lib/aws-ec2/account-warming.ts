@@ -1,5 +1,5 @@
 /**
- *  Copyright 2023 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,14 +11,16 @@
  *  and limitations under the License.
  */
 
+import { DEFAULT_LAMBDA_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
 import path = require('path');
 
 export interface WarmAccountProps {
-  readonly cloudwatchKmsKey: cdk.aws_kms.IKey;
+  readonly cloudwatchKmsKey?: cdk.aws_kms.IKey;
   readonly logRetentionInDays: number;
+  readonly ssmPrefix: string;
 }
 
 export class WarmAccount extends Construct {
@@ -35,7 +37,7 @@ export class WarmAccount extends Construct {
     const ec2Policy = new cdk.aws_iam.PolicyStatement({
       sid: 'ec2',
       effect: cdk.aws_iam.Effect.ALLOW,
-      actions: ['ec2:DescribeVpcs', 'ec2:DescribeInstances', 'ec2:DescribeSubnets', 'ec2:RunInstances'],
+      actions: ['ec2:DescribeVpcs', 'ec2:DescribeInstances', 'ec2:DescribeSubnets'],
       resources: ['*'],
     });
 
@@ -57,6 +59,16 @@ export class WarmAccount extends Construct {
       actions: ['ec2:RunInstances'],
       resources: [
         `arn:${cdk.Stack.of(this).partition}:ec2:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:subnet/*`,
+        `arn:${cdk.Stack.of(this).partition}:ec2:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:instance/*`,
+        `arn:${cdk.Stack.of(this).partition}:ec2:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:volume/*`,
+        `arn:${cdk.Stack.of(this).partition}:ec2:${cdk.Stack.of(this).region}:${
+          cdk.Stack.of(this).account
+        }:security-group/*`,
+        `arn:${cdk.Stack.of(this).partition}:ec2:${cdk.Stack.of(this).region}::image/*`,
+        `arn:${cdk.Stack.of(this).partition}:ec2:${cdk.Stack.of(this).region}::snapshot/*`,
+        `arn:${cdk.Stack.of(this).partition}:ec2:${cdk.Stack.of(this).region}:${
+          cdk.Stack.of(this).account
+        }:network-interface/*`,
       ],
     });
 
@@ -115,9 +127,9 @@ export class WarmAccount extends Construct {
       effect: cdk.aws_iam.Effect.ALLOW,
       actions: ['ssm:GetParameter', 'ssm:PutParameter', 'ssm:DeleteParameter'],
       resources: [
-        `arn:${cdk.Stack.of(this).partition}:ssm:${cdk.Stack.of(this).region}:${
-          cdk.Stack.of(this).account
-        }:parameter/accelerator/account/pre-warmed`,
+        `arn:${cdk.Stack.of(this).partition}:ssm:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:parameter${
+          props.ssmPrefix
+        }/account/pre-warmed`,
       ],
     });
 
@@ -134,7 +146,7 @@ export class WarmAccount extends Construct {
 
     this.onEvent = new cdk.aws_lambda.Function(this, 'WarmAccountFunction', {
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, 'account-warming/dist')),
-      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
+      runtime: DEFAULT_LAMBDA_RUNTIME,
       handler: 'index.handler',
       timeout: cdk.Duration.minutes(5),
       description: 'Account warming onEvent handler',
@@ -151,7 +163,7 @@ export class WarmAccount extends Construct {
       ],
     });
 
-    new cdk.aws_logs.LogGroup(this, `${this.onEvent.node.id}LogGroup`, {
+    const onEventLogGroup = new cdk.aws_logs.LogGroup(this, `${this.onEvent.node.id}LogGroup`, {
       logGroupName: `/aws/lambda/${this.onEvent.functionName}`,
       retention: props.logRetentionInDays,
       encryptionKey: props.cloudwatchKmsKey,
@@ -160,18 +172,24 @@ export class WarmAccount extends Construct {
 
     this.isComplete = new cdk.aws_lambda.Function(this, 'WarmAccountStatusFunction', {
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, 'account-warming-status/dist')),
-      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
+      runtime: DEFAULT_LAMBDA_RUNTIME,
       handler: 'index.handler',
       timeout: cdk.Duration.minutes(5),
       description: 'Account warming isComplete handler',
       initialPolicy: [ec2Policy, ec2DeletePolicy, ssmPolicy],
     });
 
-    new cdk.aws_logs.LogGroup(this, `${this.isComplete.node.id}LogGroup`, {
+    const isCompleteLogGroup = new cdk.aws_logs.LogGroup(this, `${this.isComplete.node.id}LogGroup`, {
       logGroupName: `/aws/lambda/${this.isComplete.functionName}`,
       retention: props.logRetentionInDays,
       encryptionKey: props.cloudwatchKmsKey,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    const waiterStateMachineLogGroup = new cdk.aws_logs.LogGroup(this, `${this.onEvent.node.id}WaiterLogGroup`, {
+      logGroupName: `/aws/vendedlogs/states/waiter-state-machine/${this.onEvent.node.id}`,
+      retention: props.logRetentionInDays,
+      encryptionKey: props.cloudwatchKmsKey,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     this.provider = new cdk.custom_resources.Provider(this, 'WarmAccountProvider', {
@@ -179,11 +197,19 @@ export class WarmAccount extends Construct {
       isCompleteHandler: this.isComplete,
       queryInterval: cdk.Duration.minutes(2),
       totalTimeout: cdk.Duration.hours(1),
+      waiterStateMachineLogOptions: {
+        destination: waiterStateMachineLogGroup,
+        includeExecutionData: true,
+        level: cdk.aws_stepfunctions.LogLevel.ERROR, // error is the default level that CDK auto-creates
+      },
     });
 
     const resource = new cdk.CustomResource(this, 'WarmAccountResource', {
       resourceType: WARM_ACCOUNT,
       serviceToken: this.provider.serviceToken,
+      properties: {
+        ssmPrefix: props.ssmPrefix,
+      },
     });
 
     NagSuppressions.addResourceSuppressions(
@@ -227,10 +253,21 @@ export class WarmAccount extends Construct {
           id: 'AwsSolutions-IAM5',
           reason: 'CDK Generated Policy',
         },
+        {
+          id: 'AwsSolutions-SF1',
+          reason: 'CDK Generated StateMachine',
+        },
+        {
+          id: 'AwsSolutions-SF2',
+          reason: 'CDK Generated StateMachine',
+        },
       ],
       true,
     );
-
+    // Ensure that the LogGroup is created by Cloudformation prior to Lambda execution
+    resource.node.addDependency(isCompleteLogGroup);
+    resource.node.addDependency(onEventLogGroup);
+    resource.node.addDependency(waiterStateMachineLogGroup);
     this.id = resource.ref;
   }
 }

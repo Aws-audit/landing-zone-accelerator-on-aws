@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -14,8 +14,10 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { Bucket, BucketEncryptionType } from '@aws-accelerator/constructs';
-import { BucketAccessType, S3LifeCycleRule } from './bucket';
+import { GlobalConfig } from '@aws-accelerator/config';
+import { S3LifeCycleRule } from './bucket';
 import { BucketPrefixProps } from './bucket-prefix';
+import { AwsPrincipalAccessesType, BucketAccessType } from '@aws-accelerator/utils/lib/common-resources';
 
 export interface CentralLogsBucketProps {
   s3BucketName: string;
@@ -23,7 +25,7 @@ export interface CentralLogsBucketProps {
   kmsDescription: string;
   principalOrgIdCondition: { [key: string]: string | string[] };
   orgPrincipals: cdk.aws_iam.IPrincipal;
-  serverAccessLogsBucket: Bucket;
+  serverAccessLogsBucket: cdk.aws_s3.IBucket;
   s3LifeCycleRules?: S3LifeCycleRule[];
   /**
    * @optional
@@ -33,8 +35,9 @@ export interface CentralLogsBucketProps {
    * values BucketAccessType.READONLY, BucketAccessType.WRITEONLY, & and
    * BucketAccessType.READWRITE
    */
-  awsPrincipalAccesses?: { name: string; principal: string; accessType: string }[];
+  awsPrincipalAccesses?: AwsPrincipalAccessesType[];
   bucketPrefixProps?: BucketPrefixProps;
+  globalConfig?: GlobalConfig;
   /**
    * Accelerator Prefix
    */
@@ -47,6 +50,10 @@ export interface CentralLogsBucketProps {
    * Accelerator central log bucket cmk arn ssm parameter name
    */
   readonly cmkArnSsmParameterName: string;
+  /**
+   * Accelerator management account access role.
+   */
+  readonly managementAccountAccessRole: string;
 }
 
 /**
@@ -66,10 +73,11 @@ export class CentralLogsBucket extends Construct {
       s3BucketName: props.s3BucketName,
       kmsAliasName: props.kmsAliasName,
       kmsDescription: props.kmsDescription,
-      serverAccessLogsBucket: props.serverAccessLogsBucket.getS3Bucket(),
+      serverAccessLogsBucket: props.serverAccessLogsBucket,
       s3LifeCycleRules: props.s3LifeCycleRules,
       awsPrincipalAccesses: awsPrincipalAccesses.filter(item => item.accessType !== BucketAccessType.NO_ACCESS),
       bucketPrefixProps: props.bucketPrefixProps,
+      nagSuppressionPrefix: `${id}/Resource`,
     });
 
     this.bucket.getKey().addToResourcePolicy(
@@ -188,6 +196,13 @@ export class CentralLogsBucket extends Construct {
               StringEquals: {
                 ...props.principalOrgIdCondition,
               },
+              ArnLike: {
+                'aws:PrincipalARN': [
+                  `arn:${cdk.Stack.of(this).partition}:iam::*:role/${props.acceleratorPrefix}-*`,
+                  `arn:${cdk.Stack.of(this).partition}:iam::*:role/cdk-accel-*`,
+                  `arn:${cdk.Stack.of(this).partition}:iam::*:role/${props.managementAccountAccessRole}`,
+                ],
+              },
             },
           }),
         );
@@ -220,6 +235,13 @@ export class CentralLogsBucket extends Construct {
         conditions: {
           StringEquals: {
             ...props.principalOrgIdCondition,
+          },
+          ArnLike: {
+            'aws:PrincipalARN': [
+              `arn:${cdk.Stack.of(this).partition}:iam::*:role/${props.acceleratorPrefix}-*`,
+              `arn:${cdk.Stack.of(this).partition}:iam::*:role/cdk-accel-*`,
+              `arn:${cdk.Stack.of(this).partition}:iam::*:role/${props.managementAccountAccessRole}`,
+            ],
           },
         },
       }),
@@ -280,11 +302,19 @@ export class CentralLogsBucket extends Construct {
         stringValue: this.bucket.getKey().keyArn,
       },
     );
-
+    // const roleArns = [`arn:${cdk.Stack.of(this).partition}:iam::*:role/${props.acceleratorPrefix}*`];
     // SSM parameter access IAM Role for
     new cdk.aws_iam.Role(this, 'CrossAccountCentralBucketKMSArnSsmParamAccessRole', {
       roleName: props.crossAccountAccessRoleName,
       assumedBy: props.orgPrincipals,
+      // assumedBy: new cdk.aws_iam.AnyPrincipal().withConditions({
+      //   StringEquals: {
+      //     ...props.principalOrgIdCondition,
+      //   },
+      //   ArnLike: {
+      //     'aws:PrincipalArn': roleArns,
+      //   },
+      // }),
       inlinePolicies: {
         default: new cdk.aws_iam.PolicyDocument({
           statements: [

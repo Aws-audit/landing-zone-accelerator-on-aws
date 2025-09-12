@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,9 +11,15 @@
  *  and limitations under the License.
  */
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
-import * as AWS from 'aws-sdk';
-AWS.config.logger = console;
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
+import {
+  DescribeSecurityGroupsCommand,
+  EC2Client,
+  RevokeSecurityGroupEgressCommand,
+  RevokeSecurityGroupIngressCommand,
+} from '@aws-sdk/client-ec2';
+import { setRetryStrategy } from '@aws-accelerator/utils/lib/common-functions';
 
 /**
  * delete-default-security-group-rules - lambda handler
@@ -22,7 +28,7 @@ AWS.config.logger = console;
  * @returns
  */
 
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent): Promise<
+export async function handler(event: CloudFormationCustomResourceEvent): Promise<
   | {
       Status: string | undefined;
       StatusCode: number | undefined;
@@ -32,7 +38,11 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
   // Retrieve operating region that stack is ran
   const region = event.ResourceProperties['region'];
   const solutionId = process.env['SOLUTION_ID'];
-  const ec2 = new AWS.EC2({ region: region, customUserAgent: solutionId });
+  const ec2 = new EC2Client({
+    region,
+    customUserAgent: solutionId,
+    retryStrategy: setRetryStrategy(),
+  });
   const vpcId = event.ResourceProperties['vpcId'];
 
   switch (event.RequestType) {
@@ -52,7 +62,7 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
         ],
       };
       // Pull VPC ID from SSM return ID
-      const securityGroupId = await getDefaultSecurityGroupId(ec2!, securityGroupParams);
+      const securityGroupId = await getDefaultSecurityGroupId(ec2, securityGroupParams);
       console.log(securityGroupId);
       if (!securityGroupId) {
         throw new Error('Security Group ID not found.');
@@ -86,10 +96,10 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
       };
 
       console.log(`Removing egress rules for ${securityGroupId}`);
-      await deleteEgressRules(ec2!, egresstrafficParams);
+      await deleteEgressRules(ec2, egresstrafficParams);
 
       console.log(`Removing ingress rules for ${securityGroupId}`);
-      await deleteIngressRules(ec2!, ingresstrafficParams);
+      await deleteIngressRules(ec2, ingresstrafficParams);
 
       return { Status: 'Success', StatusCode: 200 };
 
@@ -100,7 +110,7 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
 }
 
 async function getDefaultSecurityGroupId(
-  ec2: AWS.EC2,
+  ec2: EC2Client,
   params: {
     Filters: {
       Name: string;
@@ -109,12 +119,12 @@ async function getDefaultSecurityGroupId(
     }[];
   },
 ): Promise<string | undefined> {
-  const response = await throttlingBackOff(() => ec2.describeSecurityGroups(params).promise());
+  const response = await throttlingBackOff(() => ec2.send(new DescribeSecurityGroupsCommand(params)));
   return response.SecurityGroups![0].GroupId;
 }
 
 async function deleteEgressRules(
-  ec2: AWS.EC2,
+  ec2: EC2Client,
   params: {
     GroupId: string;
     IpPermissions: {
@@ -126,25 +136,17 @@ async function deleteEgressRules(
   },
 ) {
   try {
-    await throttlingBackOff(() => ec2.revokeSecurityGroupEgress(params).promise());
-  } catch (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    e: any
-  ) {
-    if (
-      // SDKv2 Error Structure
-      e.code === 'InvalidPermission.NotFound' ||
-      // SDKv3 Error Structure
-      e.name === 'InvalidPermission.NotFound'
-    ) {
-      return false;
+    await throttlingBackOff(() => ec2.send(new RevokeSecurityGroupEgressCommand(params)));
+  } catch (e: unknown) {
+    if (e instanceof Error && e.name === 'InvalidPermission.NotFound') {
+      return;
     }
-    throw new Error(e);
+    throw e;
   }
 }
 
 async function deleteIngressRules(
-  ec2: AWS.EC2,
+  ec2: EC2Client,
   params: {
     GroupId: string;
     IpPermissions: {
@@ -156,19 +158,11 @@ async function deleteIngressRules(
   },
 ) {
   try {
-    await throttlingBackOff(() => ec2.revokeSecurityGroupIngress(params).promise());
-  } catch (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    e: any
-  ) {
-    if (
-      // SDKv2 Error Structure
-      e.code === 'InvalidPermission.NotFound' ||
-      // SDKv3 Error Structure
-      e.name === 'InvalidPermission.NotFound'
-    ) {
-      return false;
+    await throttlingBackOff(() => ec2.send(new RevokeSecurityGroupIngressCommand(params)));
+  } catch (e: unknown) {
+    if (e instanceof Error && e.name === 'InvalidPermission.NotFound') {
+      return;
     }
-    throw new Error(e);
+    throw e;
   }
 }

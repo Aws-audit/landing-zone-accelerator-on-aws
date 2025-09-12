@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -12,32 +12,24 @@
  */
 
 import { AcceleratorStage } from '../lib/accelerator-stage';
-import { AcceleratorSynthStacks } from './accelerator-synth-stacks';
 import { describe } from '@jest/globals';
 import { snapShotTest } from './snapshot-test';
+import { Create } from './accelerator-test-helpers';
 
 const testNamePrefix = 'Construct(SecurityAuditStack): ';
 
-const acceleratorTestStacks = new AcceleratorSynthStacks(
-  AcceleratorStage.SECURITY_AUDIT,
-  'all-enabled',
-  'aws',
-  'us-east-1',
-);
-const stack = acceleratorTestStacks.stacks.get(`Audit-us-east-1`)!;
-
 describe('SecurityAuditStack', () => {
-  snapShotTest(testNamePrefix, stack);
+  snapShotTest(testNamePrefix, Create.stackProvider(`Audit-us-east-1`, AcceleratorStage.SECURITY_AUDIT));
 });
 
-const delegatedAdminTestStacks = new AcceleratorSynthStacks(
-  AcceleratorStage.SECURITY_AUDIT,
-  'all-enabled-delegated-admin',
-  'aws',
-  'us-east-1',
-);
-const delegatedAdminStack = delegatedAdminTestStacks.stacks.get(`Audit-us-east-1`)!;
-
 describe('delegatedAdminStack', () => {
-  snapShotTest(testNamePrefix, delegatedAdminStack);
+  snapShotTest(
+    testNamePrefix,
+    Create.stackProvider(`Audit-us-east-1`, [
+      AcceleratorStage.SECURITY_AUDIT,
+      'aws',
+      'us-east-1',
+      'all-enabled-delegated-admin',
+    ]),
+  );
 });

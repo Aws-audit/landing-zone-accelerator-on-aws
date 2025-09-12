@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -47,13 +47,17 @@ export interface KeyLookupProps {
    * Accelerator Prefix
    */
   readonly acceleratorPrefix: string;
+  /**
+   * KMS Key ARN
+   */
+  readonly kmsKeyArn?: string;
 }
 
 /**
  * Aws Key class
  */
 export class KeyLookup extends Construct {
-  public readonly key: cdk.aws_kms.Key;
+  public readonly key: cdk.aws_kms.IKey;
 
   constructor(scope: Construct, id: string, props: KeyLookupProps) {
     super(scope, id);
@@ -72,14 +76,15 @@ export class KeyLookup extends Construct {
         kmsKey: props.kmsKey,
         logRetentionInDays: props.logRetentionInDays,
         acceleratorPrefix: props.acceleratorPrefix,
+        resolvedValue: props.kmsKeyArn,
       }).value;
     }
 
     // Accelerator Key
-    this.key = cdk.aws_kms.Key.fromKeyArn(this, 'Resource', keyArn) as cdk.aws_kms.Key;
+    this.key = cdk.aws_kms.Key.fromKeyArn(this, 'Resource', keyArn);
   }
 
-  public getKey(): cdk.aws_kms.Key {
+  public getKey(): cdk.aws_kms.IKey {
     return this.key;
   }
 }

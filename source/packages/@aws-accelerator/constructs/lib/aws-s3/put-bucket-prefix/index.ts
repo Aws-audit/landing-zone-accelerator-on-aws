@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,9 +11,10 @@
  *  and limitations under the License.
  */
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
-import * as AWS from 'aws-sdk';
-AWS.config.logger = console;
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
+import { ListObjectsV2Command, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { setRetryStrategy } from '@aws-accelerator/utils/lib/common-functions';
 
 /**
  * put-bucket-prefix - lambda handler
@@ -21,7 +22,7 @@ AWS.config.logger = console;
  * @param event
  * @returns
  */
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent): Promise<
+export async function handler(event: CloudFormationCustomResourceEvent): Promise<
   | {
       PhysicalResourceId: string | undefined;
       Status: string | undefined;
@@ -32,9 +33,10 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
   const sourceBucketKeyArn: string = event.ResourceProperties['sourceBucketKeyArn'];
   const bucketPrefixes: string[] = event.ResourceProperties['bucketPrefixes'];
   const solutionId = process.env['SOLUTION_ID'];
-  const s3Client = new AWS.S3({ customUserAgent: solutionId });
-
-  console.log('starting - put bucket prefix');
+  const s3Client = new S3Client({
+    customUserAgent: solutionId,
+    retryStrategy: setRetryStrategy(),
+  });
 
   switch (event.RequestType) {
     case 'Create':
@@ -42,29 +44,27 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
       for (const prefix of bucketPrefixes) {
         console.log(`starting - check bucket prefix for ${prefix}`);
         const listObjectsResponse = await throttlingBackOff(() =>
-          s3Client
-            .listObjectsV2({
+          s3Client.send(
+            new ListObjectsV2Command({
               Bucket: sourceBucketName,
               Prefix: prefix + '/',
               MaxKeys: 1,
               Delimiter: '/',
-            })
-            .promise(),
+            }),
+          ),
         );
-        console.log(listObjectsResponse);
         if (!('Contents' in listObjectsResponse) || listObjectsResponse.Contents?.length === 0) {
           console.log(`starting - create bucket prefix for ${prefix}`);
-          const putObjectResponse = await throttlingBackOff(() =>
-            s3Client
-              .putObject({
+          await throttlingBackOff(() =>
+            s3Client.send(
+              new PutObjectCommand({
                 Bucket: sourceBucketName,
                 Key: prefix + '/',
                 ServerSideEncryption: 'aws:kms',
                 SSEKMSKeyId: sourceBucketKeyArn,
-              })
-              .promise(),
+              }),
+            ),
           );
-          console.log(putObjectResponse);
         }
       }
       return {

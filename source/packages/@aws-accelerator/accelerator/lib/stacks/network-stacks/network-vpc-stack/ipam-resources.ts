@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -43,7 +43,7 @@ export class IpamResources {
     if (cdk.Stack.of(this.stack).region === homeRegion && accountIds.includes(cdk.Stack.of(this.stack).account)) {
       const role = new cdk.aws_iam.Role(this.stack, `GetIpamCidrRole`, {
         roleName: this.stack.acceleratorResourceNames.roles.ipamSubnetLookup,
-        assumedBy: this.stack.getOrgPrincipals(orgId),
+        assumedBy: this.stack.getOrgPrincipals(orgId, true),
         inlinePolicies: {
           default: new cdk.aws_iam.PolicyDocument({
             statements: [

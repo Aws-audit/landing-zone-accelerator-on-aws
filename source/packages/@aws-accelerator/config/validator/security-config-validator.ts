@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,14 +11,34 @@
  *  and limitations under the License.
  */
 
-import { createLogger } from '@aws-accelerator/utils';
+import { createLogger } from '@aws-accelerator/utils/lib/logger';
 import fs from 'fs';
 import path from 'path';
+import * as t from '../lib/common';
 import { AccountsConfig } from '../lib/accounts-config';
-import * as t from '../lib/common-types';
+import { DeploymentTargets } from '../lib/common';
+import {
+  IAlarmSetConfig,
+  IAwsConfig,
+  IAwsConfigRuleSet,
+  IDocumentConfig,
+  ISecurityConfig,
+} from '../lib/models/security-config';
 import { GlobalConfig } from '../lib/global-config';
 import { OrganizationConfig } from '../lib/organization-config';
-import { AwsConfigRuleSet, SecurityConfig, SecurityConfigTypes } from '../lib/security-config';
+import { ReplacementsConfig } from '../lib/replacements-config';
+import {
+  AwsConfigRuleSet,
+  EbsDefaultVolumeEncryptionConfig,
+  SecurityConfig,
+  IsPublicSsmDoc,
+  ConfigRule,
+  GuardDutyConfig,
+  SecurityHubConfig,
+} from '../lib/security-config';
+import { CommonValidatorFunctions } from './common/common-validator-functions';
+
+const RESERVED_STATIC_PARAMETER_FOR_RESOURCE_POLICY = 'ATTACHED_RESOURCE_ARN';
 
 export class SecurityConfigValidator {
   constructor(
@@ -26,6 +46,7 @@ export class SecurityConfigValidator {
     accountsConfig: AccountsConfig,
     globalConfig: GlobalConfig,
     organizationConfig: OrganizationConfig,
+    replacementsConfig: ReplacementsConfig | undefined,
     configDir: string,
   ) {
     const errors: string[] = [];
@@ -34,16 +55,21 @@ export class SecurityConfigValidator {
     const logger = createLogger(['security-config-validator']);
 
     logger.info(`${SecurityConfig.FILENAME} file validation started`);
-    //
+
     // SSM Document validations
     const ssmDocuments = this.getSsmDocuments(values);
-    //
+
     // Get list of OU ID names from organization config file
     ouIdNames.push(...this.getOuIdNames(organizationConfig));
 
-    //
     // Get list of Account names from account config file
     const accountNames = this.getAccountNames(accountsConfig);
+
+    // Validate SSM document name
+    this.validateSsmDocumentTargetTypes(ssmDocuments, errors);
+
+    // Validate SSM document name
+    this.validateSsmDocumentNames(ssmDocuments, errors);
 
     // Validate presence of SSM document files
     this.validateSsmDocumentFiles(configDir, ssmDocuments, errors);
@@ -51,26 +77,38 @@ export class SecurityConfigValidator {
     // Validate KMS key policy files
     this.validateKeyPolicyFiles(values, configDir, errors);
 
-    //
     // Create list of custom CMKs, any services to be validated against key list from keyManagementService
     const keyNames: string[] = [values.centralSecurityServices.ebsDefaultVolumeEncryption.kmsKey!];
 
     // Validate custom CMK names
     this.validateCustomKeyName(values, keyNames, errors);
 
-    //
+    // Validate EBS default encryption configuration
+    this.validateEbsEncryptionConfiguration(values.centralSecurityServices.ebsDefaultVolumeEncryption, errors);
+
+    // Validate GuardDuty configuration
+    this.validateGuardDutyConfiguration(values.centralSecurityServices.guardduty, errors);
+    // Validate SecurityHub configuration
+    this.validateSecurityHubConfiguration(values.centralSecurityServices.securityHub, errors);
+
     // Validate delegated admin account
     // Validate deployment targets against organization config file
     // validate deployment target OUs for security services
-    this.validateDelegatedAdminAccount(values, accountNames, errors);
+    this.validateDelegatedAdminAccount(values, accountsConfig, errors);
     this.validateDeploymentTargetOUs(values, ouIdNames, errors);
     this.validateDeploymentTargetAccountNames(values, accountNames, errors);
-
+    this.validateConfigRuleDeploymentTargetsInConfigDeploymentTargets(values, accountsConfig, globalConfig, errors);
+    this.validateConfigDeloymentTargetsInSecurityHubDeploymentTargets(values, accountsConfig, globalConfig, errors);
+    this.validateSecurityHubStandardDeloymentTargetsInSecurityHubDeloymentTargets(
+      values,
+      accountsConfig,
+      globalConfig,
+      errors,
+    );
+    this.validateSecurityHubAndConfig(values, globalConfig.controlTower.enable, errors);
     // Validate expiration for Macie and GuardDuty Lifecycle Rules
     this.macieLifecycleRules(values, errors);
     this.guarddutyLifecycleRules(values, errors);
-
-    //
     // Validate Config rule assets
     for (const ruleSet of values.awsConfig.ruleSets ?? []) {
       this.validateConfigRuleAssets(configDir, ruleSet, errors);
@@ -78,8 +116,8 @@ export class SecurityConfigValidator {
       this.validateConfigRuleRemediationAssumeRoleFile(configDir, ruleSet, errors);
       this.validateConfigRuleRemediationTargetAssets(configDir, ruleSet, ssmDocuments, errors);
     }
+    this.validateConfigRuleNames(values.awsConfig, accountsConfig, globalConfig, errors);
 
-    //
     // Validate SNS Topics for CloudWatch Alarms
     const snsTopicNames = this.getSnsTopicNames(globalConfig);
     for (const alarm of values.cloudWatch.alarmSets ?? []) {
@@ -97,6 +135,10 @@ export class SecurityConfigValidator {
 
     this.validateAwsCloudWatchLogGroups(values, errors);
     this.validateAwsCloudWatchLogGroupsRetention(values, errors);
+    this.validateResourcePolicyEnforcementConfig(values, ouIdNames, accountNames, errors);
+    this.validateResourcePolicyParameters(configDir, values, replacementsConfig, errors);
+
+    this.validateConfigRuleCmkDependency(values, globalConfig, accountsConfig, errors);
 
     if (errors.length) {
       throw new Error(`${SecurityConfig.FILENAME} has ${errors.length} issues:\n${errors.join('\n')}`);
@@ -114,8 +156,10 @@ export class SecurityConfigValidator {
    */
   private getOuIdNames(organizationConfig: OrganizationConfig): string[] {
     const ouIdNames: string[] = [];
-    for (const organizationalUnit of organizationConfig.organizationalUnits) {
-      ouIdNames.push(organizationalUnit.name);
+    if (organizationConfig.enable) {
+      for (const organizationalUnit of organizationConfig.organizationalUnits ?? []) {
+        ouIdNames.push(organizationalUnit.name);
+      }
     }
     return ouIdNames;
   }
@@ -149,10 +193,10 @@ export class SecurityConfigValidator {
    * @param accountNames
    * @param errors
    */
-  private validateDelegatedAdminAccount(values: SecurityConfig, accountNames: string[], errors: string[]) {
-    if (!accountNames.includes(values.centralSecurityServices.delegatedAdminAccount)) {
+  private validateDelegatedAdminAccount(values: SecurityConfig, accountsConfig: AccountsConfig, errors: string[]) {
+    if (values.centralSecurityServices.delegatedAdminAccount !== accountsConfig.getAuditAccount().name) {
       errors.push(
-        `Delegated admin account ${values.centralSecurityServices.delegatedAdminAccount} does not exist in accounts-config.yaml`,
+        `The delegated administrator account specified in security-config.yaml is not valid. The solution requires using the Audit account (exactly as defined in accounts-config.yaml) as the delegated administrator for central security services. Account name is case sensitive.`,
       );
     }
   }
@@ -160,7 +204,7 @@ export class SecurityConfigValidator {
   /**
    * Validate S3 lifecycle expiration to be smaller than noncurrentVersionExpiration
    */
-  private macieLifecycleRules(values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>, errors: string[]) {
+  private macieLifecycleRules(values: ISecurityConfig, errors: string[]) {
     for (const lifecycleRule of values.centralSecurityServices?.macie?.lifecycleRules ?? []) {
       if (lifecycleRule.expiration && !lifecycleRule.noncurrentVersionExpiration) {
         errors.push('You must supply a value for noncurrentVersionExpiration. Macie.');
@@ -177,7 +221,7 @@ export class SecurityConfigValidator {
   /**
    * Validate S3 lifecycle expiration to be smaller than noncurrentVersionExpiration
    */
-  private guarddutyLifecycleRules(values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>, errors: string[]) {
+  private guarddutyLifecycleRules(values: ISecurityConfig, errors: string[]) {
     for (const lifecycleRule of values.centralSecurityServices?.guardduty?.lifecycleRules ?? []) {
       if (lifecycleRule.expiration && !lifecycleRule.noncurrentVersionExpiration) {
         errors.push('You must supply a value for noncurrentVersionExpiration. GuardDuty');
@@ -196,8 +240,10 @@ export class SecurityConfigValidator {
    * @param values
    * @returns
    */
-  private getSsmDocuments(values: SecurityConfig): { name: string; template: string }[] {
-    const ssmDocuments: { name: string; template: string }[] = [];
+  private getSsmDocuments(
+    values: SecurityConfig,
+  ): { name: string; template: string; targetType: string | undefined }[] {
+    const ssmDocuments: { name: string; template: string; targetType: string | undefined }[] = [];
 
     // SSM Document validations
     for (const documentSet of values.centralSecurityServices.ssmAutomation.documentSets) {
@@ -268,6 +314,65 @@ export class SecurityConfigValidator {
   }
 
   /**
+   * Validate GuardDuty configuration
+   * @param guardDutyConfig GuardDutyConfig
+   * @param errors string[]
+   */
+  private validateGuardDutyConfiguration(guardDutyConfig: GuardDutyConfig, errors: string[]) {
+    if (guardDutyConfig.excludeRegions && guardDutyConfig.deploymentTargets) {
+      errors.push(
+        `GuardDuty configuration cannot include both "deploymentTargets" and "excludeRegions" properties. Please use only one.`,
+      );
+    }
+
+    if (
+      guardDutyConfig.deploymentTargets &&
+      !guardDutyConfig.deploymentTargets.organizationalUnits?.includes('Root') &&
+      (guardDutyConfig.autoEnableOrgMembers === undefined || guardDutyConfig.autoEnableOrgMembers)
+    ) {
+      errors.push(
+        `"autoEnableOrgMembers" should be set to "false" when using "deploymentTargets" property in guardDuty configuration`,
+      );
+    }
+  }
+
+  /**
+   * Validate SecurityHub configuration
+   * @param securityHubConfig SecurityHubConfig
+   * @param errors string[]
+   */
+  private validateSecurityHubConfiguration(securityHubConfig: SecurityHubConfig, errors: string[]) {
+    if (securityHubConfig.excludeRegions && securityHubConfig.deploymentTargets) {
+      errors.push(
+        `securityHub configuration cannot include both "deploymentTargets" and "excludeRegions" properties. Please use only one.`,
+      );
+    }
+
+    if (
+      securityHubConfig.deploymentTargets &&
+      !securityHubConfig.deploymentTargets.organizationalUnits?.includes('Root') &&
+      (securityHubConfig.autoEnableOrgMembers === undefined || securityHubConfig.autoEnableOrgMembers)
+    ) {
+      errors.push(
+        `"autoEnableOrgMembers" should be set to "false" when using "deploymentTargets" property in securityHub configuration`,
+      );
+    }
+  }
+
+  /**
+   * Validate EBS default volume encryption configuration
+   * @param ebsEncryptionConfig EbsDefaultVolumeEncryptionConfig
+   * @param errors string[]
+   */
+  private validateEbsEncryptionConfiguration(ebsEncryptionConfig: EbsDefaultVolumeEncryptionConfig, errors: string[]) {
+    if (ebsEncryptionConfig.excludeRegions && ebsEncryptionConfig.deploymentTargets) {
+      errors.push(
+        `EBS default volume configuration cannot include both deploymentTargets and excludeRegions properties. Please use only one.`,
+      );
+    }
+  }
+
+  /**
    * Function to validate AWS CloudWatch Log Groups configuration
    */
   private validateAwsCloudWatchLogGroups(values: SecurityConfig, errors: string[]) {
@@ -314,12 +419,27 @@ export class SecurityConfigValidator {
   }
 
   /**
+   * Function to validate existence of Config deployment target Accounts
+   * Make sure deployment target Accounts are part of account config file
+   * @param values
+   */
+  private validateConfigDeploymentTargetAccounts(values: ISecurityConfig, accountNames: string[], errors: string[]) {
+    for (const account of values.awsConfig.deploymentTargets?.accounts ?? []) {
+      if (accountNames.indexOf(account) === -1) {
+        errors.push(
+          `Deployment target account ${account} for AWS Config does not exists in accounts-config.yaml file.`,
+        );
+      }
+    }
+  }
+
+  /**
    * Function to validate existence of custom config rule deployment target Accounts
    * Make sure deployment target Accounts are part of account config file
    * @param values
    */
   private validateConfigRuleDeploymentTargetAccounts(
-    values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>,
+    values: ISecurityConfig,
     accountNames: string[],
     errors: string[],
   ) {
@@ -335,21 +455,238 @@ export class SecurityConfigValidator {
   }
 
   /**
+   * Function to validate existence of Config Recorder and Delivery Channel in accounts where RuleSets are getting deployed
+   * @param values
+   * @param accountsConfig
+   * @param globalConfig
+   * @param errors
+   */
+  private validateConfigRuleDeploymentTargetsInConfigDeploymentTargets(
+    values: ISecurityConfig,
+    accountsConfig: AccountsConfig,
+    globalConfig: GlobalConfig,
+    errors: string[],
+  ) {
+    const configDeploymentTargets = values.awsConfig.deploymentTargets;
+
+    if (!configDeploymentTargets || configDeploymentTargets?.organizationalUnits?.includes('Root')) return;
+
+    const configAccounts = CommonValidatorFunctions.getAccountNamesFromDeploymentTargets(
+      accountsConfig,
+      configDeploymentTargets as DeploymentTargets,
+    );
+    const configRegions = CommonValidatorFunctions.getRegionsFromDeploymentTargets(
+      configDeploymentTargets as DeploymentTargets,
+      globalConfig,
+    );
+    let configRuleSetAccounts: string[] = [];
+    let configRuleSetRegions: t.Region[] = [];
+
+    for (const ruleSet of values.awsConfig.ruleSets ?? []) {
+      configRuleSetAccounts.push(
+        ...CommonValidatorFunctions.getAccountNamesFromDeploymentTargets(
+          accountsConfig,
+          ruleSet.deploymentTargets as DeploymentTargets,
+        ),
+      );
+      configRuleSetRegions.push(
+        ...CommonValidatorFunctions.getRegionsFromDeploymentTargets(
+          ruleSet.deploymentTargets as DeploymentTargets,
+          globalConfig,
+        ),
+      );
+    }
+
+    configRuleSetAccounts = [...new Set(configRuleSetAccounts)];
+    configRuleSetRegions = [...new Set(configRuleSetRegions)];
+
+    for (const account of configRuleSetAccounts) {
+      if (!configAccounts.includes(account)) {
+        errors.push(
+          `awsConfig RuleSets deployment target account: "${account}" not present in deployment targets for awsConfig : "${configAccounts}".`,
+        );
+      }
+    }
+
+    for (const region of configRuleSetRegions) {
+      if (!configRegions.includes(region)) {
+        errors.push(
+          `awsConfig RuleSets deployment target region: "${region}" not present in deployment targets for awsConfig : "${configRegions}".`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Function to validate SecurityHub Standard deploymentTargets in SecurityHub deploymentTargets
+   * @param values
+   * @param accountsConfig
+   * @param globalConfig
+   * @param errors
+   */
+  private validateSecurityHubStandardDeloymentTargetsInSecurityHubDeloymentTargets(
+    values: ISecurityConfig,
+    accountsConfig: AccountsConfig,
+    globalConfig: GlobalConfig,
+    errors: string[],
+  ) {
+    const securityHubDeploymentTargets = values.centralSecurityServices.securityHub.deploymentTargets;
+    const securityHubStandards = values.centralSecurityServices.securityHub.standards;
+
+    if (!securityHubDeploymentTargets || securityHubDeploymentTargets?.organizationalUnits?.includes('Root')) return;
+
+    const securityHubAccounts = CommonValidatorFunctions.getAccountNamesFromDeploymentTargets(
+      accountsConfig,
+      securityHubDeploymentTargets as DeploymentTargets,
+    );
+    const securityHubRegions = CommonValidatorFunctions.getRegionsFromDeploymentTargets(
+      securityHubDeploymentTargets as DeploymentTargets,
+      globalConfig,
+    );
+    let securityHubStandardAccounts: string[] = [];
+    let securityHubStandardRegions: t.Region[] = [];
+
+    for (const securityHubStandard of securityHubStandards ?? []) {
+      if (securityHubStandard.deploymentTargets) {
+        securityHubStandardAccounts.push(
+          ...CommonValidatorFunctions.getAccountNamesFromDeploymentTargets(
+            accountsConfig,
+            securityHubStandard.deploymentTargets as DeploymentTargets,
+          ),
+        );
+        securityHubStandardRegions.push(
+          ...CommonValidatorFunctions.getRegionsFromDeploymentTargets(
+            securityHubStandard.deploymentTargets as DeploymentTargets,
+            globalConfig,
+          ),
+        );
+      } else if (!securityHubStandard.deploymentTargets) {
+        errors.push(
+          `securityHub standard (${securityHubStandard.name}) "deploymentTargets" is required when "deploymentTargets" for securityHub is defined`,
+        );
+      }
+    }
+
+    securityHubStandardAccounts = [...new Set(securityHubStandardAccounts)];
+    securityHubStandardRegions = [...new Set(securityHubStandardRegions)];
+
+    for (const account of securityHubStandardAccounts) {
+      if (!securityHubAccounts.includes(account)) {
+        errors.push(
+          `securityHub standard deployment target account: "${account}" not present in deployment targets for securityHub : "${securityHubAccounts}".`,
+        );
+      }
+    }
+
+    for (const region of securityHubStandardRegions) {
+      if (!securityHubRegions.includes(region)) {
+        errors.push(
+          `securityHub standard deployment target region: "${region}" not present in deployment targets for securityHub : "${securityHubRegions}".`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Function to validate securityHub and awsConfig deploymentTargets
+   * SecurityHub requires awsConfig to be enabled
+   * @param values
+   * @param accountsConfig
+   * @param globalConfig
+   * @param errors
+   */
+  private validateConfigDeloymentTargetsInSecurityHubDeploymentTargets(
+    values: ISecurityConfig,
+    accountsConfig: AccountsConfig,
+    globalConfig: GlobalConfig,
+    errors: string[],
+  ) {
+    const awsConfig = values.awsConfig;
+    const securityHub = values.centralSecurityServices.securityHub;
+
+    if (
+      !awsConfig.enableConfigurationRecorder ||
+      !awsConfig.deploymentTargets ||
+      awsConfig.deploymentTargets.organizationalUnits?.includes('Root') ||
+      !securityHub.enable
+    )
+      return;
+
+    if (!securityHub.deploymentTargets) {
+      errors.push(
+        `Provide securityHub "deploymentTargets" when "deploymentTargets" for awsConfig is provided. awsConfig must be enabled for all "deploymentTargets" utilizing securityHub`,
+      );
+    } else if (securityHub.deploymentTargets) {
+      const securityHubAccounts = CommonValidatorFunctions.getAccountNamesFromDeploymentTargets(
+        accountsConfig,
+        securityHub.deploymentTargets as DeploymentTargets,
+      );
+      const securityHubRegions = CommonValidatorFunctions.getRegionsFromDeploymentTargets(
+        securityHub.deploymentTargets as DeploymentTargets,
+        globalConfig,
+      );
+      const awsConfigAccounts = CommonValidatorFunctions.getAccountNamesFromDeploymentTargets(
+        accountsConfig,
+        awsConfig.deploymentTargets as DeploymentTargets,
+      );
+      const awsConfigRegions = CommonValidatorFunctions.getRegionsFromDeploymentTargets(
+        awsConfig.deploymentTargets as DeploymentTargets,
+        globalConfig,
+      );
+
+      for (const account of securityHubAccounts) {
+        if (!awsConfigAccounts.includes(account)) {
+          errors.push(
+            `securityHub "deploymentTargets" account: "${account}" not present in "deploymentTargets" for awsConfig : "${awsConfigAccounts}". awsConfig must be enabled for all accounts utilizing securityHub.`,
+          );
+        }
+      }
+
+      for (const region of securityHubRegions) {
+        if (!awsConfigRegions.includes(region)) {
+          errors.push(
+            `securityHub deploymentTargets region: "${region}" not present in deploymentTargets for awsConfig : "${awsConfigRegions}". awsConfig must be enabled for all regions utilizing securityHub.`,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Function to validate securityHub and awsConfig
+   * SecurityHub requires awsConfig to be enabled
+   * @param values
+   * @param accountsConfig
+   * @param globalConfig
+   * @param errors
+   */
+  private validateSecurityHubAndConfig(values: ISecurityConfig, controlTower: boolean, errors: string[]) {
+    const awsConfig = values.awsConfig;
+    const securityHub = values.centralSecurityServices.securityHub;
+
+    if (securityHub.enable && !awsConfig.enableConfigurationRecorder && !controlTower) {
+      errors.push(`securityHub requires awsConfig to be enabled.`);
+    }
+  }
+
+  /**
    * Function to validate existence of CloudWatch Metrics deployment target Accounts
    * Make sure deployment target Accounts are part of account config file
    * @param values
    */
   private validateCloudWatchMetricsDeploymentTargetAccounts(
-    values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>,
+    values: ISecurityConfig,
     accountNames: string[],
     errors: string[],
   ) {
     for (const metricSet of values.cloudWatch.metricSets ?? []) {
-      for (const account of metricSet.deploymentTargets.accounts ?? []) {
-        if (accountNames.indexOf(account) === -1) {
-          errors.push(
-            `Deployment target account ${account} for CloudWatch Metrics does not exists in accounts-config.yaml file.`,
-          );
+      if (metricSet.deploymentTargets) {
+        for (const account of metricSet.deploymentTargets.accounts ?? []) {
+          if (accountNames.indexOf(account) === -1) {
+            errors.push(
+              `Deployment target account ${account} for CloudWatch Metrics does not exists in accounts-config.yaml file.`,
+            );
+          }
         }
       }
     }
@@ -361,7 +698,7 @@ export class SecurityConfigValidator {
    * @param values
    */
   private validateCloudWatchAlarmsDeploymentTargetAccounts(
-    values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>,
+    values: ISecurityConfig,
     accountNames: string[],
     errors: string[],
   ) {
@@ -382,7 +719,7 @@ export class SecurityConfigValidator {
    * @param values
    */
   private validateCloudWatchLogGroupsDeploymentTargetAccounts(
-    values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>,
+    values: ISecurityConfig,
     accountNames: string[],
     errors: string[],
   ) {
@@ -402,7 +739,7 @@ export class SecurityConfigValidator {
    * @param values
    */
   private validateSsmDocumentsDeploymentTargetAccounts(
-    values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>,
+    values: ISecurityConfig,
     accountNames: string[],
     errors: string[],
   ) {
@@ -416,21 +753,111 @@ export class SecurityConfigValidator {
       }
     }
   }
+  /**
+   * Function to validate existence of KMS key deployment target Accounts
+   * Make sure deployment target Accounts are part of account config file
+   * @param values
+   */
+  private validateKmsKeyConfigDeploymentTargetAccounts(
+    values: ISecurityConfig,
+    accountNames: string[],
+    errors: string[],
+  ) {
+    for (const keySet of values.keyManagementService?.keySets ?? []) {
+      for (const account of keySet.deploymentTargets.accounts ?? []) {
+        if (accountNames.indexOf(account) === -1) {
+          errors.push(
+            `Deployment target account ${account} for KMS key ${keySet.name} does not exists in accounts-config.yaml file.`,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Validate deployment target accounts for EBS default volume encryption
+   * @param values SecurityConfig
+   * @param ouIdNames string[]
+   * @param errors string[]
+   */
+  private validateEbsEncryptionDeploymentTargetAccounts(
+    values: ISecurityConfig,
+    accountNames: string[],
+    errors: string[],
+  ) {
+    for (const account of values.centralSecurityServices.ebsDefaultVolumeEncryption.deploymentTargets?.accounts ?? []) {
+      if (accountNames.indexOf(account) === -1) {
+        errors.push(
+          `Deployment target account ${account} for EBS default volume encryption does not exist in accounts-config.yaml file.`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Validate deployment target accounts for GuardDuty
+   * @param values SecurityConfig
+   * @param accountNames string[]
+   * @param errors string[]
+   */
+  private validateGuardDutyDeploymentTargetAccounts(values: ISecurityConfig, accountNames: string[], errors: string[]) {
+    for (const account of values.centralSecurityServices.guardduty.deploymentTargets?.accounts ?? []) {
+      if (accountNames.indexOf(account) === -1) {
+        errors.push(`Deployment target account ${account} for GuardDuty does not exist in accounts-config.yaml file.`);
+      }
+    }
+  }
+
+  /**
+   * Validate deployment target accounts for SecurityHub
+   * @param values SecurityConfig
+   * @param accountNames string[]
+   * @param errors string[]
+   */
+  private validateSecurityHubDeploymentTargetAccounts(
+    values: ISecurityConfig,
+    accountNames: string[],
+    errors: string[],
+  ) {
+    for (const account of values.centralSecurityServices.securityHub.deploymentTargets?.accounts ?? []) {
+      if (accountNames.indexOf(account) === -1) {
+        errors.push(
+          `Deployment target account ${account} for securityHub does not exist in accounts-config.yaml file.`,
+        );
+      }
+    }
+  }
 
   /**
    * Function to validate Deployment targets account name for security services
    * @param values
    */
-  private validateDeploymentTargetAccountNames(
-    values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>,
-    accountNames: string[],
-    errors: string[],
-  ) {
+  private validateDeploymentTargetAccountNames(values: ISecurityConfig, accountNames: string[], errors: string[]) {
+    this.validateConfigDeploymentTargetAccounts(values, accountNames, errors);
     this.validateConfigRuleDeploymentTargetAccounts(values, accountNames, errors);
     this.validateCloudWatchMetricsDeploymentTargetAccounts(values, accountNames, errors);
     this.validateCloudWatchAlarmsDeploymentTargetAccounts(values, accountNames, errors);
     this.validateSsmDocumentsDeploymentTargetAccounts(values, accountNames, errors);
     this.validateCloudWatchLogGroupsDeploymentTargetAccounts(values, accountNames, errors);
+    this.validateKmsKeyConfigDeploymentTargetAccounts(values, accountNames, errors);
+    this.validateEbsEncryptionDeploymentTargetAccounts(values, accountNames, errors);
+    this.validateGuardDutyDeploymentTargetAccounts(values, accountNames, errors);
+    this.validateSecurityHubDeploymentTargetAccounts(values, accountNames, errors);
+  }
+
+  /**
+   * Function to validate existence of Config deployment target OUs
+   * Make sure deployment target OUs are part of Organization config file
+   * @param values
+   */
+  private validateConfigDeploymentTargetOUs(values: ISecurityConfig, ouIdNames: string[], errors: string[]) {
+    for (const ou of values.awsConfig.deploymentTargets?.organizationalUnits ?? []) {
+      if (ouIdNames.indexOf(ou) === -1) {
+        errors.push(
+          `Deployment target OU ${ou} for AWS Config rules does not exists in organization-config.yaml file.`,
+        );
+      }
+    }
   }
 
   /**
@@ -438,11 +865,7 @@ export class SecurityConfigValidator {
    * Make sure deployment target OUs are part of Organization config file
    * @param values
    */
-  private validateConfigRuleDeploymentTargetOUs(
-    values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>,
-    ouIdNames: string[],
-    errors: string[],
-  ) {
+  private validateConfigRuleDeploymentTargetOUs(values: ISecurityConfig, ouIdNames: string[], errors: string[]) {
     for (const ruleSet of values.awsConfig.ruleSets ?? []) {
       for (const ou of ruleSet.deploymentTargets.organizationalUnits ?? []) {
         if (ouIdNames.indexOf(ou) === -1) {
@@ -459,17 +882,15 @@ export class SecurityConfigValidator {
    * Make sure deployment target OUs are part of Organization config file
    * @param values
    */
-  private validateCloudWatchMetricsDeploymentTargetOUs(
-    values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>,
-    ouIdNames: string[],
-    errors: string[],
-  ) {
+  private validateCloudWatchMetricsDeploymentTargetOUs(values: ISecurityConfig, ouIdNames: string[], errors: string[]) {
     for (const metricSet of values.cloudWatch.metricSets ?? []) {
-      for (const ou of metricSet.deploymentTargets.organizationalUnits ?? []) {
-        if (ouIdNames.indexOf(ou) === -1) {
-          errors.push(
-            `Deployment target OU ${ou} for CloudWatch metrics does not exists in organization-config.yaml file.`,
-          );
+      if (metricSet.deploymentTargets) {
+        for (const ou of metricSet.deploymentTargets.organizationalUnits ?? []) {
+          if (ouIdNames.indexOf(ou) === -1) {
+            errors.push(
+              `Deployment target OU ${ou} for CloudWatch metrics does not exists in organization-config.yaml file.`,
+            );
+          }
         }
       }
     }
@@ -480,11 +901,7 @@ export class SecurityConfigValidator {
    * Make sure deployment target OUs are part of Organization config file
    * @param values
    */
-  private validateCloudWatchAlarmsDeploymentTargetOUs(
-    values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>,
-    ouIdNames: string[],
-    errors: string[],
-  ) {
+  private validateCloudWatchAlarmsDeploymentTargetOUs(values: ISecurityConfig, ouIdNames: string[], errors: string[]) {
     for (const alarmSet of values.cloudWatch.alarmSets ?? []) {
       for (const ou of alarmSet.deploymentTargets.organizationalUnits ?? []) {
         if (ouIdNames.indexOf(ou) === -1) {
@@ -501,16 +918,74 @@ export class SecurityConfigValidator {
    * Make sure deployment target OUs are part of Organization config file
    * @param values
    */
-  private validateSsmDocumentDeploymentTargetOUs(
-    values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>,
-    ouIdNames: string[],
-    errors: string[],
-  ) {
+  private validateSsmDocumentDeploymentTargetOUs(values: ISecurityConfig, ouIdNames: string[], errors: string[]) {
     for (const documentSet of values.centralSecurityServices.ssmAutomation.documentSets ?? []) {
       for (const ou of documentSet.shareTargets.organizationalUnits ?? []) {
         if (ouIdNames.indexOf(ou) === -1) {
           errors.push(`Deployment target OU ${ou} for SSM documents does not exists in organization-config.yaml file.`);
         }
+      }
+    }
+  }
+
+  /**
+   * Function to validate existence of Key Management Service Config deployment target OUs
+   * Make sure deployment target OUs are part of Organization config file
+   * @param values
+   */
+  private validateKmsKeyConfigDeploymentTargetOUs(values: ISecurityConfig, ouIdNames: string[], errors: string[]) {
+    for (const keySet of values.keyManagementService?.keySets ?? []) {
+      for (const ou of keySet.deploymentTargets.organizationalUnits ?? []) {
+        if (ouIdNames.indexOf(ou) === -1) {
+          errors.push(
+            `Deployment target OU ${ou} for KMS key ${keySet.name} does not exists in organization-config.yaml file.`,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Validate deployment target OUs for EBS default volume encryption
+   * @param values SecurityConfig
+   * @param ouIdNames string[]
+   * @param errors string[]
+   */
+  private validateEbsEncryptionDeploymentTargetOUs(values: SecurityConfig, ouIdNames: string[], errors: string[]) {
+    for (const ou of values.centralSecurityServices.ebsDefaultVolumeEncryption.deploymentTargets?.organizationalUnits ??
+      []) {
+      if (ouIdNames.indexOf(ou) === -1) {
+        errors.push(
+          `Deployment target OU ${ou} for EBS default volume encryption does not exist in organization-config.yaml file.`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Validate deployment target OUs for GuardDuty
+   * @param values SecurityConfig
+   * @param ouIdNames string[]
+   * @param errors string[]
+   */
+  private validateGuardDutyDeploymentTargetOUs(values: SecurityConfig, ouIdNames: string[], errors: string[]) {
+    for (const ou of values.centralSecurityServices.guardduty.deploymentTargets?.organizationalUnits ?? []) {
+      if (ouIdNames.indexOf(ou) === -1) {
+        errors.push(`Deployment target OU ${ou} for GuardDuty does not exist in organization-config.yaml file.`);
+      }
+    }
+  }
+
+  /**
+   * Validate deployment target OUs for SecurityHub
+   * @param values SecurityConfig
+   * @param ouIdNames string[]
+   * @param errors string[]
+   */
+  private validateSecurityHubDeploymentTargetOUs(values: SecurityConfig, ouIdNames: string[], errors: string[]) {
+    for (const ou of values.centralSecurityServices.securityHub.deploymentTargets?.organizationalUnits ?? []) {
+      if (ouIdNames.indexOf(ou) === -1) {
+        errors.push(`Deployment target OU ${ou} for securityHub does not exist in organization-config.yaml file.`);
       }
     }
   }
@@ -523,7 +998,12 @@ export class SecurityConfigValidator {
     this.validateSsmDocumentDeploymentTargetOUs(values, ouIdNames, errors);
     this.validateCloudWatchAlarmsDeploymentTargetOUs(values, ouIdNames, errors);
     this.validateCloudWatchMetricsDeploymentTargetOUs(values, ouIdNames, errors);
+    this.validateConfigDeploymentTargetOUs(values, ouIdNames, errors);
     this.validateConfigRuleDeploymentTargetOUs(values, ouIdNames, errors);
+    this.validateKmsKeyConfigDeploymentTargetOUs(values, ouIdNames, errors);
+    this.validateEbsEncryptionDeploymentTargetOUs(values, ouIdNames, errors);
+    this.validateGuardDutyDeploymentTargetOUs(values, ouIdNames, errors);
+    this.validateSecurityHubDeploymentTargetOUs(values, ouIdNames, errors);
   }
 
   /**
@@ -531,11 +1011,7 @@ export class SecurityConfigValidator {
    * @param configDir
    * @param ruleSet
    */
-  private validateConfigRuleAssets(
-    configDir: string,
-    ruleSet: t.TypeOf<typeof SecurityConfigTypes.awsConfigRuleSet>,
-    errors: string[],
-  ) {
+  private validateConfigRuleAssets(configDir: string, ruleSet: IAwsConfigRuleSet, errors: string[]) {
     for (const rule of ruleSet.rules) {
       if (rule.type === 'Custom' && rule.customRule) {
         // Validate presence of custom rule lambda function zip file
@@ -551,6 +1027,49 @@ export class SecurityConfigValidator {
           );
         }
       }
+    }
+  }
+
+  /**
+   * Function to validate if AWS Config Rule names are unique to the environments they're deployed to respectively.
+   * @param ruleSet
+   * @param helpers
+   */
+  private validateConfigRuleNames(
+    configItem: IAwsConfig,
+    accountsConfig: AccountsConfig,
+    globalConfig: GlobalConfig,
+    errors: string[],
+  ) {
+    const configRuleMap: { name: string; environments: string[] }[] = [];
+    const configRuleNames: string[] = [];
+    const duplicateNames: string[] = [];
+
+    for (const ruleSetItem of configItem.ruleSets ?? []) {
+      for (const ruleItem of ruleSetItem.rules ?? []) {
+        configRuleMap.push({
+          name: ruleItem.name,
+          environments: CommonValidatorFunctions.getEnvironmentsFromDeploymentTargets(
+            accountsConfig,
+            ruleSetItem.deploymentTargets as DeploymentTargets,
+            globalConfig,
+          ),
+        });
+      }
+    }
+
+    configRuleMap.forEach(configRule => configRuleNames.push(configRule.name));
+    for (const ruleName of configRuleNames) {
+      const deploymentTargetRules = configRuleMap.filter(rule => rule.name === ruleName);
+      const resultMap = deploymentTargetRules.map(rule => rule.environments);
+      if (this.hasDuplicates(resultMap.flat())) {
+        duplicateNames.push(ruleName);
+      }
+    }
+    if (duplicateNames.length > 0) {
+      errors.push(
+        `Duplicate AWS Config rules name exist with the same name and must be unique when deployed to the same account and region. Config rules in file: ${configRuleNames}`,
+      );
     }
   }
 
@@ -579,11 +1098,7 @@ export class SecurityConfigValidator {
    * @param configDir
    * @param ruleSet
    */
-  private validateConfigRuleRemediationAssumeRoleFile(
-    configDir: string,
-    ruleSet: t.TypeOf<typeof SecurityConfigTypes.awsConfigRuleSet>,
-    errors: string[],
-  ) {
+  private validateConfigRuleRemediationAssumeRoleFile(configDir: string, ruleSet: IAwsConfigRuleSet, errors: string[]) {
     for (const rule of ruleSet.rules) {
       if (rule.remediation) {
         // Validate presence of rule remediation assume role definition file
@@ -603,26 +1118,65 @@ export class SecurityConfigValidator {
    */
   private validateConfigRuleRemediationTargetAssets(
     configDir: string,
-    ruleSet: t.TypeOf<typeof SecurityConfigTypes.awsConfigRuleSet>,
+    ruleSet: IAwsConfigRuleSet,
     ssmDocuments: { name: string; template: string }[],
     errors: string[],
   ) {
     for (const rule of ruleSet.rules) {
       if (rule.remediation) {
-        // Validate presence of SSM document before used as remediation target
-        if (!ssmDocuments.find(item => item.name === rule.remediation?.targetId)) {
-          errors.push(
-            `Rule: ${rule.name}, remediation target SSM document ${rule.remediation?.targetId} not found in ssm automation document lists`,
-          );
-          // Validate presence of custom rule's remediation SSM document invoke lambda function zip file
-          if (rule.remediation.targetDocumentLambda) {
-            if (!fs.existsSync(path.join(configDir, rule.remediation.targetDocumentLambda.sourceFilePath))) {
-              errors.push(
-                `Rule: ${rule.name}, remediation target SSM document lambda function file ${rule.remediation.targetDocumentLambda.sourceFilePath} not found`,
-              );
+        if (!IsPublicSsmDoc(rule.remediation.targetId)) {
+          // Validate presence of SSM document before used as remediation target
+          if (!ssmDocuments.find(item => item.name === rule.remediation?.targetId)) {
+            errors.push(
+              `Rule: ${rule.name}, remediation target SSM document ${rule.remediation?.targetId} not found in ssm automation document lists`,
+            );
+            // Validate presence of custom rule's remediation SSM document invoke lambda function zip file
+            if (rule.remediation.targetDocumentLambda) {
+              if (!fs.existsSync(path.join(configDir, rule.remediation.targetDocumentLambda.sourceFilePath))) {
+                errors.push(
+                  `Rule: ${rule.name}, remediation target SSM document lambda function file ${rule.remediation.targetDocumentLambda.sourceFilePath} not found`,
+                );
+              }
             }
           }
         }
+      }
+    }
+  }
+
+  private validateSsmDocumentTargetTypes(ssmDocuments: IDocumentConfig[], errors: string[]) {
+    // check if document target type falls under the regex specified by API for SSM CreateDocument
+    // ref: https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_CreateDocument.html#systemsmanager-CreateDocument-request-TargetType
+    const ssmDocumentTargetTypeRegex = /^\/[\w.\-:/]*$/;
+    for (const document of ssmDocuments) {
+      if (document.targetType) {
+        if (!ssmDocumentTargetTypeRegex.test(document.targetType)) {
+          errors.push(
+            `SSM document: ${document.name} has does not conform with regular expression for TargetType in CreateDocument API call`,
+          );
+        } else {
+          // check if document target length is over 200
+          if (document.targetType.length > 200) {
+            errors.push(
+              `SSM document: ${document.name} has TargetType length over 200, please reduce the length of TargetType`,
+            );
+          }
+        }
+      }
+    }
+  }
+  /**
+   *
+   */
+  private validateSsmDocumentNames(ssmDocuments: IDocumentConfig[], errors: string[]) {
+    // check if document name falls under the regex specified by API for SSM CreateDocument
+    // ref: https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_CreateDocument.html#systemsmanager-CreateDocument-request-Name
+    const ssmDocumentNameRegex = /^[a-zA-Z0-9_\-.:/]{3,128}$/;
+    for (const document of ssmDocuments) {
+      if (!ssmDocumentNameRegex.test(document.name)) {
+        errors.push(
+          `SSM document: ${document.name} has does not conform with regular expression for Name in CreateDocument API call`,
+        );
       }
     }
   }
@@ -636,7 +1190,7 @@ export class SecurityConfigValidator {
    */
   private validateSnsTopics(
     globalConfig: GlobalConfig,
-    alarmSet: t.TypeOf<typeof SecurityConfigTypes.alarmSetConfig>,
+    alarmSet: IAlarmSetConfig,
     snsTopicNames: string[],
     errors: string[],
   ) {
@@ -665,10 +1219,10 @@ export class SecurityConfigValidator {
     errors: string[],
   ) {
     if (snsTopicName && !notificationLevel) {
-      errors.push(`SecurityHub is configured with a snsTopicName and does not have a notificationLevel`);
+      errors.push(`securityHub is configured with a snsTopicName and does not have a notificationLevel`);
     }
     if (!snsTopicName && notificationLevel) {
-      errors.push(`SecurityHub is configured with a notificationLevel and does not have a snsTopicName`);
+      errors.push(`securityHub is configured with a notificationLevel and does not have a snsTopicName`);
     }
     if (notificationLevel) {
       switch (notificationLevel) {
@@ -684,14 +1238,14 @@ export class SecurityConfigValidator {
           break;
         default:
           errors.push(
-            `SecurityHub has been configured with a notificationLevel of ${notificationLevel}. This is not a valid value.`,
+            `securityHub has been configured with a notificationLevel of ${notificationLevel}. This is not a valid value.`,
           );
       }
     }
     // validate topic exists in global config
     if (snsTopicName && !snsTopicNames.find(item => item === snsTopicName)) {
       errors.push(
-        `SecurityHub is configured to use snsTopicName ${snsTopicName} and the topic is not configured in the global config.`,
+        `securityHub is configured to use snsTopicName ${snsTopicName} and the topic is not configured in the global config.`,
       );
     }
   }
@@ -699,7 +1253,7 @@ export class SecurityConfigValidator {
   private validateAwsConfigAggregation(
     globalConfig: GlobalConfig,
     accountNames: string[],
-    values: t.TypeOf<typeof SecurityConfigTypes.securityConfig>,
+    values: ISecurityConfig,
     errors: string[],
   ) {
     if (values.awsConfig.aggregation && globalConfig.controlTower.enable) {
@@ -715,5 +1269,154 @@ export class SecurityConfigValidator {
         `Delegated admin account '${values.awsConfig.aggregation?.delegatedAdminAccount}' provided for config aggregation does not exist in the accounts-config.yaml file.`,
       );
     }
+  }
+
+  private validateResourcePolicyEnforcementConfig(
+    securityConfig: SecurityConfig,
+    ouIdNames: string[],
+    accountNames: string[],
+    errors: string[],
+  ) {
+    if (!securityConfig.resourcePolicyEnforcement) return;
+    const resourcePolicyEnforcementConfig = securityConfig.resourcePolicyEnforcement;
+    for (const resourcePolicy of resourcePolicyEnforcementConfig.policySets) {
+      for (const ou of resourcePolicy.deploymentTargets.organizationalUnits ?? []) {
+        if (ouIdNames.indexOf(ou) === -1) {
+          errors.push(
+            `Deployment target OU ${ou} for Data Perimeter AWS Config rules does not exists in organization-config.yaml file.`,
+          );
+        }
+      }
+
+      for (const account of resourcePolicy.deploymentTargets.accounts ?? []) {
+        if (accountNames.indexOf(account) === -1) {
+          errors.push(
+            `Deployment target account ${account} for Data Perimeter AWS Config rules does not exists in accounts-config.yaml file.`,
+          );
+        }
+      }
+
+      if (resourcePolicy.inputParameters?.['SourceAccount']) {
+        const sourceAccount = resourcePolicy.inputParameters['SourceAccount'];
+        const accountIdRegex = /^\d{12}$/;
+        if (sourceAccount !== 'ALL' && sourceAccount.split(',').find(accountId => !accountIdRegex.test(accountId))) {
+          errors.push(
+            `parameter 'SourceAccount' in data perimeter can only be 'ALL' or list of valid account ID (12 digits) separated by ','`,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Function to validate if static parameter in resource policy templates is defined in replacements config
+   * @param configDir
+   * @param securityConfig
+   * @param replacementConfig
+   * @param errors
+   */
+  private validateResourcePolicyParameters(
+    configDir: string,
+    securityConfig: SecurityConfig,
+    replacementConfig: ReplacementsConfig | undefined,
+    errors: string[],
+  ) {
+    const policyFilePaths = new Set<string>();
+    for (const policySet of securityConfig.resourcePolicyEnforcement?.policySets || []) {
+      policySet.resourcePolicies.map(rp => policyFilePaths.add(rp.document));
+    }
+    CommonValidatorFunctions.validateStaticParameters(
+      replacementConfig,
+      configDir,
+      [...policyFilePaths],
+      new Set([RESERVED_STATIC_PARAMETER_FOR_RESOURCE_POLICY]),
+      errors,
+    );
+  }
+
+  /**
+   * Function to validate AWS Config rules do not use solution defined CMK when global config s3 encryption was disabled.
+   * @param securityConfig
+   * @param globalConfig
+   * @param accountConfig
+   * @param errors
+   * @returns
+   */
+  private validateConfigRuleCmkDependency(
+    securityConfig: SecurityConfig,
+    globalConfig: GlobalConfig,
+    accountConfig: AccountsConfig,
+    errors: string[],
+  ) {
+    if (!globalConfig.s3?.encryption?.deploymentTargets) {
+      if (globalConfig.s3?.encryption?.createCMK === false) {
+        for (const ruleSet of securityConfig.awsConfig.ruleSets) {
+          for (const rule of ruleSet.rules) {
+            if (this.isConfigRuleCmkDependent(rule)) {
+              errors.push(
+                `There is a parameter in the security-config.yaml file that refers to the solution created KMS encryption replacement ACCEL_LOOKUP::KMS for the remediation Lambda function for AWS Config rule ${rule.name}, however, global-config.yaml disables the creation of CMK.`,
+              );
+            }
+          }
+        }
+      }
+      return;
+    }
+
+    for (const ruleSet of securityConfig.awsConfig.ruleSets) {
+      for (const rule of ruleSet.rules) {
+        let remediationDeploymentTargets: DeploymentTargets;
+        if (this.isConfigRuleCmkDependent(rule)) {
+          if (rule.remediation.excludeRegions) {
+            remediationDeploymentTargets = {
+              accounts: ruleSet.deploymentTargets.accounts ?? [],
+              organizationalUnits: ruleSet.deploymentTargets.organizationalUnits ?? [],
+              excludedRegions: rule.remediation.excludeRegions ?? [],
+              excludedAccounts: ruleSet.deploymentTargets.excludedAccounts ?? [],
+            };
+          } else {
+            remediationDeploymentTargets = ruleSet.deploymentTargets;
+          }
+          const ruleEnvFromDeploymentTarget = CommonValidatorFunctions.getEnvironmentsFromDeploymentTargets(
+            accountConfig,
+            remediationDeploymentTargets,
+            globalConfig,
+          );
+          const s3EncryptionEnvFromDeploymentTarget = CommonValidatorFunctions.getEnvironmentsFromDeploymentTargets(
+            accountConfig,
+            globalConfig.s3.encryption.deploymentTargets,
+            globalConfig,
+          );
+
+          const compareDeploymentEnvironments = CommonValidatorFunctions.compareDeploymentEnvironments(
+            ruleEnvFromDeploymentTarget,
+            s3EncryptionEnvFromDeploymentTarget,
+          );
+
+          if (!compareDeploymentEnvironments.match) {
+            errors.push(
+              `There is a parameter in the security-config.yaml file that refers to the solution created KMS encryption replacement ACCEL_LOOKUP::KMS for the remediation Lambda function for AWS Config rule ${rule.name}, however, global-config.yaml disables the creation of CMK.`,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Function to check if given config rule uses solution deployed CMK replacement
+   * @param rule
+   * @returns
+   */
+  private isConfigRuleCmkDependent(rule: ConfigRule): ConfigRule | undefined {
+    for (const parameter of rule.remediation?.parameters ?? []) {
+      for (const [value] of Object.entries(parameter)) {
+        if (parameter[value] === '${ACCEL_LOOKUP::KMS}') {
+          return rule;
+        }
+      }
+    }
+
+    return undefined;
   }
 }

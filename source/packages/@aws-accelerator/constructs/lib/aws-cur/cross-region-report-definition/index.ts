@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -13,7 +13,9 @@
 
 import * as AWS from 'aws-sdk';
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { CloudFormationCustomResourceEvent, Context } from '@aws-accelerator/utils/lib/common-types';
+import { getGlobalRegion } from '@aws-accelerator/utils/lib/common-functions';
 
 AWS.config.logger = console;
 
@@ -25,8 +27,8 @@ AWS.config.logger = console;
  */
 
 export async function handler(
-  event: AWSLambda.CloudFormationCustomResourceEvent,
-  context: AWSLambda.Context,
+  event: CloudFormationCustomResourceEvent,
+  context: Context,
 ): Promise<
   | {
       PhysicalResourceId: string;
@@ -51,10 +53,7 @@ export async function handler(
 
   const partition = context.invokedFunctionArn.split(':')[1];
 
-  let globalRegion = 'us-east-1';
-  if (partition === 'aws-cn') {
-    globalRegion = 'cn-northwest-1';
-  }
+  const globalRegion = getGlobalRegion(partition);
 
   const reportDefinition: ReportDefinition = event.ResourceProperties['reportDefinition'];
   const solutionId = process.env['SOLUTION_ID'];

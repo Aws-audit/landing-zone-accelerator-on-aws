@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -12,24 +12,34 @@
  */
 
 import {
+  AseaResourceType,
+  CustomerGatewayConfig,
   DnsFirewallRuleGroupConfig,
   DnsQueryLogsConfig,
+  IpamAllocationConfig,
   IpamPoolConfig,
   NetworkAclSubnetSelection,
+  NetworkConfig,
+  NfwFirewallConfig,
   NfwFirewallPolicyConfig,
   NfwRuleGroupConfig,
   PrefixListConfig,
   ResolverRuleConfig,
+  RouteTableEntryConfig,
   SecurityGroupConfig,
   SubnetConfig,
   TransitGatewayAttachmentConfig,
   TransitGatewayConfig,
   VpcConfig,
   VpcTemplatesConfig,
+  VpnConnectionConfig,
 } from '@aws-accelerator/config';
 import {
+  CloudWatchLogGroups,
   IIpamSubnet,
   IResourceShareItem,
+  IpamSubnet,
+  LzaLambda,
   PrefixList,
   ResourceShare,
   ResourceShareItem,
@@ -40,14 +50,22 @@ import {
   SsmParameterLookup,
   Subnet,
   Vpc,
+  VpnConnectionProps,
+  VpnTunnelOptionsSpecifications,
 } from '@aws-accelerator/constructs';
-import { SsmResourceType } from '@aws-accelerator/utils';
+import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
 import * as cdk from 'aws-cdk-lib';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
 import { pascalCase } from 'pascal-case';
-import { AcceleratorKeyType, AcceleratorStack, AcceleratorStackProps } from '../accelerator-stack';
-import { getSecurityGroup, getVpc } from './utils/getter-utils';
+import {
+  AcceleratorKeyType,
+  AcceleratorStack,
+  AcceleratorStackProps,
+  NagSuppressionDetailType,
+  NagSuppressionRuleIds,
+} from '../accelerator-stack';
+import { getFirewallInstanceConfig, getSecurityGroup, getVpc, getVpcConfig } from './utils/getter-utils';
 import {
   containsAllIngressRule,
   processSecurityGroupEgressRules,
@@ -55,6 +73,8 @@ import {
   processSecurityGroupSgEgressSources,
   processSecurityGroupSgIngressSources,
 } from './utils/security-group-utils';
+import { hasAdvancedVpnOptions, isIpv4 } from './utils/validation-utils';
+import { isArn } from '@aws-accelerator/utils/lib/is-arn';
 
 /**
  * Resource share type for RAM resource shares
@@ -89,19 +109,35 @@ export abstract class NetworkStack extends AcceleratorStack {
   /**
    * Cloudwatch KMS key
    */
-  public readonly cloudwatchKey: cdk.aws_kms.Key;
+  public readonly cloudwatchKey: cdk.aws_kms.IKey | undefined;
   /**
-   * Lambda environment encryption KMS key
+   * Flag to determine if there is an advanced VPN in scope of the current stack context
    */
-  public readonly lambdaKey: cdk.aws_kms.Key;
+  public readonly containsAdvancedVpn: boolean;
+  /**
+   * Advanced VPN types that exist in the current stack context
+   */
+  public readonly advancedVpnTypes: string[] = [];
+  /**
+   * KMS Key used to encrypt custom resource lambda environment variables, when undefined default AWS managed key will be used
+   */
+  public readonly lambdaKey: cdk.aws_kms.IKey | undefined;
   /**
    * Global CloudWatch logs retention setting
    */
   public readonly logRetention: number;
   /**
+   * Accelerator network configuration
+   */
+  public readonly networkConfig: NetworkConfig;
+  /**
    * VPCs with subnets shared via Resource Access Manager (RAM) in scope of the current stack context
    */
   public readonly sharedVpcs: (VpcConfig | VpcTemplatesConfig)[];
+  /**
+   * Transit gateways in scope of the current stack context
+   */
+  public readonly tgwsInScope: TransitGatewayConfig[];
   /**
    * VPCs and VPC templates in scope of the current stack context
    */
@@ -116,10 +152,13 @@ export abstract class NetworkStack extends AcceleratorStack {
 
     // Set properties
     this.acceleratorPrefix = props.prefixes.accelerator;
+    this.containsAdvancedVpn = this.setAdvancedVpnFlag(props);
     this.logRetention = props.globalConfig.cloudwatchLogRetentionInDays;
+    this.networkConfig = props.networkConfig;
     this.vpcResources = [...props.networkConfig.vpcs, ...(props.networkConfig.vpcTemplates ?? [])];
     this.sharedVpcs = this.getSharedVpcs(this.vpcResources);
     this.vpcsInScope = this.getVpcsInScope(this.vpcResources);
+    this.tgwsInScope = this.getTgwsInScope(props.networkConfig.transitGateways);
 
     this.cloudwatchKey = this.getAcceleratorKey(AcceleratorKeyType.CLOUDWATCH_KEY);
     this.lambdaKey = this.getAcceleratorKey(AcceleratorKeyType.LAMBDA_KEY);
@@ -179,6 +218,54 @@ export abstract class NetworkStack extends AcceleratorStack {
   }
 
   /**
+   * Determines if any of the VPN connections require advanced configuration options.
+   * @param props AcceleratorStackProps
+   * @returns boolean
+   */
+  private setAdvancedVpnFlag(props: AcceleratorStackProps): boolean {
+    for (const cgw of props.networkConfig.customerGateways ?? []) {
+      const cgwAccount = props.accountsConfig.getAccountId(cgw.account);
+      for (const vpnItem of cgw.vpnConnections ?? []) {
+        if (this.isTargetStack([cgwAccount], [cgw.region]) && hasAdvancedVpnOptions(vpnItem) && isIpv4(cgw.ipAddress)) {
+          this.setAdvancedVpnType(vpnItem);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Sets the advanced VPN type that is included in this stack context.
+   * Used to determine when to create a VPN custom resource handlers.
+   * @param vpnItem VpnConnectionConfig
+   */
+  private setAdvancedVpnType(vpnItem: VpnConnectionConfig) {
+    if (vpnItem.vpc && !this.advancedVpnTypes.includes('vpc')) {
+      this.advancedVpnTypes.push('vpc');
+    } else if (vpnItem.transitGateway && !this.advancedVpnTypes.includes('tgw')) {
+      this.advancedVpnTypes.push('tgw');
+    }
+  }
+
+  /**
+   * Gets TGWs in scope of the current stack context
+   * @param transitGateways TransitGatewaysConfig[]
+   * @returns TransitGatewayConfig[]
+   */
+  private getTgwsInScope(transitGateways: TransitGatewayConfig[]): TransitGatewayConfig[] {
+    const tgwsInScope: TransitGatewayConfig[] = [];
+
+    for (const tgw of transitGateways) {
+      const tgwAccount = this.props.accountsConfig.getAccountId(tgw.account);
+      if (this.isTargetStack([tgwAccount], [tgw.region])) {
+        tgwsInScope.push(tgw);
+      }
+    }
+    return tgwsInScope;
+  }
+
+  /**
    * Returns true if provided account ID and region parameters match contextual values for the current stack
    * @param accountIds
    * @param regions
@@ -186,18 +273,6 @@ export abstract class NetworkStack extends AcceleratorStack {
    */
   public isTargetStack(accountIds: string[], regions: string[]): boolean {
     return accountIds.includes(cdk.Stack.of(this).account) && regions.includes(cdk.Stack.of(this).region);
-  }
-
-  /**
-   * Public accessor method to add SSM parameters
-   * @param props
-   */
-  public addSsmParameter(props: { logicalId: string; parameterName: string; stringValue: string }) {
-    this.ssmParameters.push({
-      logicalId: props.logicalId,
-      parameterName: props.parameterName,
-      stringValue: props.stringValue,
-    });
   }
 
   /**
@@ -229,7 +304,7 @@ export abstract class NetworkStack extends AcceleratorStack {
       );
     }
     if (prefixListItem.deploymentTargets) {
-      accountIds.push(...this.getAccountIdsFromDeploymentTarget(prefixListItem.deploymentTargets));
+      accountIds.push(...this.getAccountIdsFromDeploymentTargets(prefixListItem.deploymentTargets));
       regions.push(...this.getRegionsFromDeploymentTarget(prefixListItem.deploymentTargets));
     }
     if (accountIds.length === 0) {
@@ -260,6 +335,14 @@ export abstract class NetworkStack extends AcceleratorStack {
         this.logger.error(message);
         break;
     }
+  }
+
+  /**
+   * Public mutator method to add cdk-nag suppressions
+   * @param nagSuppression NagSuppressionDetailType
+   */
+  public addNagSuppression(nagSuppression: NagSuppressionDetailType) {
+    this.nagSuppressionInputs.push(nagSuppression);
   }
 
   /**
@@ -318,6 +401,32 @@ export abstract class NetworkStack extends AcceleratorStack {
       }
     }
     return routeTableMap;
+  }
+
+  /**
+   * Update security group endpoint map for VPC Endpoint security groups
+   * @param values
+   */
+  protected setEndpointSecurityGroupMap(values: (VpcConfig | VpcTemplatesConfig)[]): Map<string, SecurityGroup> {
+    const securityGroupEndpointMap = new Map<string, SecurityGroup>();
+
+    for (const vpcItem of values ?? []) {
+      for (const endpointItem of vpcItem.interfaceEndpoints?.endpoints ?? []) {
+        if (endpointItem.securityGroup) {
+          if (!securityGroupEndpointMap.has(`${vpcItem.name}_${endpointItem.securityGroup}`)) {
+            const endpointSecurityGroupId = cdk.aws_ssm.StringParameter.valueForStringParameter(
+              this,
+              this.getSsmPath(SsmResourceType.SECURITY_GROUP, [vpcItem.name, endpointItem.securityGroup]),
+            );
+            securityGroupEndpointMap.set(
+              `${vpcItem.name}_${endpointItem.securityGroup}`,
+              SecurityGroup.fromSecurityGroupId(this, endpointSecurityGroupId),
+            );
+          }
+        }
+      }
+    }
+    return securityGroupEndpointMap;
   }
 
   /**
@@ -444,6 +553,47 @@ export abstract class NetworkStack extends AcceleratorStack {
   }
 
   /**
+   * Function to create MAP of FW policy and policy ARN
+   * @param vpcItem {@link VpcConfig} | {@link VpcTemplatesConfig}
+   * @param firewalls {@link NfwFirewallConfig}[]
+   * @param policyMap Map<string, string>
+   * @param props {@link AcceleratorStackProps}
+   */
+  private createFwPolicyMap(
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    firewalls: NfwFirewallConfig[],
+    policyMap: Map<string, string>,
+    props: AcceleratorStackProps,
+  ) {
+    const delegatedAdminAccountId = this.props.accountsConfig.getAccountId(
+      props.networkConfig.centralNetworkServices!.delegatedAdminAccount,
+    );
+    for (const firewallItem of firewalls) {
+      if (firewallItem.vpc === vpcItem.name && !policyMap.has(firewallItem.firewallPolicy)) {
+        // Get firewall policy ARN
+        let policyArn: string;
+
+        if (isArn(firewallItem.firewallPolicy)) {
+          policyArn = firewallItem.firewallPolicy;
+        } else if (delegatedAdminAccountId === cdk.Stack.of(this).account) {
+          policyArn = cdk.aws_ssm.StringParameter.valueForStringParameter(
+            this,
+            this.getSsmPath(SsmResourceType.NFW_POLICY, [firewallItem.firewallPolicy]),
+          );
+        } else {
+          policyArn = this.getResourceShare(
+            `${firewallItem.firewallPolicy}_NetworkFirewallPolicyShare`,
+            'network-firewall:FirewallPolicy',
+            delegatedAdminAccountId,
+            this.cloudwatchKey,
+          ).resourceShareItemArn;
+        }
+        policyMap.set(firewallItem.firewallPolicy, policyArn);
+      }
+    }
+  }
+
+  /**
    * Set Network Firewall policy map
    * @param props
    * @returns
@@ -452,9 +602,6 @@ export abstract class NetworkStack extends AcceleratorStack {
     const policyMap = new Map<string, string>();
 
     if (props.networkConfig.centralNetworkServices?.networkFirewall?.firewalls) {
-      const delegatedAdminAccountId = this.props.accountsConfig.getAccountId(
-        props.networkConfig.centralNetworkServices.delegatedAdminAccount,
-      );
       const firewalls = props.networkConfig.centralNetworkServices?.networkFirewall?.firewalls;
 
       for (const vpcItem of this.vpcResources) {
@@ -462,27 +609,7 @@ export abstract class NetworkStack extends AcceleratorStack {
         const vpcAccountIds = this.getVpcAccountIds(vpcItem);
 
         if (this.isTargetStack(vpcAccountIds, [vpcItem.region])) {
-          for (const firewallItem of firewalls ?? []) {
-            if (firewallItem.vpc === vpcItem.name && !policyMap.has(firewallItem.firewallPolicy)) {
-              // Get firewall policy ARN
-              let policyArn: string;
-
-              if (delegatedAdminAccountId === cdk.Stack.of(this).account) {
-                policyArn = cdk.aws_ssm.StringParameter.valueForStringParameter(
-                  this,
-                  this.getSsmPath(SsmResourceType.NFW_POLICY, [firewallItem.firewallPolicy]),
-                );
-              } else {
-                policyArn = this.getResourceShare(
-                  `${firewallItem.firewallPolicy}_NetworkFirewallPolicyShare`,
-                  'network-firewall:FirewallPolicy',
-                  delegatedAdminAccountId,
-                  this.cloudwatchKey,
-                ).resourceShareItemArn;
-              }
-              policyMap.set(firewallItem.firewallPolicy, policyArn);
-            }
-          }
+          this.createFwPolicyMap(vpcItem, firewalls, policyMap, props);
         }
       }
     }
@@ -500,15 +627,19 @@ export abstract class NetworkStack extends AcceleratorStack {
     resourceShareName: string,
     itemType: string,
     owningAccountId: string,
-    kmsKey: cdk.aws_kms.Key,
+    kmsKey?: cdk.aws_kms.IKey,
     vpcName?: string,
   ): IResourceShareItem {
     // Generate a logical ID
-    const resourceName = resourceShareName.split('_')[0];
+    const resourceShareNameArr = resourceShareName.split('_');
+    let resourceName = resourceShareName.split('_')[0];
+    if (resourceShareNameArr.length > 2) {
+      resourceShareNameArr.pop();
+      resourceName = resourceShareNameArr.join('_');
+    }
     const logicalId = vpcName
       ? `${vpcName}${resourceName}${itemType.split(':')[1]}`
       : `${resourceName}${itemType.split(':')[1]}`;
-
     // Lookup resource share
     const resourceShare = ResourceShare.fromLookup(this, pascalCase(`${logicalId}Share`), {
       resourceShareOwner: ResourceShareOwner.OTHER_ACCOUNTS,
@@ -573,7 +704,7 @@ export abstract class NetworkStack extends AcceleratorStack {
       return false;
     }
     const accountId = cdk.Stack.of(this).account;
-    const naclAccount = this.props.accountsConfig.getAccountId(naclItem.account);
+    const naclAccount = naclItem.account ? this.props.accountsConfig.getAccountId(naclItem.account) : accountId;
     const region = cdk.Stack.of(this).region;
     const naclRegion = naclItem.region;
 
@@ -605,6 +736,50 @@ export abstract class NetworkStack extends AcceleratorStack {
   }
 
   /**
+   * Function to create IPAM pool map of pool name and pool id
+   * @param ipamAllocations {@link IpamAllocationConfig}[]
+   * @param poolMap Map<string, string>,
+   * @param props {@link AcceleratorStackProps}
+   */
+  private createIpamPoolMap(
+    ipamAllocations: IpamAllocationConfig[],
+    poolMap: Map<string, string>,
+    props: AcceleratorStackProps,
+  ) {
+    const delegatedAdminAccountId = props.accountsConfig.getAccountId(
+      props.networkConfig.centralNetworkServices!.delegatedAdminAccount,
+    );
+    for (const alloc of ipamAllocations) {
+      const ipamPool = props.networkConfig.centralNetworkServices!.ipams?.find(item =>
+        item.pools?.find(item => item.name === alloc.ipamPoolName),
+      );
+      if (ipamPool === undefined) {
+        this.logger.error(`Specified Ipam Pool not defined`);
+        throw new Error(`Configuration validation failed at runtime.`);
+      }
+      if (!poolMap.has(alloc.ipamPoolName)) {
+        let poolId: string;
+        if (delegatedAdminAccountId === cdk.Stack.of(this).account && ipamPool.region === cdk.Stack.of(this).region) {
+          poolId = cdk.aws_ssm.StringParameter.valueForStringParameter(
+            this,
+            this.getSsmPath(SsmResourceType.IPAM_POOL, [alloc.ipamPoolName]),
+          );
+        } else if (ipamPool.region !== cdk.Stack.of(this).region) {
+          poolId = this.getCrossRegionPoolId(delegatedAdminAccountId, alloc.ipamPoolName, ipamPool.region);
+        } else {
+          poolId = this.getResourceShare(
+            `${alloc.ipamPoolName}_IpamPoolShare`,
+            'ec2:IpamPool',
+            delegatedAdminAccountId,
+            this.cloudwatchKey,
+          ).resourceShareItemId;
+        }
+        poolMap.set(alloc.ipamPoolName, poolId);
+      }
+    }
+  }
+
+  /**
    * Set IPAM pool map
    * @param props
    * @returns
@@ -613,42 +788,8 @@ export abstract class NetworkStack extends AcceleratorStack {
     const poolMap = new Map<string, string>();
 
     if (props.networkConfig.centralNetworkServices?.ipams) {
-      const delegatedAdminAccountId = props.accountsConfig.getAccountId(
-        props.networkConfig.centralNetworkServices.delegatedAdminAccount,
-      );
-
       for (const vpcItem of this.vpcsInScope) {
-        for (const alloc of vpcItem.ipamAllocations ?? []) {
-          const ipamPool = props.networkConfig.centralNetworkServices.ipams?.find(item =>
-            item.pools?.find(item => item.name === alloc.ipamPoolName),
-          );
-          if (ipamPool === undefined) {
-            this.logger.error(`Specified Ipam Pool not defined`);
-            throw new Error(`Configuration validation failed at runtime.`);
-          }
-          if (!poolMap.has(alloc.ipamPoolName)) {
-            let poolId: string;
-            if (
-              delegatedAdminAccountId === cdk.Stack.of(this).account &&
-              ipamPool.region === cdk.Stack.of(this).region
-            ) {
-              poolId = cdk.aws_ssm.StringParameter.valueForStringParameter(
-                this,
-                this.getSsmPath(SsmResourceType.IPAM_POOL, [alloc.ipamPoolName]),
-              );
-            } else if (ipamPool.region !== cdk.Stack.of(this).region) {
-              poolId = this.getCrossRegionPoolId(delegatedAdminAccountId, alloc.ipamPoolName, ipamPool.region);
-            } else {
-              poolId = this.getResourceShare(
-                `${alloc.ipamPoolName}_IpamPoolShare`,
-                'ec2:IpamPool',
-                delegatedAdminAccountId,
-                this.cloudwatchKey,
-              ).resourceShareItemId;
-            }
-            poolMap.set(alloc.ipamPoolName, poolId);
-          }
-        }
+        this.createIpamPoolMap(vpcItem.ipamAllocations ?? [], poolMap, props);
       }
     }
     return poolMap;
@@ -710,6 +851,7 @@ export abstract class NetworkStack extends AcceleratorStack {
           subnetMap,
           prefixListMap,
         );
+
         const allIngressRule = containsAllIngressRule(processedIngressRules);
         const processedEgressRules = processSecurityGroupEgressRules(
           this.vpcResources,
@@ -735,6 +877,7 @@ export abstract class NetworkStack extends AcceleratorStack {
       // Create security group rules that reference other security groups
       this.createSecurityGroupSgSources(vpcItem, subnetMap, prefixListMap, securityGroupMap);
     }
+
     return securityGroupMap;
   }
 
@@ -752,6 +895,11 @@ export abstract class NetworkStack extends AcceleratorStack {
     securityGroupMap: Map<string, SecurityGroup>,
   ) {
     for (const securityGroupItem of vpcItem.securityGroups ?? []) {
+      // skip if managed by asea
+      if (this.isManagedByAsea(AseaResourceType.EC2_SECURITY_GROUP, `${vpcItem.name}/${securityGroupItem.name}`)) {
+        this.logger.info(`Skipping security group ${securityGroupItem.name} in VPC ${vpcItem.name}`);
+        continue;
+      }
       const securityGroup = getSecurityGroup(securityGroupMap, vpcItem.name, securityGroupItem.name) as SecurityGroup;
       const ingressRules = processSecurityGroupSgIngressSources(
         this.vpcResources,
@@ -807,25 +955,40 @@ export abstract class NetworkStack extends AcceleratorStack {
     allIngressRule: boolean,
   ): SecurityGroup {
     this.logger.info(`Adding Security Group ${securityGroupItem.name} in VPC ${vpcItem.name}`);
-    const securityGroup = new SecurityGroup(
-      this,
-      pascalCase(`${vpcItem.name}Vpc`) + pascalCase(`${securityGroupItem.name}Sg`),
-      {
-        securityGroupName: securityGroupItem.name,
-        securityGroupEgress: processedEgressRules,
-        securityGroupIngress: processedIngressRules,
-        description: securityGroupItem.description,
-        vpc: typeof vpc === 'object' ? vpc : undefined,
-        vpcId: typeof vpc === 'string' ? vpc : undefined,
-        tags: securityGroupItem.tags,
-      },
-    );
-
-    this.addSsmParameter({
-      logicalId: pascalCase(`SsmParam${pascalCase(vpcItem.name) + pascalCase(securityGroupItem.name)}SecurityGroup`),
-      parameterName: this.getSsmPath(SsmResourceType.SECURITY_GROUP, [vpcItem.name, securityGroupItem.name]),
-      stringValue: securityGroup.securityGroupId,
-    });
+    let securityGroup;
+    if (this.isManagedByAsea(AseaResourceType.EC2_SECURITY_GROUP, `${vpcItem.name}/${securityGroupItem.name}`)) {
+      const ssmPath = this.getSsmPath(SsmResourceType.SECURITY_GROUP, [vpcItem.name, securityGroupItem.name]);
+      const securityGroupId = this.getExternalResourceParameter(ssmPath);
+      if (securityGroupId) {
+        securityGroup = SecurityGroup.fromSecurityGroupId(this, securityGroupId);
+      } else {
+        this.logger.error(
+          `Security group ${ssmPath} for ${cdk.Stack.of(this).stackName}-${cdk.Stack.of(this).account}-${
+            cdk.Stack.of(this).region
+          } exists in resource mapping but does not have an ssm parameter. Skipping import. This error should only occur in the bootstrapping phase.`,
+        );
+      }
+    }
+    if (!securityGroup) {
+      securityGroup = new SecurityGroup(
+        this,
+        pascalCase(`${vpcItem.name}Vpc`) + pascalCase(`${securityGroupItem.name}Sg`),
+        {
+          securityGroupName: securityGroupItem.name,
+          securityGroupEgress: processedEgressRules,
+          securityGroupIngress: processedIngressRules,
+          description: securityGroupItem.description,
+          vpc: typeof vpc === 'object' ? vpc : undefined,
+          vpcId: typeof vpc === 'string' ? vpc : undefined,
+          tags: securityGroupItem.tags,
+        },
+      );
+      this.addSsmParameter({
+        logicalId: pascalCase(`SsmParam${pascalCase(vpcItem.name) + pascalCase(securityGroupItem.name)}SecurityGroup`),
+        parameterName: this.getSsmPath(SsmResourceType.SECURITY_GROUP, [vpcItem.name, securityGroupItem.name]),
+        stringValue: securityGroup.securityGroupId,
+      });
+    }
 
     // AwsSolutions-EC23: The Security Group allows for 0.0.0.0/0 or ::/0 inbound access.
     if (allIngressRule) {
@@ -834,5 +997,337 @@ export abstract class NetworkStack extends AcceleratorStack {
       ]);
     }
     return securityGroup;
+  }
+
+  /**
+   * Lookup same account+region IPAM subnet
+   * @param vpcName
+   * @param subnetName
+   */
+  public lookupLocalIpamSubnet(vpcName: string, subnetName: string): IIpamSubnet {
+    this.logger.info(`Retrieve IPAM Subnet CIDR for vpc:[${vpcName}] subnet:[${subnetName}]`);
+
+    return IpamSubnet.fromLookup(this, pascalCase(`${vpcName}${subnetName}IpamSubnetLookup`), {
+      owningAccountId: cdk.Stack.of(this).account,
+      ssmSubnetIdPath: this.getSsmPath(SsmResourceType.SUBNET, [vpcName, subnetName]),
+      region: cdk.Stack.of(this).region,
+      roleName: this.acceleratorResourceNames.roles.ipamSubnetLookup,
+      kmsKey: this.cloudwatchKey,
+      logRetentionInDays: this.logRetention,
+    });
+  }
+
+  /**
+   * Set route table destination based on CIDR or subnet reference
+   * @param routeTableEntryItem
+   * @param subnetMap
+   * @param vpcName
+   * @returns [string | undefined, string | undefined]
+   */
+  public setRouteEntryDestination(
+    routeTableEntryItem: RouteTableEntryConfig,
+    ipamSubnetArray: string[],
+    vpcName: string,
+  ): [string | undefined, string | undefined] {
+    let destination: string | undefined = undefined;
+    let ipv6Destination: string | undefined = undefined;
+
+    const subnetKey = `${vpcName}_${routeTableEntryItem.ipv6Destination ?? routeTableEntryItem.destination!}`;
+
+    if (ipamSubnetArray.includes(subnetKey)) {
+      destination = this.lookupLocalIpamSubnet(vpcName, routeTableEntryItem.destination!).ipv4CidrBlock;
+    } else {
+      destination = routeTableEntryItem.destination;
+      ipv6Destination = routeTableEntryItem.ipv6Destination;
+    }
+
+    return [destination, ipv6Destination];
+  }
+
+  /**
+   * Returns the VPC configuration that a given firewall instance is deployed to
+   * @param customerGateway
+   * @returns VpcConfig | VpcTemplatesConfig
+   */
+  public getFirewallVpcConfig(customerGateway: CustomerGatewayConfig): VpcConfig | VpcTemplatesConfig {
+    try {
+      const firewallName = customerGateway.ipAddress.split(':')[4].replace('}', '');
+      const firewallConfig = getFirewallInstanceConfig(
+        firewallName,
+        this.props.customizationsConfig.firewalls?.instances,
+      );
+      return getVpcConfig(this.vpcResources, firewallConfig.vpc);
+    } catch (e) {
+      throw new Error(`Error while processing customer gateway firewall reference variable: ${e}`);
+    }
+  }
+
+  /**
+   * Returns a boolean indicating if the VPC a given firewall is deployed to
+   * is in the same account+region as the customer gateway
+   * @param customerGateway CustomerGatewayConfig
+   * @returns boolean
+   */
+  public firewallVpcInScope(customerGateway: CustomerGatewayConfig): boolean {
+    const cgwAccountId = this.props.accountsConfig.getAccountId(customerGateway.account);
+    const firewallVpcConfig = this.getFirewallVpcConfig(customerGateway);
+    const vpcAccountIds = this.getVpcAccountIds(firewallVpcConfig);
+
+    return vpcAccountIds.includes(cgwAccountId) && firewallVpcConfig.region === this.region;
+  }
+
+  /**
+   * Creates a custom resource onEventHandler for VPN connections
+   * requiring advanced configuration parameters
+   * @param props AcceleratorStackProps
+   * @returns cdk.aws_lambda.IFunction
+   */
+  public createVpnOnEventHandler(): cdk.aws_lambda.IFunction {
+    const lambdaExecutionPolicy = cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName(
+      'service-role/AWSLambdaBasicExecutionRole',
+    );
+
+    const managedVpnPolicy = new cdk.aws_iam.ManagedPolicy(this, 'VpnOnEventHandlerPolicy', {
+      statements: [
+        new cdk.aws_iam.PolicyStatement({
+          sid: 'S2SVPNCRUD',
+          effect: cdk.aws_iam.Effect.ALLOW,
+          actions: [
+            'ec2:CreateTags',
+            'ec2:CreateVpnConnection',
+            'ec2:DeleteTags',
+            'ec2:DeleteVpnConnection',
+            'ec2:DescribeVpnConnections',
+            'ec2:ModifyVpnConnectionOptions',
+            'ec2:ModifyVpnTunnelOptions',
+          ],
+          resources: ['*'],
+        }),
+        new cdk.aws_iam.PolicyStatement({
+          sid: 'LogDeliveryCRUD',
+          effect: cdk.aws_iam.Effect.ALLOW,
+          actions: [
+            'logs:CreateLogDelivery',
+            'logs:GetLogDelivery',
+            'logs:UpdateLogDelivery',
+            'logs:DeleteLogDelivery',
+            'logs:ListLogDeliveries',
+          ],
+          resources: ['*'],
+        }),
+        new cdk.aws_iam.PolicyStatement({
+          sid: 'S2SVPNLoggingCWL',
+          effect: cdk.aws_iam.Effect.ALLOW,
+          actions: ['logs:PutResourcePolicy', 'logs:DescribeResourcePolicies', 'logs:DescribeLogGroups'],
+          resources: ['*'],
+        }),
+        new cdk.aws_iam.PolicyStatement({
+          sid: 'S2SVPNAssumeRole',
+          effect: cdk.aws_iam.Effect.ALLOW,
+          actions: ['sts:AssumeRole'],
+          resources: [
+            `arn:${this.partition}:iam::*:role/${this.acceleratorResourceNames.roles.crossAccountVpnRoleName}`,
+          ],
+        }),
+        new cdk.aws_iam.PolicyStatement({
+          sid: 'SecretsManagerReadOnly',
+          effect: cdk.aws_iam.Effect.ALLOW,
+          actions: ['secretsmanager:GetSecretValue', 'kms:Decrypt'],
+          resources: ['*'],
+        }),
+      ],
+    });
+    // AwsSolutions-IAM5: The IAM entity contains wildcard permissions and does not have a cdk_nag rule suppression with evidence for those permission
+    // rule suppression with evidence for this permission.
+    this.addNagSuppression({
+      id: NagSuppressionRuleIds.IAM5,
+      details: [
+        {
+          path: managedVpnPolicy.node.path,
+          reason: 'Managed policy allows access for VPN CRUD operations',
+        },
+      ],
+    });
+    //
+    // Create event handler role
+    const vpnRole = new cdk.aws_iam.Role(this, 'VpnRole', {
+      assumedBy: new cdk.aws_iam.ServicePrincipal(`lambda.amazonaws.com`),
+      description: 'Landing Zone Accelerator site-to-site VPN custom resource access role',
+      managedPolicies: [managedVpnPolicy, lambdaExecutionPolicy],
+    });
+    // AwsSolutions-IAM4: The IAM user, role, or group uses AWS managed policies
+    // rule suppression with evidence for this permission.
+    this.addNagSuppression({
+      id: NagSuppressionRuleIds.IAM4,
+      details: [
+        {
+          path: vpnRole.node.path,
+          reason: 'IAM Role for lambda needs AWS managed policy',
+        },
+      ],
+    });
+    //
+    // Create Lambda handler
+    return new LzaLambda(this, 'VpnOnEventHandler', {
+      assetPath: '../constructs/lib/aws-ec2/custom-vpn-connection/dist',
+      environmentEncryptionKmsKey: this.lambdaKey,
+      cloudWatchLogKmsKey: this.cloudwatchKey,
+      cloudWatchLogRetentionInDays: this.logRetention,
+      description: 'Custom resource onEvent handler for site-to-site VPN',
+      role: vpnRole,
+      timeOut: cdk.Duration.minutes(15),
+      nagSuppressionPrefix: 'VpnOnEventHandler',
+    }).resource;
+  }
+
+  /**
+   * Set site-to-site VPN connection properties.
+   * @param options
+   * @returns VpnConnectionProps
+   */
+  public setVpnProps(options: {
+    vpnItem: VpnConnectionConfig;
+    customerGatewayId: string;
+    customResourceHandler?: cdk.aws_lambda.IFunction;
+    owningAccountId?: string;
+    owningRegion?: string;
+    transitGatewayId?: string;
+    virtualPrivateGateway?: string;
+  }): VpnConnectionProps {
+    const hasCrossAccountOptions = options.owningAccountId || options.owningRegion ? true : false;
+
+    return {
+      name: options.vpnItem.name,
+      customerGatewayId: options.customerGatewayId,
+      amazonIpv4NetworkCidr: options.vpnItem.amazonIpv4NetworkCidr,
+      customerIpv4NetworkCidr: options.vpnItem.customerIpv4NetworkCidr,
+      customResourceHandler:
+        hasAdvancedVpnOptions(options.vpnItem) || hasCrossAccountOptions ? options.customResourceHandler : undefined,
+      enableVpnAcceleration: options.vpnItem.enableVpnAcceleration,
+      owningAccountId: options.owningAccountId,
+      owningRegion: options.owningRegion,
+      roleName: this.acceleratorResourceNames.roles.crossAccountVpnRoleName,
+      staticRoutesOnly: options.vpnItem.staticRoutesOnly,
+      tags: options.vpnItem.tags,
+      transitGatewayId: options.transitGatewayId,
+      virtualPrivateGateway: options.virtualPrivateGateway,
+      vpnTunnelOptionsSpecifications: this.setVpnTunnelOptions(
+        options.vpnItem,
+        hasCrossAccountOptions,
+        options.owningAccountId,
+        options.owningRegion,
+      ),
+    };
+  }
+
+  /**
+   * Set VPN tunnel options properties
+   * @param vpnItem VpnConnectionConfig
+   * @param hasCrossAccountOptions boolean
+   * @param owningAccountId string | undefined
+   * @param owningRegion string | undefined
+   * @returns VpnTunnelOptionsSpecifications[] | undefined
+   */
+  private setVpnTunnelOptions(
+    vpnItem: VpnConnectionConfig,
+    hasCrossAccountOptions: boolean,
+    owningAccountId?: string,
+    owningRegion?: string,
+  ): VpnTunnelOptionsSpecifications[] | undefined {
+    if (!vpnItem.tunnelSpecifications) {
+      return;
+    }
+    const vpnTunnelOptions: VpnTunnelOptionsSpecifications[] = [];
+
+    for (const [index, tunnel] of vpnItem.tunnelSpecifications.entries()) {
+      let loggingConfig: { enable?: boolean; logGroupArn?: string; outputFormat?: string } | undefined = undefined;
+      let preSharedKeyValue: string | undefined = undefined;
+      //
+      // Rewrite logging config with log group ARN
+      if (tunnel.logging?.enable) {
+        loggingConfig = {
+          enable: true,
+          logGroupArn: this.createVpnLogGroup(
+            vpnItem,
+            index,
+            tunnel.logging.logGroupName,
+            owningAccountId,
+            owningRegion,
+          ),
+          outputFormat: tunnel.logging.outputFormat,
+        };
+      }
+      //
+      // Rewrite PSK
+      if (tunnel.preSharedKey) {
+        const preSharedKeySecret = cdk.aws_secretsmanager.Secret.fromSecretNameV2(
+          this,
+          pascalCase(`${vpnItem.name}${tunnel.preSharedKey}Tunnel${index}PreSharedKeySecret`),
+          tunnel.preSharedKey,
+        );
+        const suffixLength = preSharedKeySecret.secretName.split('-').at(-1)!.length + 1;
+        const secretName = preSharedKeySecret.secretName.slice(0, -suffixLength);
+        //
+        // If advanced or cross-account VPN, use the secret name. Otherwise, retrieve the secret value
+        preSharedKeyValue =
+          hasAdvancedVpnOptions(vpnItem) || hasCrossAccountOptions
+            ? secretName
+            : preSharedKeySecret.secretValue.toString();
+      }
+
+      vpnTunnelOptions.push({
+        dpdTimeoutAction: tunnel.dpdTimeoutAction,
+        dpdTimeoutSeconds: tunnel.dpdTimeoutSeconds,
+        ikeVersions: tunnel.ikeVersions,
+        logging: loggingConfig,
+        phase1: tunnel.phase1,
+        phase2: tunnel.phase2,
+        preSharedKey: preSharedKeyValue,
+        rekeyFuzzPercentage: tunnel.rekeyFuzzPercentage,
+        rekeyMarginTimeSeconds: tunnel.rekeyMarginTimeSeconds,
+        replayWindowSize: tunnel.replayWindowSize,
+        startupAction: tunnel.startupAction,
+        tunnelInsideCidr: tunnel.tunnelInsideCidr,
+        tunnelLifecycleControl: tunnel.tunnelLifecycleControl,
+      });
+    }
+    return vpnTunnelOptions;
+  }
+
+  /**
+   * Returns the ARN of a CloudWatch Log group created for the VPN tunnel.
+   * @param vpnItem VpnConnectionConfig
+   * @param index number
+   * @param logGroupName string | undefined
+   * @param owningAccountId string | undefined
+   * @param owningRegion string | undefined
+   * @returns string
+   */
+  private createVpnLogGroup(
+    vpnItem: VpnConnectionConfig,
+    index: number,
+    logGroupName?: string,
+    owningAccountId?: string,
+    owningRegion?: string,
+  ): string {
+    const logicalId = pascalCase(`${vpnItem.name}Tunnel${index}LogGroup`);
+
+    if (owningAccountId || owningRegion) {
+      return new CloudWatchLogGroups(this, logicalId, {
+        logGroupName: logGroupName ? `${this.acceleratorPrefix}${logGroupName}` : undefined,
+        logRetentionInDays: this.logRetention,
+        customLambdaLogKmsKey: this.cloudwatchKey,
+        customLambdaLogRetention: this.logRetention,
+        owningAccountId,
+        owningRegion,
+        roleName: this.acceleratorResourceNames.roles.crossAccountLogsRoleName,
+      }).logGroupArn;
+    } else {
+      return new cdk.aws_logs.LogGroup(this, logicalId, {
+        logGroupName: logGroupName ? `${this.acceleratorPrefix}${logGroupName}` : undefined,
+        encryptionKey: this.cloudwatchKey,
+        retention: this.logRetention,
+      }).logGroupArn;
+    }
   }
 }

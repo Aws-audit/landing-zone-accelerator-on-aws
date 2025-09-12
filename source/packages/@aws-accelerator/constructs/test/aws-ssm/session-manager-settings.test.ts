@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -30,10 +30,13 @@ new SsmSessionManagerSettings(stack, 'SsmSessionManagerSettings', {
   sendToCloudWatchLogs: true,
   cloudWatchEncryptionEnabled: true,
   cloudWatchEncryptionKey: new cdk.aws_kms.Key(stack, 'CwKey', {}),
-  constructLoggingKmsKey: new cdk.aws_kms.Key(stack, 'Key', {}),
   logRetentionInDays: 3653,
   region: 'us-east-1',
-  acceleratorPrefix: 'AWSAccelerator',
+  prefixes: { accelerator: 'AWSAccelerator', ssmLog: 'aws-accelerator' },
+  ssmKeyDetails: {
+    alias: 'accelerator/sessionmanager-logs/session',
+    description: 'AWS Accelerator Session Manager Session Encryption',
+  },
 });
 
 /**

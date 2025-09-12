@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -10,27 +10,45 @@
  *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions
  *  and limitations under the License.
  */
+import { ShareTargets, isNetworkType } from '../../lib/common';
 import {
+  ApplicationLoadBalancerConfig,
+  CustomizationsConfig,
+  Ec2FirewallInstanceConfig,
+} from '../../lib/customizations-config';
+import {
+  NetworkAclSubnetSelection,
   NetworkConfig,
-  NetworkConfigTypes,
+  NfwFirewallConfig,
+  PrefixListSourceConfig,
   ResolverRuleConfig,
   RouteTableEntryConfig,
   SecurityGroupConfig,
   SecurityGroupRuleConfig,
+  SecurityGroupSourceConfig,
   SubnetConfig,
+  SubnetSourceConfig,
   TransitGatewayAttachmentConfig,
   TransitGatewayConfig,
   VpcConfig,
   VpcTemplatesConfig,
 } from '../../lib/network-config';
 import { NetworkValidatorFunctions } from './network-validator-functions';
+import * as cdk from 'aws-cdk-lib';
 
 /**
  * Class to validate Vpcs
  */
 export class VpcValidator {
   private centralEndpointVpcRegions: string[];
-  constructor(values: NetworkConfig, helpers: NetworkValidatorFunctions, errors: string[]) {
+  private customizationsConfig?: CustomizationsConfig;
+  constructor(
+    values: NetworkConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+    customizationsConfig?: CustomizationsConfig,
+  ) {
+    this.customizationsConfig = customizationsConfig;
     //
     // Determine if there is a central endpoint VPC
     //
@@ -58,9 +76,17 @@ export class VpcValidator {
     //
     this.validateVpcConfiguration(values, helpers, errors);
     //
+    // Validate Outpost and Local Gateway (LGW) configurations
+    //
+    this.validateOutpostConfiguration(values, helpers, errors);
+    //
     // Validate VPC peering configurations
     //
     this.validateVpcPeeringConfiguration(values, errors);
+    //
+    // Validate Default VPC Configuration
+    //
+    this.validateDefaultVpcConfiguration(values, helpers, errors);
   }
 
   private getCentralEndpointVpcs(
@@ -73,10 +99,10 @@ export class VpcValidator {
     const unsupportedRegions = ['us-gov-west-1', 'us-gov-east-1'];
     // Get VPCs marked as central; do not allow VPC templates
     vpcs.forEach(vpc => {
-      if (vpc.interfaceEndpoints?.central && !NetworkConfigTypes.vpcConfig.is(vpc)) {
+      if (vpc.interfaceEndpoints?.central && !isNetworkType<VpcConfig>('IVpcConfig', vpc)) {
         errors.push(`[VPC ${vpc.name}]: cannot define a VPC template as a central interface endpoint VPC`);
       }
-      if (vpc.interfaceEndpoints?.central && NetworkConfigTypes.vpcConfig.is(vpc)) {
+      if (vpc.interfaceEndpoints?.central && isNetworkType<VpcConfig>('IVpcConfig', vpc)) {
         centralVpcs.push(vpc);
       }
     });
@@ -210,7 +236,7 @@ export class VpcValidator {
     // Validate route tables names
     this.validateRouteTableNames(vpcItem, helpers, errors);
     // Validate route entries
-    this.validateRouteTableEntries(values, vpcItem, errors);
+    this.validateRouteTableEntries(values, vpcItem, helpers, errors);
   }
 
   /**
@@ -259,36 +285,87 @@ export class VpcValidator {
   private validateRouteEntryDestination(
     routeTableEntryItem: RouteTableEntryConfig,
     routeTableName: string,
-    vpcName: string,
+    vpcItem: VpcConfig | VpcTemplatesConfig,
     values: NetworkConfig,
+    helpers: NetworkValidatorFunctions,
     errors: string[],
   ) {
     if (routeTableEntryItem.destinationPrefixList) {
       // Check if a CIDR destination is also defined
-      if (routeTableEntryItem.destination) {
+      if (routeTableEntryItem.destination || routeTableEntryItem.ipv6Destination) {
         errors.push(
-          `[Route table ${routeTableName} for VPC ${vpcName}]: route entry ${routeTableEntryItem.name} using destination and destinationPrefixList. Please choose only one destination type`,
+          `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} using destination and destinationPrefixList. Please choose only one destination type`,
         );
       }
 
       // Throw error if network firewall or GWLB are the target
       if (['networkFirewall', 'gatewayLoadBalancerEndpoint'].includes(routeTableEntryItem.type!)) {
         errors.push(
-          `[Route table ${routeTableName} for VPC ${vpcName}]: route entry ${routeTableEntryItem.name} with type ${routeTableEntryItem.type} does not support destinationPrefixList`,
+          `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} with type ${routeTableEntryItem.type} does not support destinationPrefixList`,
         );
       }
 
       // Throw error if prefix list doesn't exist
       if (!values.prefixLists?.find(item => item.name === routeTableEntryItem.destinationPrefixList)) {
         errors.push(
-          `[Route table ${routeTableName} for VPC ${vpcName}]: route entry ${routeTableEntryItem.name} destinationPrefixList ${routeTableEntryItem.destinationPrefixList} does not exist`,
+          `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} destinationPrefixList ${routeTableEntryItem.destinationPrefixList} does not exist`,
         );
       }
+    } else if (routeTableEntryItem.destination || routeTableEntryItem.ipv6Destination) {
+      // Validate the destination CIDR or subnet
+      this.validateRouteEntryDestinationCidr(routeTableEntryItem, routeTableName, vpcItem, helpers, errors);
+    } else if (!['vpcPeering'].includes(routeTableEntryItem.type!)) {
+      errors.push(
+        `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} must define either destinationPrefixList, destination or ipv6Destination if type is not vpcPeering or gatewayEndpoint`,
+      );
+    }
+  }
+
+  /**
+   * Validate route entry destination CIDR or subnet reference is valid
+   * @param routeTableEntryItem
+   * @param routeTableName
+   * @param vpcItem
+   * @param helpers
+   * @param errors
+   */
+  private validateRouteEntryDestinationCidr(
+    routeTableEntryItem: RouteTableEntryConfig,
+    routeTableName: string,
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    if (!routeTableEntryItem.destination && !routeTableEntryItem.ipv6Destination) {
+      errors.push(
+        `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} does not have a destination defined`,
+      );
     } else {
-      if (!routeTableEntryItem.destination) {
+      if (routeTableEntryItem.destination && routeTableEntryItem.ipv6Destination) {
         errors.push(
-          `[Route table ${routeTableName} for VPC ${vpcName}]: route entry ${routeTableEntryItem.name} does not have a destination defined`,
+          `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} has both a destination and ipv6Destination defined. Please choose only one.`,
         );
+      }
+      if (
+        !helpers.isValidIpv4Cidr(routeTableEntryItem.destination) &&
+        !helpers.isValidIpv6Cidr(routeTableEntryItem.ipv6Destination)
+      ) {
+        // Check if subnet exists in the VPC
+        if (!helpers.getSubnet(vpcItem, routeTableEntryItem.ipv6Destination ?? routeTableEntryItem.destination!)) {
+          errors.push(
+            `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${
+              routeTableEntryItem.name
+            } destination "${
+              routeTableEntryItem.ipv6Destination ?? routeTableEntryItem.destination
+            }" is not a valid IPv4/v6 CIDR or subnet name`,
+          );
+        }
+        // Validate target type
+        if (!['natGateway', 'networkFirewall', 'gatewayLoadBalancerEndpoint'].includes(routeTableEntryItem.type!)) {
+          errors.push(
+            `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} destination "${routeTableEntryItem.destination}" is not valid. Route entry type ${routeTableEntryItem.type} does not support dynamic subnet destinations`,
+          );
+        }
       }
     }
   }
@@ -313,6 +390,25 @@ export class VpcValidator {
   }
 
   /**
+   * Validate EIGW routes are associated with a VPC with an EIGW attached
+   * @param routeTableEntryItem
+   * @param routeTableName
+   * @param vpcItem
+   */
+  private validateEigwRouteEntry(
+    routeTableEntryItem: RouteTableEntryConfig,
+    routeTableName: string,
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    errors: string[],
+  ) {
+    if (!vpcItem.egressOnlyIgw) {
+      errors.push(
+        `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} is targeting an Egress-only IGW, but no EIGW is attached to the VPC. Please add "egressOnlyIgw: true" to the VPC configuration.`,
+      );
+    }
+  }
+
+  /**
    * Validate VGW routes are associated with a VPC with an Virtual Private Gateway attached
    * @param routeTableEntryItem
    * @param routeTableName
@@ -326,7 +422,40 @@ export class VpcValidator {
   ) {
     if (!vpcItem.virtualPrivateGateway) {
       errors.push(
-        `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} is targeting an VGW, but now VGW is attached to the VPC`,
+        `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} is targeting an VGW, but no VGW is attached to the VPC`,
+      );
+    }
+  }
+
+  /**
+   * Validate LGW routes are associated with a VPC with an Outpost and Local Gateway attached
+   * @param routeTableEntryItem
+   * @param routeTableName
+   * @param vpcItem
+   */
+  private validateLgwRouteEntry(
+    routeTableEntryItem: RouteTableEntryConfig,
+    routeTableName: string,
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    errors: string[],
+  ) {
+    if (!('outposts' in vpcItem)) {
+      errors.push(
+        `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} is targeting an LGW, but no Outpost and LGW are associated with the VPC`,
+      );
+    }
+
+    const vpc = vpcItem as VpcConfig;
+    let lgwNameFound = false;
+    for (const outpost of vpc.outposts ?? []) {
+      if (outpost.localGateway?.name === routeTableEntryItem.target) {
+        lgwNameFound = true;
+      }
+    }
+
+    if (!lgwNameFound) {
+      errors.push(
+        `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} is targeting LGW ${routeTableEntryItem.target}, but the LGW is not associated with the VPC`,
       );
     }
   }
@@ -337,16 +466,19 @@ export class VpcValidator {
    * @param routeTableName
    * @param vpcItem
    * @param values
+   * @param helpers
+   * @param errors
    */
   private validateRouteEntryTarget(
     routeTableEntryItem: RouteTableEntryConfig,
     routeTableName: string,
     vpcItem: VpcConfig | VpcTemplatesConfig,
     values: NetworkConfig,
+    helpers: NetworkValidatorFunctions,
     errors: string[],
   ) {
     const gwlbs = values.centralNetworkServices?.gatewayLoadBalancers;
-    const networkFirewalls = values.centralNetworkServices?.networkFirewall?.firewalls;
+    const networkFirewalls = values.centralNetworkServices?.networkFirewall?.firewalls ?? [];
     const tgws = values.transitGateways;
     const vpcs = [...values.vpcs, ...(values.vpcTemplates ?? [])];
     const vpcPeers = values.vpcPeering;
@@ -368,21 +500,13 @@ export class VpcValidator {
       );
     }
 
-    // Throw error if network firewall endpoint doesn't exist
-    if (
-      routeTableEntryItem.type === 'networkFirewall' &&
-      !networkFirewalls?.find(item => item.name === routeTableEntryItem.target)
-    ) {
-      errors.push(
-        `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} target ${routeTableEntryItem.target} does not exist`,
-      );
-    }
+    //
+    // Validate network firewall route entry
+    this.validateNfwRouteEntry(routeTableEntryItem, routeTableName, vpcItem, networkFirewalls, helpers, errors);
 
-    // Throw error if network firewall target AZ doesn't exist
-    if (routeTableEntryItem.type === 'networkFirewall' && !routeTableEntryItem.targetAvailabilityZone) {
-      errors.push(
-        `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} with type networkFirewall must include targetAvailabilityZone`,
-      );
+    // Validate network interface route entry
+    if (routeTableEntryItem.type === 'networkInterface') {
+      this.validateNetworkInterfaceRouteEntry(routeTableEntryItem, routeTableName, vpcItem, helpers, errors);
     }
 
     // Throw error if NAT gateway doesn't exist
@@ -414,17 +538,151 @@ export class VpcValidator {
   }
 
   /**
+   * Validate network firewall route entry
+   * @param routeTableEntryItem
+   * @param routeTableName
+   * @param vpcItem
+   * @param helpers
+   * @param errors
+   */
+  private validateNetworkInterfaceRouteEntry(
+    routeTableEntryItem: RouteTableEntryConfig,
+    routeTableName: string,
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    if (!routeTableEntryItem.target) {
+      errors.push(
+        `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} with type networkInterface requires the 'target' property`,
+      );
+    }
+
+    if (
+      !helpers.matchesRegex(routeTableEntryItem.target!, '\\${ACCEL_LOOKUP::EC2:ENI_([a-zA-Z0-9-/:_]*)}') &&
+      !helpers.matchesRegex(routeTableEntryItem.target!, '^eni-(\\d|[a-f]){17}$')
+    ) {
+      errors.push(
+        `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} has invalid target. Target may be an ENI Id or accepted pattern: "^\\$\{ACCEL_LOOKUP::EC2:ENI_([a-zA-Z0-9-/:]*)}" Value entered: ${routeTableEntryItem.target} `,
+      );
+    }
+
+    if (helpers.matchesRegex(routeTableEntryItem.target!, '\\${ACCEL_LOOKUP::EC2:ENI_([a-zA-Z0-9-/:_]*)}')) {
+      if (!this.isValidFirewallReference(routeTableEntryItem, vpcItem.name, errors)) {
+        errors.push(
+          `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} has invalid lookup target. Accepted pattern: "^\\$\{ACCEL_LOOKUP::EC2:ENI_([a-zA-Z0-9-/:]*)}" Value entered: ${routeTableEntryItem.target}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Validates that the referenced firewall exists in customizations config
+   * @param routeTableEntryItem: RouteTableEntryConfig,
+   * @param errors string[]
+   * @returns boolean
+   */
+  private isValidFirewallReference(
+    routeTableEntryItem: RouteTableEntryConfig,
+    vpcName: string,
+    errors: string[],
+  ): boolean {
+    //
+    // Check that customizations config is defined
+    if (!this.customizationsConfig) {
+      errors.push(
+        `[Route Table entry: ${routeTableEntryItem.name}]: EC2 firewall reference variable entered but customizations-config.yaml is not defined.`,
+      );
+      return false;
+    } else {
+      // Check that firewall exists
+      const lookupComponents = routeTableEntryItem.target!.split(':');
+      const eniIndex = lookupComponents[3].split('_').pop();
+      const firewallName = lookupComponents[4].replace(/\}$/, '');
+      const firewall = this.customizationsConfig.firewalls?.instances?.find(instance => instance.name === firewallName);
+
+      if (!firewall) {
+        errors.push(
+          `[Route Table entry: ${routeTableEntryItem.name}]: EC2 firewall instance "${firewallName}" is not defined in customizations-config.yaml`,
+        );
+        return false;
+      }
+
+      if (!eniIndex) {
+        errors.push(
+          `[Route Table entry: ${routeTableEntryItem.name}]: Unable to parse ENI index of EC2 firewall instance "${firewallName}" from pattern ${routeTableEntryItem.target}`,
+        );
+        return false;
+      }
+
+      if (vpcName !== firewall.vpc) {
+        errors.push(
+          `[Route Table entry: ${routeTableEntryItem.name}]: Firewall "${firewallName}" in route target ${routeTableEntryItem.target} must exist in the same VPC the route is created`,
+        );
+        return false;
+      }
+      //
+      // Check device index
+      this.validateFirewallInterface(routeTableEntryItem.name, firewall, eniIndex, errors);
+    }
+    return true;
+  }
+
+  /**
+   * Validates that the referenced network interface has an elastic IP associated or sourceDestCheck set to false
+   * @param routeTableEntryName string
+   * @param firewall Ec2FirewallInstanceConfig
+   * @param eniIndex string
+   * @param errors string[]
+   */
+  private validateFirewallInterface(
+    routeTableEntryName: string,
+    firewall: Ec2FirewallInstanceConfig,
+    eniIndex: string,
+    errors: string[],
+  ) {
+    if (!firewall.launchTemplate.networkInterfaces) {
+      errors.push(
+        `[Route Table entry: ${routeTableEntryName}]: EC2 firewall instance "${firewall.name}" launch template does not have network interfaces defined in customizations-config.yaml`,
+      );
+    } else {
+      const deviceIndex = Number(eniIndex);
+      if (deviceIndex > firewall.launchTemplate.networkInterfaces.length - 1) {
+        errors.push(
+          `[Route Table entry: ${routeTableEntryName}]: EC2 firewall instance "${firewall.name}" device index ${deviceIndex} does not exist in customizations-config.yaml`,
+        );
+      } else {
+        const networkInterface = firewall.launchTemplate.networkInterfaces[deviceIndex];
+        if (
+          !networkInterface.associateElasticIp &&
+          (networkInterface.sourceDestCheck === undefined || networkInterface.sourceDestCheck === true)
+        ) {
+          errors.push(
+            `[Route Table entry: ${routeTableEntryName}]: EC2 firewall instance "${firewall.name}" device index ${deviceIndex} must have the associateElasticIp set to true or sourceDestCheck property set to false in customizations-config.yaml`,
+          );
+        }
+      }
+    }
+  }
+
+  /**
    * Validate route table entries
    * @param values
    * @param vpcItem
+   * @param helpers
    * @param errors
    */
-  private validateRouteTableEntries(values: NetworkConfig, vpcItem: VpcConfig | VpcTemplatesConfig, errors: string[]) {
+  private validateRouteTableEntries(
+    values: NetworkConfig,
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
     vpcItem.routeTables?.forEach(routeTableItem => {
       routeTableItem.routes?.forEach(entry => {
         // Validate destination exists
         if (entry.type && entry.type !== 'gatewayEndpoint') {
-          this.validateRouteEntryDestination(entry, routeTableItem.name, vpcItem.name, values, errors);
+          this.validateRouteEntryDestination(entry, routeTableItem.name, vpcItem, values, helpers, errors);
         }
 
         // Validate IGW route
@@ -432,22 +690,137 @@ export class VpcValidator {
           this.validateIgwRouteEntry(entry, routeTableItem.name, vpcItem, errors);
         }
 
+        // Validate IGW route
+        if (entry.type && entry.type === 'egressOnlyIgw') {
+          this.validateEigwRouteEntry(entry, routeTableItem.name, vpcItem, errors);
+        }
+
         // Validate VGW route
         if (entry.type && entry.type === 'virtualPrivateGateway') {
           this.validateVgwRouteEntry(entry, routeTableItem.name, vpcItem, errors);
         }
 
+        // Validate LGW route
+        if (entry.type && entry.type === 'localGateway') {
+          this.validateLgwRouteEntry(entry, routeTableItem.name, vpcItem, errors);
+        }
+
         // Validate target exists
         if (
           entry.type &&
-          ['gatewayLoadBalancerEndpoint', 'natGateway', 'networkFirewall', 'transitGateway', 'vpcPeering'].includes(
-            entry.type,
-          )
+          [
+            'gatewayLoadBalancerEndpoint',
+            'natGateway',
+            'networkFirewall',
+            'networkInterface',
+            'transitGateway',
+            'vpcPeering',
+          ].includes(entry.type)
         ) {
-          this.validateRouteEntryTarget(entry, routeTableItem.name, vpcItem, values, errors);
+          this.validateRouteEntryTarget(entry, routeTableItem.name, vpcItem, values, helpers, errors);
         }
       });
     });
+  }
+
+  /**
+   * Validate network firewall route entry
+   * @param routeTableEntryItem
+   * @param routeTableName
+   * @param vpcItem
+   * @param networkFirewalls
+   * @param helpers
+   * @param errors
+   */
+  private validateNfwRouteEntry(
+    routeTableEntryItem: RouteTableEntryConfig,
+    routeTableName: string,
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    networkFirewalls: NfwFirewallConfig[],
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    //
+    // Validate network firewall target exists
+    if (routeTableEntryItem.type === 'networkFirewall') {
+      const nfwTarget = networkFirewalls.find(item => item.name === routeTableEntryItem.target);
+      if (!nfwTarget) {
+        errors.push(
+          `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} target Network Firewall "${routeTableEntryItem.target}" does not exist in network-config.yaml`,
+        );
+      } else {
+        if (nfwTarget.vpc !== vpcItem.name) {
+          errors.push(
+            `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} target Network Firewall "${routeTableEntryItem.target}" must be deployed to the same VPC as the route table. Configured VPC target: ${nfwTarget.vpc}`,
+          );
+        } else {
+          //
+          // Validate target AZ exists
+          this.validateNfwRouteEntryTarget(routeTableEntryItem, routeTableName, vpcItem, nfwTarget, helpers, errors);
+        }
+      }
+    }
+  }
+
+  /**
+   * Validate network firewall route entry AZ target
+   * @param routeTableEntryItem
+   * @param routeTableName
+   * @param vpcItem
+   * @param nfwTarget
+   * @param helpers
+   * @param errors
+   */
+  private validateNfwRouteEntryTarget(
+    routeTableEntryItem: RouteTableEntryConfig,
+    routeTableName: string,
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    nfwTarget: NfwFirewallConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    const endpointAzs: (string | number)[] = [];
+    //
+    // Get subnet availability zones
+    nfwTarget.subnets.forEach(subnetItem => {
+      const subnet = helpers.getSubnet(vpcItem, subnetItem);
+      if (subnet && subnet.availabilityZone) {
+        endpointAzs.push(subnet.availabilityZone);
+      }
+    });
+    //
+    // Throw error if network firewall target AZ doesn't exist
+    if (!routeTableEntryItem.targetAvailabilityZone) {
+      errors.push(
+        `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} with type networkFirewall must include targetAvailabilityZone`,
+      );
+    } else {
+      //
+      // Validate AZ is correct format
+      if (
+        typeof routeTableEntryItem.targetAvailabilityZone === 'string' &&
+        !helpers.matchesRegex(routeTableEntryItem.targetAvailabilityZone, '^[a-z]{1}$')
+      ) {
+        errors.push(
+          `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} target AZ "${routeTableEntryItem.targetAvailabilityZone}" is not in the correct format. AZ must be a single alphanumeric character.`,
+        );
+      }
+      if (
+        typeof routeTableEntryItem.targetAvailabilityZone === 'number' &&
+        !helpers.matchesRegex(routeTableEntryItem.targetAvailabilityZone.toString(), '^[0-9]{1}$')
+      ) {
+        errors.push(
+          `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} target AZ "${routeTableEntryItem.targetAvailabilityZone}" is not in the correct format. AZ must be a single alphanumeric character.`,
+        );
+      }
+      //
+      // Validate endpoint AZ exists
+      if (!endpointAzs.includes(routeTableEntryItem.targetAvailabilityZone)) {
+        errors.push(
+          `[Route table ${routeTableName} for VPC ${vpcItem.name}]: route entry ${routeTableEntryItem.name} target AZ "${routeTableEntryItem.targetAvailabilityZone}" does not exist for Network Firewall "${routeTableEntryItem.target}". Configured AZs: ${endpointAzs}`,
+        );
+      }
+    }
   }
 
   /**
@@ -465,7 +838,7 @@ export class VpcValidator {
         errors.push(`[VPC ${vpcItem.name}]: target IPAM pool ${alloc.ipamPoolName} is not defined`);
       }
       // Validate prefix length
-      if (ipamPool && !this.isValidPrefixLength(alloc.netmaskLength)) {
+      if (ipamPool && !this.isValidIpv4PrefixLength(alloc.netmaskLength)) {
         errors.push(
           `[VPC ${vpcItem.name} allocation ${alloc.ipamPoolName}]: netmaskLength cannot be larger than 16 or smaller than 28`,
         );
@@ -492,12 +865,27 @@ export class VpcValidator {
         );
       }
       // Validate prefix length
-      if (subnet.ipamAllocation && !this.isValidPrefixLength(subnet.ipamAllocation.netmaskLength)) {
+      if (subnet.ipamAllocation && !this.isValidIpv4PrefixLength(subnet.ipamAllocation.netmaskLength)) {
         errors.push(
           `[VPC ${vpcItem.name} subnet ${subnet.name}]: netmaskLength cannot be larger than 16 or smaller than 28`,
         );
       }
     });
+  }
+
+  /**
+   * Function to validate conditional dependencies for Outpost and Local Gateway configurations.
+   * @param values
+   */
+  private validateOutpostConfiguration(values: NetworkConfig, helpers: NetworkValidatorFunctions, errors: string[]) {
+    //
+    // Validate that local gateways do not have the same name across different outposts
+    //
+    this.validateLocalGatewayNames(values, helpers, errors);
+    //
+    // Validate that all outpost names are unique
+    //
+    this.validateOutpostNames(values, helpers, errors);
   }
 
   /**
@@ -572,12 +960,24 @@ export class VpcValidator {
         // Validate transit gateway attachments
         //
         this.validateTgwAttachments(values, vpcItem, helpers, errors);
+        //
+        // Validate ACM shared targets
+        //
+        this.validateAcmSharesToAlbShares(values, vpcItem, helpers, errors);
       }
     });
   }
 
-  private isValidPrefixLength(prefix: number): boolean {
+  private isValidIpv4PrefixLength(prefix: number): boolean {
     return prefix >= 16 && prefix <= 28;
+  }
+
+  private isValidIpv6VpcPrefixLength(prefix: number): boolean {
+    return prefix >= 44 && prefix <= 60 && prefix % 4 === 0;
+  }
+
+  private isValidIpv6SubnetPrefixLength(prefix: number): boolean {
+    return prefix >= 44 && prefix <= 64 && prefix % 4 === 0;
   }
 
   /**
@@ -598,6 +998,28 @@ export class VpcValidator {
       allValid = false;
       errors.push(`[VPC ${vpcItem.name}]: Neither a CIDR or IPAM allocation are defined. Please define one property`);
     }
+    // Validate there is at least one IPv4 CIDR assigned to the VPC
+    if (vpcItem.ipv6Cidrs && !vpcItem.cidrs && !vpcItem.ipamAllocations) {
+      allValid = false;
+      errors.push(
+        `[VPC ${vpcItem.name}]: A VPC must have at least one IPv4 CIDR defined. Please specify either an IPv4 static CIDR or IPAM allocation.`,
+      );
+    }
+    // Validate that a BYOP pool is defined if using a static IPv6 CIDR
+    vpcItem.ipv6Cidrs?.forEach(ipv6Cidr => {
+      if (ipv6Cidr.cidrBlock && !ipv6Cidr.byoipPoolId) {
+        allValid = false;
+        errors.push(
+          `[VPC ${vpcItem.name}]: IPv6 static CIDR block defined without specifying a BYOIP address pool ID. Please specify a pool ID or choose an Amazon-provided IPv6 CIDR instead`,
+        );
+      }
+      if (ipv6Cidr.amazonProvided && (ipv6Cidr.byoipPoolId || ipv6Cidr.cidrBlock)) {
+        allValid = false;
+        errors.push(
+          `[VPC ${vpcItem.name}]: IPv6 static CIDR block defined with "amazonProvided: true" and other property elements. Please choose either amazonProvided or a static IPv6 CIDR from a BYOIP address pool.`,
+        );
+      }
+    });
     // If the VPC is using central endpoints, ensure there is a central endpoints VPC in regions
     if (vpcItem.useCentralEndpoints && !this.centralEndpointVpcRegions.includes(vpcItem.region)) {
       allValid = false;
@@ -632,15 +1054,32 @@ export class VpcValidator {
     helpers: NetworkValidatorFunctions,
     errors: string[],
   ) {
+    // Validate IPv4 CIDRs
     vpcItem.cidrs?.forEach(cidr => {
       if (!helpers.isValidIpv4Cidr(cidr)) {
-        errors.push(`[VPC ${vpcItem.name}]: CIDR "${cidr}" is invalid. Value must be a valid IPv4 CIDR range`);
+        errors.push(`[VPC ${vpcItem.name}]: IPv4 CIDR "${cidr}" is invalid. Value must be a valid IPv4 CIDR range`);
       }
       // Validate prefix
       const prefix = helpers.isValidIpv4Cidr(cidr) ? cidr.split('/')[1] : undefined;
-      if (prefix && !this.isValidPrefixLength(parseInt(prefix))) {
+      if (prefix && !this.isValidIpv4PrefixLength(parseInt(prefix))) {
         errors.push(
-          `[VPC ${vpcItem.name}]: CIDR "${cidr}" is invalid. CIDR prefix cannot be larger than /16 or smaller than /28`,
+          `[VPC ${vpcItem.name}]: IPv4 CIDR "${cidr}" is invalid. CIDR prefix cannot be larger than /16 or smaller than /28`,
+        );
+      }
+    });
+    // Validate IPv6 CIDRs
+    vpcItem.ipv6Cidrs?.forEach(ipv6Cidr => {
+      const cidrRange = ipv6Cidr.cidrBlock;
+      if (cidrRange && !helpers.isValidIpv6Cidr(cidrRange)) {
+        errors.push(
+          `[VPC ${vpcItem.name}]: IPv6 CIDR "${ipv6Cidr.cidrBlock}" is invalid. Value must be a valid IPv6 CIDR range`,
+        );
+      }
+      // Validate prefix
+      const ipv6Prefix = cidrRange && helpers.isValidIpv6Cidr(cidrRange) ? cidrRange.split('/')[1] : undefined;
+      if (ipv6Prefix && !this.isValidIpv6VpcPrefixLength(parseInt(ipv6Prefix))) {
+        errors.push(
+          `[VPC ${vpcItem.name}]: IPv6 CIDR "${cidrRange}" is invalid. CIDR prefix cannot be larger than /44 or smaller than /60 and must be in an increment of /4`,
         );
       }
     });
@@ -837,8 +1276,15 @@ export class VpcValidator {
       );
     }
 
+    // Validate that tags are specified for the central endpoint VPC and not the spoke(s)
+    if (vpcItem.interfaceEndpoints?.tags && !vpcItem.interfaceEndpoints.central) {
+      errors.push(
+        `[VPC ${vpcItem.name}]: has tags set under interfaceEndpoints to tag the Private Hosted Zones, but is not set to the central VPC for interface endpoints`,
+      );
+    }
+
     // Validate subnets
-    const azs: string[] = [];
+    const azs: (string | number)[] = [];
     vpcItem.interfaceEndpoints?.subnets.forEach(subnetName => {
       const subnet = helpers.getSubnet(vpcItem, subnetName);
       if (!subnet) {
@@ -1097,9 +1543,9 @@ export class VpcValidator {
       nacl.inboundRules?.forEach(inbound => {
         if (typeof inbound.source === 'string') {
           // Validate CIDR source
-          if (!helpers.isValidIpv4Cidr(inbound.source)) {
+          if (!helpers.isValidIpv4Cidr(inbound.source) && !helpers.isValidIpv6Cidr(inbound.source)) {
             errors.push(
-              `[VPC ${vpcItem.name} NACL ${nacl.name} inbound rule ${inbound.rule}]: source "${inbound.source}" is invalid. Source must be a valid IPv4 CIDR or subnet selection`,
+              `[VPC ${vpcItem.name} NACL ${nacl.name} inbound rule ${inbound.rule}]: source "${inbound.source}" is invalid. Source must be a valid IPv4/v6 CIDR or subnet selection`,
             );
           }
         }
@@ -1108,9 +1554,9 @@ export class VpcValidator {
       nacl.outboundRules?.forEach(outbound => {
         if (typeof outbound.destination === 'string') {
           // Validate CIDR source
-          if (!helpers.isValidIpv4Cidr(outbound.destination)) {
+          if (!helpers.isValidIpv4Cidr(outbound.destination) && !helpers.isValidIpv6Cidr(outbound.destination)) {
             errors.push(
-              `[VPC ${vpcItem.name} NACL ${nacl.name} outbound rule ${outbound.rule}]: destination "${outbound.destination}" is invalid. Destination must be a valid IPv4 CIDR or subnet selection`,
+              `[VPC ${vpcItem.name} NACL ${nacl.name} outbound rule ${outbound.rule}]: destination "${outbound.destination}" is invalid. Destination must be a valid IPv4/v6 CIDR or subnet selection`,
             );
           }
         }
@@ -1131,7 +1577,7 @@ export class VpcValidator {
   ) {
     vpcItem.networkAcls?.forEach(nacl => {
       nacl.inboundRules?.forEach(inbound => {
-        if (NetworkConfigTypes.networkAclSubnetSelection.is(inbound.source)) {
+        if (isNetworkType<NetworkAclSubnetSelection>('INetworkAclSubnetSelection', inbound.source)) {
           // Validate subnet source
           const vpc = helpers.getVpc(inbound.source.vpc);
           if (!vpc) {
@@ -1182,7 +1628,7 @@ export class VpcValidator {
   ) {
     vpcItem.networkAcls?.forEach(nacl => {
       nacl.outboundRules?.forEach(outbound => {
-        if (NetworkConfigTypes.networkAclSubnetSelection.is(outbound.destination)) {
+        if (isNetworkType<NetworkAclSubnetSelection>('INetworkAclSubnetSelection', outbound.destination)) {
           // Validate subnet source
           const vpc = helpers.getVpc(outbound.destination.vpc);
           if (!vpc) {
@@ -1372,47 +1818,13 @@ export class VpcValidator {
   ): boolean {
     const toFromPorts = ['fromPort', 'toPort'];
     const tcpUdpPorts = ['tcpPorts', 'udpPorts'];
-    const toFromTypes = ['ICMP', 'TCP', 'UDP'];
-    const tcpUdpTypes = ['TCP', 'UDP'];
     let allValid = true;
 
     vpcItem.securityGroups?.forEach(group => {
       group.inboundRules.forEach(inbound => {
         const keys = helpers.getObjectKeys(inbound);
         if (inbound.types) {
-          // Validate types and tcpPorts/udpPorts are not defined in the same rule
-          if (keys.some(key => tcpUdpPorts.includes(key))) {
-            allValid = false;
-            errors.push(
-              `[VPC ${vpcItem.name} security group ${group.name}]: inboundRules cannot contain ${tcpUdpPorts} properties when types property is defined`,
-            );
-          }
-          // Validate type is correct if using fromPort/toPort
-          if (
-            inbound.types.some(type => toFromTypes.includes(type)) &&
-            toFromPorts.some(item => !keys.includes(item))
-          ) {
-            allValid = false;
-            errors.push(
-              `[VPC ${vpcItem.name} security group ${group.name}]: inboundRules must contain ${toFromPorts} properties when one of the following types is specified: ${toFromTypes}`,
-            );
-          }
-          if (
-            inbound.types.some(type => !toFromTypes.includes(type)) &&
-            toFromPorts.some(item => keys.includes(item))
-          ) {
-            allValid = false;
-            errors.push(
-              `[VPC ${vpcItem.name} security group ${group.name}]: inboundRules may only contain ${toFromPorts} properties when one of the following types is specified: ${toFromTypes}`,
-            );
-          }
-          // Validate both TCP/UDP and ICMP are not used in the same rule
-          if (inbound.types.some(type => tcpUdpTypes.includes(type)) && inbound.types.includes('ICMP')) {
-            allValid = false;
-            errors.push(
-              `[VPC ${vpcItem.name} security group ${group.name}]: inboundRules cannot contain both ICMP and TCP/UDP types in the same rule`,
-            );
-          }
+          allValid = this.securityGroupValidateTypes(group, inbound, keys, vpcItem, errors);
         } else {
           // Validate to/fromPorts don't exist
           if (toFromPorts.some(item => keys.includes(item))) {
@@ -1422,12 +1834,15 @@ export class VpcValidator {
             );
           }
           // Validate tcpPorts/udpPorts exists
-          if (!inbound.tcpPorts && !inbound.udpPorts) {
+          if (!inbound.tcpPorts && !inbound.udpPorts && !inbound.ipProtocols) {
             allValid = false;
             errors.push(
-              `[VPC ${vpcItem.name} security group ${group.name}]: inboundRules must contain one of ${tcpUdpPorts} properties when types property is undefined`,
+              `[VPC ${vpcItem.name} security group ${group.name}]: inboundRules must contain one of ${tcpUdpPorts} properties when both the types and ipProtocols properties are undefined.`,
             );
           }
+        }
+        if (inbound.ipProtocols) {
+          allValid = this.securityGroupValidateIpProtocols(group, inbound, vpcItem, errors);
         }
       });
     });
@@ -1448,47 +1863,13 @@ export class VpcValidator {
   ): boolean {
     const toFromPorts = ['fromPort', 'toPort'];
     const tcpUdpPorts = ['tcpPorts', 'udpPorts'];
-    const toFromTypes = ['ICMP', 'TCP', 'UDP'];
-    const tcpUdpTypes = ['TCP', 'UDP'];
     let allValid = true;
 
     vpcItem.securityGroups?.forEach(group => {
       group.outboundRules.forEach(outbound => {
         const keys = helpers.getObjectKeys(outbound);
         if (outbound.types) {
-          // Validate types and tcpPorts/udpPorts are not defined in the same rule
-          if (keys.some(key => tcpUdpPorts.includes(key))) {
-            allValid = false;
-            errors.push(
-              `[VPC ${vpcItem.name} security group ${group.name}]: outboundRules cannot contain ${tcpUdpPorts} properties when types property is defined`,
-            );
-          }
-          // Validate type is correct if using fromPort/toPort
-          if (
-            outbound.types.some(type => toFromTypes.includes(type)) &&
-            toFromPorts.some(item => !keys.includes(item))
-          ) {
-            allValid = false;
-            errors.push(
-              `[VPC ${vpcItem.name} security group ${group.name}]: outboundRules must contain ${toFromPorts} properties when one of the following types is specified: ${toFromTypes}`,
-            );
-          }
-          if (
-            outbound.types.some(type => !toFromTypes.includes(type)) &&
-            toFromPorts.some(item => keys.includes(item))
-          ) {
-            allValid = false;
-            errors.push(
-              `[VPC ${vpcItem.name} security group ${group.name}]: outboundRules may only contain ${toFromPorts} properties when one of the following types is specified: ${toFromTypes}`,
-            );
-          }
-          // Validate both TCP/UDP and ICMP are not used in the same rule
-          if (outbound.types.some(type => tcpUdpTypes.includes(type)) && outbound.types.includes('ICMP')) {
-            allValid = false;
-            errors.push(
-              `[VPC ${vpcItem.name} security group ${group.name}]: outboundRules cannot contain both ICMP and TCP/UDP types in the same rule`,
-            );
-          }
+          allValid = this.securityGroupValidateTypes(group, outbound, keys, vpcItem, errors);
         } else {
           // Validate to/fromPorts don't exist
           if (toFromPorts.some(item => keys.includes(item))) {
@@ -1498,15 +1879,117 @@ export class VpcValidator {
             );
           }
           // Validate tcpPorts/udpPorts exists
-          if (!outbound.tcpPorts && !outbound.udpPorts) {
+          if (!outbound.tcpPorts && !outbound.udpPorts && !outbound.ipProtocols) {
             allValid = false;
             errors.push(
-              `[VPC ${vpcItem.name} security group ${group.name}]: outboundRules must contain one of ${tcpUdpPorts} properties when types property is undefined`,
+              `[VPC ${vpcItem.name} security group ${group.name}]: outboundRules must contain one of ${tcpUdpPorts} properties when both the types and ipProtocols properties are undefined.`,
             );
           }
         }
+        if (outbound.ipProtocols) {
+          allValid = this.securityGroupValidateIpProtocols(group, outbound, vpcItem, errors);
+        }
       });
     });
+    return allValid;
+  }
+
+  /**
+   * Validate security group types
+   * @param securityGroupItem
+   * @param vpcItem
+   * @param helpers
+   * @param errors
+   */
+  private securityGroupValidateTypes(
+    group: SecurityGroupConfig,
+    securityGroupItem: SecurityGroupRuleConfig,
+    keys: string[],
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    errors: string[],
+  ): boolean {
+    let allValid = true;
+    const toFromPorts = ['fromPort', 'toPort'];
+    const tcpUdpPorts = ['tcpPorts', 'udpPorts'];
+    const toFromTypes = ['ICMP', 'TCP', 'UDP'];
+    const tcpUdpTypes = ['TCP', 'UDP'];
+
+    // Validate types and tcpPorts/udpPorts are not defined in the same rule
+    if (keys.some(key => tcpUdpPorts.includes(key))) {
+      allValid = false;
+      errors.push(
+        `[VPC ${vpcItem.name} security group ${group.name}]: Rules cannot contain ${tcpUdpPorts} properties when types property is defined`,
+      );
+    }
+    // Validate type is correct if using fromPort/toPort
+    if (
+      securityGroupItem.types!.some(type => toFromTypes.includes(type)) &&
+      toFromPorts.some(item => !keys.includes(item))
+    ) {
+      allValid = false;
+      errors.push(
+        `[VPC ${vpcItem.name} security group ${group.name}]: Rules must contain ${toFromPorts} properties when one of the following types is specified: ${toFromTypes}`,
+      );
+    }
+    if (
+      securityGroupItem.types!.some(type => !toFromTypes.includes(type)) &&
+      toFromPorts.some(item => keys.includes(item))
+    ) {
+      allValid = false;
+      errors.push(
+        `[VPC ${vpcItem.name} security group ${group.name}]: Rules may only contain ${toFromPorts} properties when one of the following types is specified: ${toFromTypes}`,
+      );
+    }
+    // Validate both TCP/UDP and ICMP are not used in the same rule
+    if (
+      securityGroupItem.types!.some(type => tcpUdpTypes.includes(type)) &&
+      securityGroupItem.types!.includes('ICMP')
+    ) {
+      allValid = false;
+      errors.push(
+        `[VPC ${vpcItem.name} security group ${group.name}]: Rules cannot contain both ICMP and TCP/UDP types in the same rule`,
+      );
+    }
+    if (securityGroupItem.ipProtocols) {
+      allValid = false;
+      errors.push(
+        `[VPC ${vpcItem.name} security group ${group.name}]: Rules cannot contain both types and ipProtocols for the same rule. Create separate rules for both.`,
+      );
+    }
+    return allValid;
+  }
+
+  /**
+   * Validate security group ip protocols
+   * @param securityGroupItem
+   * @param vpcItem
+   * @param helpers
+   * @param errors
+   */
+  private securityGroupValidateIpProtocols(
+    group: SecurityGroupConfig,
+    securityGroupItem: SecurityGroupRuleConfig,
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    errors: string[],
+  ): boolean {
+    let allValid = true;
+    const invalidProtocols: string[] = [];
+    for (const ipProtocolItem of securityGroupItem.ipProtocols ?? []) {
+      const protocolExists = ipProtocolItem in cdk.aws_ec2.Protocol;
+      if (!protocolExists) {
+        if (!invalidProtocols.includes(ipProtocolItem)) {
+          invalidProtocols.push(ipProtocolItem);
+        }
+      }
+    }
+    if (invalidProtocols.length > 0) {
+      allValid = false;
+      errors.push(
+        `[VPC ${vpcItem.name} security group ${
+          group.name
+        }]: Is using the following unsupported IP Protocols: [${invalidProtocols.join(', ')}]`,
+      );
+    }
     return allValid;
   }
 
@@ -1549,9 +2032,9 @@ export class VpcValidator {
         // Validate inbound sources
         inbound.sources.forEach(inboundSource => {
           if (typeof inboundSource === 'string') {
-            if (!helpers.isValidIpv4Cidr(inboundSource)) {
+            if (!helpers.isValidIpv4Cidr(inboundSource) && !helpers.isValidIpv6Cidr(inboundSource)) {
               errors.push(
-                `[VPC ${vpcItem.name} security group ${group.name}]: inbound rule source "${inboundSource}" is invalid. Value must be a valid IPv4 CIDR, subnet reference, security group reference, or prefix list reference`,
+                `[VPC ${vpcItem.name} security group ${group.name}]: inbound rule source "${inboundSource}" is invalid. Value must be a valid IPv4/v6 CIDR, subnet reference, security group reference, or prefix list reference`,
               );
             }
           }
@@ -1561,9 +2044,9 @@ export class VpcValidator {
       group.outboundRules.forEach(outbound => {
         outbound.sources.forEach(outboundSource => {
           if (typeof outboundSource === 'string') {
-            if (!helpers.isValidIpv4Cidr(outboundSource)) {
+            if (!helpers.isValidIpv4Cidr(outboundSource) && !helpers.isValidIpv6Cidr(outboundSource)) {
               errors.push(
-                `[VPC ${vpcItem.name} security group ${group.name}]: outbound rule source "${outboundSource}" is invalid. Value must be a valid IPv4 CIDR, subnet reference, security group reference, or prefix list reference`,
+                `[VPC ${vpcItem.name} security group ${group.name}]: outbound rule source "${outboundSource}" is invalid. Value must be a valid IPv4/v6 CIDR, subnet reference, security group reference, or prefix list reference`,
               );
             }
           }
@@ -1586,7 +2069,7 @@ export class VpcValidator {
     vpcItem.securityGroups?.forEach(group => {
       group.inboundRules.forEach(inbound => {
         inbound.sources.forEach(source => {
-          if (NetworkConfigTypes.subnetSourceConfig.is(source)) {
+          if (isNetworkType<SubnetSourceConfig>('ISubnetSourceConfig', source)) {
             // Validate subnet source
             const vpc = helpers.getVpc(source.vpc);
             if (!vpc) {
@@ -1643,7 +2126,7 @@ export class VpcValidator {
     vpcItem.securityGroups?.forEach(group => {
       group.outboundRules.forEach(outbound => {
         outbound.sources.forEach(source => {
-          if (NetworkConfigTypes.subnetSourceConfig.is(source)) {
+          if (isNetworkType<SubnetSourceConfig>('ISubnetSourceConfig', source)) {
             // Validate subnet source
             const vpc = helpers.getVpc(source.vpc);
             if (!vpc) {
@@ -1700,7 +2183,7 @@ export class VpcValidator {
       group.inboundRules.forEach(inbound => {
         // Validate inbound sources
         inbound.sources.forEach(inboundSource => {
-          if (NetworkConfigTypes.securityGroupSourceConfig.is(inboundSource)) {
+          if (isNetworkType<SecurityGroupSourceConfig>('ISecurityGroupSourceConfig', inboundSource)) {
             inboundSource.securityGroups.forEach(sg => {
               if (!securityGroups.includes(sg)) {
                 errors.push(
@@ -1714,7 +2197,7 @@ export class VpcValidator {
       // Validate outbound sources
       group.outboundRules.forEach(outbound => {
         outbound.sources.forEach(outboundSource => {
-          if (NetworkConfigTypes.securityGroupSourceConfig.is(outboundSource)) {
+          if (isNetworkType<SecurityGroupSourceConfig>('ISecurityGroupSourceConfig', outboundSource)) {
             outboundSource.securityGroups.forEach(item => {
               if (!securityGroups.includes(item)) {
                 errors.push(
@@ -1748,7 +2231,7 @@ export class VpcValidator {
       group.inboundRules.forEach(inbound => {
         // Validate inbound rules
         inbound.sources.forEach(inboundSource => {
-          if (NetworkConfigTypes.prefixListSourceConfig.is(inboundSource)) {
+          if (isNetworkType<PrefixListSourceConfig>('IPrefixListSourceConfig', inboundSource)) {
             inboundSource.prefixLists.forEach(listName => {
               const prefixList = values.prefixLists?.find(item => item.name === listName);
               if (!prefixList) {
@@ -1781,7 +2264,7 @@ export class VpcValidator {
       // Validate outbound rules
       group.outboundRules.forEach(outbound => {
         outbound.sources.forEach(outboundSource => {
-          if (NetworkConfigTypes.prefixListSourceConfig.is(outboundSource)) {
+          if (isNetworkType<PrefixListSourceConfig>('IPrefixListSourceConfig', outboundSource)) {
             outboundSource.prefixLists.forEach(listName => {
               const prefixList = values.prefixLists?.find(item => item.name === listName);
               if (!prefixList) {
@@ -1944,6 +2427,7 @@ export class VpcValidator {
 
   /**
    * Validate subnets for a given VPC
+   * @param values
    * @param vpcItem
    * @param helpers
    * @param errors
@@ -1961,6 +2445,16 @@ export class VpcValidator {
     this.validateSubnetCidrs(vpcItem, helpers, errors);
     // Validate subnet route table
     this.validateSubnetRouteTables(vpcItem, errors);
+    // Validate subnet availability zones
+    this.validateSubnetAvailabilityZones(vpcItem, helpers, errors);
+    // Validate subnets exist in VPC that are used with Application Load Balancer
+    this.validateAlbConfigForExistingSubnets(vpcItem, helpers, errors);
+    // Validate that Application Load Balancer that is using shared targets is using subnets that are using shared target.
+    this.validateSharedAlbSubnets(vpcItem, helpers, errors);
+    // Validate subnet share target ou names
+    this.validateVpcSubnetShareTargetOUs(vpcItem, helpers, errors);
+    // Validate subnet share target account names
+    this.validateVpcSubnetShareTargetAccounts(vpcItem, helpers, errors);
   }
 
   /**
@@ -1996,20 +2490,30 @@ export class VpcValidator {
           `[VPC ${vpcItem.name} subnet ${subnet.name}]: cannot define both ipv4CidrBlock and ipamAllocation properties`,
         );
       }
-      if (!subnet.ipv4CidrBlock && !subnet.ipamAllocation) {
+      if (!subnet.ipv6CidrBlock && !subnet.ipv4CidrBlock && !subnet.ipamAllocation) {
         errors.push(
-          `[VPC ${vpcItem.name} subnet ${subnet.name}]: must define either ipv4CidrBlock or ipamAllocation property`,
+          `[VPC ${vpcItem.name} subnet ${subnet.name}]: must define one of ipv4CidrBlock, ipv6CidrBlock, or ipamAllocation properties`,
+        );
+      }
+      // Validate IPv6 structure
+      if (subnet.ipv6CidrBlock && subnet.ipv4CidrBlock && subnet.ipamAllocation) {
+        errors.push(
+          `[VPC ${vpcItem.name} subnet ${subnet.name}]: ipv4CidrBlock, ipv6CidrBlock, and ipamAllocation properties are all defined. A subnet may only have a maximum of one IPv4 and one IPv6 address.`,
         );
       }
       // Validate an AZ is assigned
-      if (subnet.availabilityZone && subnet.outpost) {
+      if (
+        (subnet.availabilityZone && subnet.outpost) ||
+        (subnet.availabilityZone && subnet.localZone) ||
+        (subnet.localZone && subnet.outpost)
+      ) {
         errors.push(
-          `[VPC ${vpcItem.name} subnet ${subnet.name}]: cannot define both availabilityZone and outpost properties`,
+          `[VPC ${vpcItem.name} subnet ${subnet.name}]: can only define one of availabilityZone, localZone or outpost properties`,
         );
       }
-      if (!subnet.availabilityZone && !subnet.outpost) {
+      if (!subnet.availabilityZone && !subnet.outpost && !subnet.localZone) {
         errors.push(
-          `[VPC ${vpcItem.name} subnet ${subnet.name}]: must define either availabilityZone or outpost property`,
+          `[VPC ${vpcItem.name} subnet ${subnet.name}]: must define either availabilityZone, localZone or outpost property`,
         );
       }
     });
@@ -2027,6 +2531,7 @@ export class VpcValidator {
     errors: string[],
   ) {
     vpcItem.subnets?.forEach(subnet => {
+      // Validate IPv4 subnets
       if (subnet.ipv4CidrBlock) {
         if (!helpers.isValidIpv4Cidr(subnet.ipv4CidrBlock)) {
           errors.push(
@@ -2035,9 +2540,24 @@ export class VpcValidator {
         }
         // Validate prefix
         const prefix = helpers.isValidIpv4Cidr(subnet.ipv4CidrBlock) ? subnet.ipv4CidrBlock.split('/')[1] : undefined;
-        if (prefix && !this.isValidPrefixLength(parseInt(prefix))) {
+        if (prefix && !this.isValidIpv4PrefixLength(parseInt(prefix))) {
           errors.push(
             `[VPC ${vpcItem.name} subnet ${subnet.name}]: CIDR "${subnet.ipv4CidrBlock}" is invalid. CIDR prefix cannot be larger than /16 or smaller than /28`,
+          );
+        }
+      }
+      // Validate IPv6 subnets
+      if (subnet.ipv6CidrBlock) {
+        if (!helpers.isValidIpv6Cidr(subnet.ipv6CidrBlock)) {
+          errors.push(
+            `[VPC ${vpcItem.name} subnet ${subnet.name}]: CIDR "${subnet.ipv6CidrBlock}" is invalid. Value must be a valid IPv6 CIDR range`,
+          );
+        }
+        // Validate prefix
+        const prefix = helpers.isValidIpv6Cidr(subnet.ipv6CidrBlock) ? subnet.ipv6CidrBlock.split('/')[1] : undefined;
+        if (prefix && !this.isValidIpv6SubnetPrefixLength(parseInt(prefix))) {
+          errors.push(
+            `[VPC ${vpcItem.name} subnet ${subnet.name}]: CIDR "${subnet.ipv6CidrBlock}" is invalid. CIDR prefix cannot be larger than /44 or smaller than /64 and must be an increment of /4`,
           );
         }
       }
@@ -2047,6 +2567,7 @@ export class VpcValidator {
   /**
    * Validate subnet route table associations
    * @param vpcItem
+   * @param helpers
    * @param errors
    */
   private validateSubnetRouteTables(vpcItem: VpcConfig | VpcTemplatesConfig, errors: string[]) {
@@ -2054,12 +2575,287 @@ export class VpcValidator {
     vpcItem.routeTables?.forEach(routeTable => tableNames.push(routeTable.name));
 
     vpcItem.subnets?.forEach(subnet => {
-      if (!tableNames.includes(subnet.routeTable)) {
+      if (subnet.routeTable && !tableNames.includes(subnet.routeTable)) {
         errors.push(
           `[VPC ${vpcItem.name} subnet ${subnet.name}]: route table "${subnet.routeTable}" does not exist in the VPC`,
         );
       }
     });
+  }
+
+  /**
+   * Validate subnet availability zones
+   * @param vpcItem
+   * @param helps
+   * @param errors
+   */
+  private validateSubnetAvailabilityZones(
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    vpcItem.subnets?.forEach(subnet => {
+      if (typeof subnet.availabilityZone === 'string') {
+        if (!helpers.matchesRegex(subnet.availabilityZone, '^[a-z]{1}$')) {
+          errors.push(
+            `[VPC ${vpcItem.name} subnet ${subnet.name}]: Uses an incorrect value for ${subnet.availabilityZone} as the availabilityZone. Please use a single lowercase letter.`,
+          );
+        }
+      }
+      if (typeof subnet.availabilityZone === 'number') {
+        if (!helpers.matchesRegex(subnet.availabilityZone.toString(), '^[0-9]{1}$')) {
+          errors.push(
+            `[VPC ${vpcItem.name} subnet ${subnet.name}]: Uses an incorrect value for ${subnet.availabilityZone} as the availabilityZone. Please use a single number.`,
+          );
+        }
+      }
+      if (subnet.localZone) {
+        if (!helpers.matchesRegex(subnet.localZone, '^[a-z]{3}[-][0-9]{1}[a-z]{1}')) {
+          errors.push(
+            `[VPC ${vpcItem.name} subnet ${subnet.name}]: The local zone input provided is malformed. Please use the correct format starting with a hyphen (e.g. lax-1a).`,
+          );
+        }
+      }
+    });
+  }
+
+  /**
+   * Validate that subnet specified in ALB exists
+   * @param vpcItem
+   * @param helpers
+   * @param errors
+   */
+  private validateAlbConfigForExistingSubnets(
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    for (const albItem of vpcItem.loadBalancers?.applicationLoadBalancers ?? []) {
+      for (const subnetItem of albItem.subnets) {
+        if (!helpers.getSubnet(vpcItem, subnetItem)) {
+          errors.push(
+            `The Application Load Balancer: ${albItem.name} for VPC ${vpcItem.name} is using subnet ${subnetItem} that doesn't exist`,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Validate that ALB that is using sharedTargets has subnets that are also using shared targets method.
+   * @param values
+   * @param errors
+   */
+  private validateSharedAlbSubnets(
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    const nonSharedSubnets: string[] = [];
+    const invalidAlbs: { name: string; subnets: string[] }[] = [];
+    for (const subnetItem of vpcItem.subnets ?? []) {
+      if (!subnetItem.shareTargets) {
+        nonSharedSubnets.push(subnetItem.name);
+      }
+    }
+    for (const albItem of vpcItem.loadBalancers?.applicationLoadBalancers ?? []) {
+      if (albItem.shareTargets) {
+        this.validateSubnetSharesToAlbShares(albItem, vpcItem, helpers, errors);
+        this.validateTargetGroupSharesToAlbShares(albItem, vpcItem, helpers, errors);
+        if (albItem.subnets.find(item => nonSharedSubnets.find(nonSharedSubnet => item === nonSharedSubnet))) {
+          invalidAlbs.push({ name: albItem.name, subnets: albItem.subnets });
+        }
+      }
+    }
+
+    for (const alb of invalidAlbs) {
+      errors.push(
+        `The Application Load Balancer: ${
+          alb.name
+        } is using the sharedTargets method, but at least one of the subnets [${alb.subnets.join(
+          ',',
+        )}] in its configuration is not using the sharedTargets method.`,
+      );
+    }
+  }
+
+  /**
+   * Validate subnet availability to shared Application Load Balancers
+   * @param vpcItem
+   * @param helpers
+   * @param errors
+   */
+  private validateSubnetSharesToAlbShares(
+    albItem: ApplicationLoadBalancerConfig,
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    let missingAccountIds: string[] = [];
+    const albAccounts = helpers.getAccountNamesFromTarget(albItem.shareTargets as ShareTargets);
+    for (const subnetName of albItem.subnets) {
+      const subnetSharedTarget = this.getSubnetSharedTarget(vpcItem, subnetName);
+      if (subnetSharedTarget) {
+        const subnetAccounts = helpers.getAccountNamesFromTarget(subnetSharedTarget);
+        missingAccountIds = albAccounts.filter(item => !subnetAccounts.includes(item));
+        if (missingAccountIds.length > 0) {
+          errors.push(
+            `The Application Load Balancer ${albItem.name} is deployed to multiple accounts and using subnets that aren't available. Please make sure your sharedTargets configuration for your subnet makes the subnet available for the ALB.`,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Validate Subnet share target OU names
+   * @param vpcItem
+   * @param helpers
+   * @param errors
+   */
+  private validateVpcSubnetShareTargetOUs(
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    for (const subnetItem of vpcItem.subnets ?? []) {
+      for (const ou of subnetItem.shareTargets?.organizationalUnits ?? []) {
+        if (!helpers.ouExists(ou)) {
+          errors.push(
+            `[VPC ${vpcItem.name} subnet ${subnetItem.name}]: Shared Target OU ${ou} does not exist in organization-config.yaml file.`,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Validate Subnet share target account names
+   * @param vpcItem
+   * @param helpers
+   * @param errors
+   */
+  private validateVpcSubnetShareTargetAccounts(
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    for (const subnetItem of vpcItem.subnets ?? []) {
+      for (const account of subnetItem.shareTargets?.accounts ?? []) {
+        if (!helpers.accountExists(account)) {
+          errors.push(
+            `[VPC ${vpcItem.name} subnet ${subnetItem.name}]: Shared Target account ${account} does not exist in accounts-config.yaml file.`,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Validate target group availability to shared Application Load Balancers
+   * @param vpcItem
+   * @param helpers
+   * @param errors
+   */
+  private validateTargetGroupSharesToAlbShares(
+    albItem: ApplicationLoadBalancerConfig,
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    let missingAccountIds: string[] = [];
+
+    const albAccounts = helpers.getAccountNamesFromTarget(albItem.shareTargets as ShareTargets);
+    for (const listenerItem of albItem.listeners ?? []) {
+      for (const targetGroupItem of vpcItem.targetGroups ?? []) {
+        if (targetGroupItem.name === listenerItem.targetGroup) {
+          const targetGroupSharedTarget = this.getTargetGroupSharedTarget(vpcItem, listenerItem.targetGroup);
+          if (targetGroupSharedTarget) {
+            const targetGroupAccounts = helpers.getAccountNamesFromTarget(targetGroupSharedTarget);
+            missingAccountIds = albAccounts.filter(item => !targetGroupAccounts.includes(item));
+            if (missingAccountIds.length > 0) {
+              errors.push(
+                `The Application Load Balancer ${albItem.name} is deployed to multiple accounts and using target group(s) that are not in the same accounts. Please make sure your sharedTargets configuration for your targetGroup makes the Target Group available for the ALB.`,
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Validate ACM availability to shared Application Load Balancers
+   * @param values
+   * @param vpcItem
+   * @param helpers
+   * @param errors
+   */
+  private validateAcmSharesToAlbShares(
+    values: NetworkConfig,
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    const invalidAlbList: string[] = [];
+    let missingAccountIds: string[] = [];
+
+    for (const acmItem of values.certificates ?? []) {
+      for (const albItem of vpcItem.loadBalancers?.applicationLoadBalancers ?? []) {
+        if (albItem.shareTargets) {
+          const albAccounts = helpers.getAccountNamesFromTarget(albItem.shareTargets as ShareTargets);
+          for (const listenerItem of albItem.listeners ?? []) {
+            if (listenerItem.certificate === acmItem.name) {
+              const acmAccountIds = helpers.getAccountNamesFromTarget(acmItem.deploymentTargets);
+              missingAccountIds = albAccounts.filter(item => !acmAccountIds.includes(item));
+              if (missingAccountIds.length > 0) {
+                if (!invalidAlbList.includes(albItem.name)) {
+                  invalidAlbList.push(albItem.name);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    for (const alb of invalidAlbList) {
+      errors.push(
+        `The Application Load Balancer ${alb} is deployed to multiple accounts and using ACM certificate(s) that are not in the same accounts. Please make sure your sharedTargets configuration for your ACM certificates makes the Target Group available for the ALB.`,
+      );
+    }
+  }
+
+  /**
+   * Returns the shared targets from the input of the subnet name.
+   * @param vpcItem
+   * @param subnetName
+   * @returns
+   */
+  private getSubnetSharedTarget(vpcItem: VpcConfig | VpcTemplatesConfig, subnetName: string): ShareTargets | undefined {
+    for (const subnetItem of vpcItem.subnets ?? []) {
+      if (subnetItem.name === subnetName) {
+        return subnetItem.shareTargets;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Returns the shared targets from the input of the target group name.
+   * @param vpcItem
+   * @param subnetName
+   * @returns
+   */
+  private getTargetGroupSharedTarget(
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    targetGroupName: string,
+  ): ShareTargets | undefined {
+    for (const targetGroupItem of vpcItem.targetGroups ?? []) {
+      if (targetGroupItem.name === targetGroupName) {
+        return targetGroupItem.shareTargets;
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -2201,8 +2997,9 @@ export class VpcValidator {
     helpers: NetworkValidatorFunctions,
     errors: string[],
   ) {
-    const subnetAzs: string[] = [];
+    const subnetAzs: (string | number)[] = [];
     const subnetNames: string[] = [];
+    const localZoneSubnets: string[] = [];
 
     attach.subnets.forEach(subnetName => {
       subnetNames.push(subnetName);
@@ -2213,6 +3010,9 @@ export class VpcValidator {
         );
       } else {
         subnetAzs.push(subnet.availabilityZone ? subnet.availabilityZone : '');
+      }
+      if (subnet?.localZone) {
+        localZoneSubnets.push(subnet.name);
       }
     });
 
@@ -2228,6 +3028,62 @@ export class VpcValidator {
         `[VPC ${vpcItem.name} TGW attachment ${attach.name}]: duplicate TGW attachment subnet AZs defined. Subnet AZs must be unique. AZs configured: ${subnetAzs}`,
       );
     }
+    // Check if any subnets that are created in local zones are attached to TGW
+    if (localZoneSubnets.length > 0) {
+      errors.push(
+        `[VPC ${vpcItem.name} TGW attachment ${attach.name}]: TGW attachment contains subnets: ${localZoneSubnets.join(
+          ', ',
+        )} that are created in local zones which is not valid. Please remove from tgw attachment config. `,
+      );
+    }
+  }
+
+  /**
+   * Validate Outpost Local Gateway names
+   * @param values
+   * @param helpers
+   * @param errors
+   */
+  private validateLocalGatewayNames(values: NetworkConfig, helpers: NetworkValidatorFunctions, errors: string[]) {
+    values.vpcs.forEach(vpcItem => {
+      const lgwNames = [];
+      if (vpcItem.outposts) {
+        for (const outpost of vpcItem.outposts) {
+          if (outpost.localGateway?.name) {
+            lgwNames.push(outpost.localGateway?.name);
+          }
+        }
+
+        // Validate no VPC names are duplicated
+        if (helpers.hasDuplicates(lgwNames)) {
+          errors.push(`Duplicate Local Gateway names exist, LGW names must be unique. LGW names in file: ${lgwNames}`);
+        }
+      }
+    });
+  }
+
+  /**
+   * Validate uniqueness of Outpost names
+   * @param values
+   * @param helpers
+   * @param errors
+   */
+  private validateOutpostNames(values: NetworkConfig, helpers: NetworkValidatorFunctions, errors: string[]) {
+    values.vpcs.forEach(vpcItem => {
+      const outpostNames = [];
+      if (vpcItem.outposts) {
+        for (const outpost of vpcItem.outposts) {
+          outpostNames.push(outpost.name);
+        }
+
+        // Validate no VPC names are duplicated
+        if (helpers.hasDuplicates(outpostNames)) {
+          errors.push(
+            `Duplicate Outpost names exist, Outpost names must be unique. Outpost names in file: ${outpostNames}`,
+          );
+        }
+      }
+    });
   }
 
   /**
@@ -2236,7 +3092,8 @@ export class VpcValidator {
    * @param errors
    */
   private validateVpcPeeringConfiguration(values: NetworkConfig, errors: string[]) {
-    const vpcs = values.vpcs;
+    const vpcs = [...values.vpcs, ...(values.vpcTemplates ?? [])];
+    const vpcTemplates = values.vpcTemplates ?? [];
     for (const peering of values.vpcPeering ?? []) {
       // Ensure exactly two VPCs are defined
       if (peering.vpcs.length < 2 || peering.vpcs.length > 2) {
@@ -2248,12 +3105,89 @@ export class VpcValidator {
       // Ensure VPCs exist and more than one is not defined
       for (const vpc of peering.vpcs) {
         if (!vpcs.find(item => item.name === vpc)) {
-          errors.push(`[VPC peering connection ${peering.name}]: VPC ${vpc} does not exist`);
+          errors.push(`[VPC peering connection ${peering.name}]: VPC or VPC Template ${vpc} does not exist`);
         }
         if (vpcs.filter(item => item.name === vpc).length > 1) {
-          errors.push(`[VPC peering connection ${peering.name}]: more than one VPC named ${vpc}`);
+          errors.push(`[VPC peering connection ${peering.name}]: more than one VPC or VPC Template named ${vpc}`);
         }
       }
+
+      // Ensure not both vpcs are from vpcTemplates
+      if (
+        vpcTemplates.find(item => item.name === peering.vpcs[0]) &&
+        vpcTemplates.find(item => item.name === peering.vpcs[1])
+      ) {
+        errors.push(
+          `[VPC peering connection ${peering.name}]: Both VPCs ${peering.vpcs[0]}, ${peering.vpcs[1]} should not be from vpcTemplates. Only one VPC in a peering connection can be from vpcTemplate configuration`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Validate default VPC configuration
+   * @param values
+   * @param helpers
+   * @param global
+   * @param errors
+   */
+  private validateDefaultVpcConfiguration(values: NetworkConfig, helpers: NetworkValidatorFunctions, errors: string[]) {
+    this.validateDefaultVpcRegionConfiguration(values, helpers, errors);
+    this.validateDefaultVpcAccountConfiguration(values, helpers, errors);
+  }
+
+  /**
+   * Validate default VPC region excludes configuration
+   * @param values
+   * @param helpers
+   * @param global
+   * @param errors
+   */
+  private validateDefaultVpcRegionConfiguration(
+    values: NetworkConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    const invalidRegions: string[] = [];
+    for (const region of values.defaultVpc.excludeRegions ?? []) {
+      const validRegion = helpers.isEnabledRegion(region);
+      if (!validRegion) {
+        invalidRegions.push(region);
+      }
+    }
+    if (invalidRegions.length > 0) {
+      errors.push(
+        `[Default Vpc Configuration contains the following regions that are not in the enabledRegions: ${invalidRegions.join(
+          ', ',
+        )}`,
+      );
+    }
+  }
+
+  /**
+   * Validate default VPC account excludes configuration
+   * @param values
+   * @param helpers
+   * @param global
+   * @param errors
+   */
+  private validateDefaultVpcAccountConfiguration(
+    values: NetworkConfig,
+    helpers: NetworkValidatorFunctions,
+    errors: string[],
+  ) {
+    const invalidAccounts: string[] = [];
+    for (const account of values.defaultVpc.excludeAccounts ?? []) {
+      if (!helpers.accountExists(account)) {
+        invalidAccounts.push(account);
+      }
+    }
+    if (invalidAccounts.length > 0) {
+      errors.push(
+        `[Default Vpc Configuration contains the following accounts that are not in the accounts config: ${invalidAccounts.join(
+          ', ',
+        )}`,
+      );
     }
   }
 }

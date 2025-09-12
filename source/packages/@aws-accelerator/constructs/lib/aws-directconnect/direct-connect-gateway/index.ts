@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,9 +11,17 @@
  *  and limitations under the License.
  */
 
-import * as AWS from 'aws-sdk';
+import {
+  DirectConnectClient,
+  CreateDirectConnectGatewayCommand,
+  UpdateDirectConnectGatewayCommand,
+  DeleteDirectConnectGatewayCommand,
+} from '@aws-sdk/client-direct-connect';
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { setRetryStrategy } from '@aws-accelerator/utils/lib/common-functions';
+
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
 
 /**
  * direct-connect-gateway - lambda handler
@@ -21,7 +29,7 @@ import { throttlingBackOff } from '@aws-accelerator/utils';
  * @param event
  * @returns
  */
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent): Promise<
+export async function handler(event: CloudFormationCustomResourceEvent): Promise<
   | {
       PhysicalResourceId: string;
       Status: string;
@@ -30,16 +38,16 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
 > {
   // Set variables
   const directConnectGatewayName: string = event.ResourceProperties['gatewayName'];
-  const amazonSideAsn: number = event.ResourceProperties['asn'];
+  const amazonSideAsn = Number(event.ResourceProperties['asn']);
   const solutionId = process.env['SOLUTION_ID'];
 
-  const dx = new AWS.DirectConnect({ customUserAgent: solutionId });
+  const dx = new DirectConnectClient({ customUserAgent: solutionId, retryStrategy: setRetryStrategy() });
 
   // Event handler
   switch (event.RequestType) {
     case 'Create':
       const response = await throttlingBackOff(() =>
-        dx.createDirectConnectGateway({ directConnectGatewayName, amazonSideAsn }).promise(),
+        dx.send(new CreateDirectConnectGatewayCommand({ directConnectGatewayName, amazonSideAsn })),
       );
 
       if (!response.directConnectGateway?.directConnectGatewayId) {
@@ -63,12 +71,12 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
           `Updating Direct Connect Gateway ${event.PhysicalResourceId} name from ${event.OldResourceProperties['gatewayName']} to ${directConnectGatewayName}`,
         );
         await throttlingBackOff(() =>
-          dx
-            .updateDirectConnectGateway({
+          dx.send(
+            new UpdateDirectConnectGatewayCommand({
               directConnectGatewayId: event.PhysicalResourceId,
               newDirectConnectGatewayName: directConnectGatewayName,
-            })
-            .promise(),
+            }),
+          ),
         );
       }
 
@@ -76,10 +84,9 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
         PhysicalResourceId: event.PhysicalResourceId,
         Status: 'SUCCESS',
       };
-
     case 'Delete':
       await throttlingBackOff(() =>
-        dx.deleteDirectConnectGateway({ directConnectGatewayId: event.PhysicalResourceId }).promise(),
+        dx.send(new DeleteDirectConnectGatewayCommand({ directConnectGatewayId: event.PhysicalResourceId })),
       );
 
       return {

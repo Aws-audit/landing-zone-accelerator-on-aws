@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -18,11 +18,13 @@
  * @returns
  */
 
-import * as AWS from 'aws-sdk';
+import { CreateRouteCommand, DeleteRouteCommand, EC2Client } from '@aws-sdk/client-ec2';
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
+import { setRetryStrategy } from '@aws-accelerator/utils/lib/common-functions';
 
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent): Promise<
+export async function handler(event: CloudFormationCustomResourceEvent): Promise<
   | {
       PhysicalResourceId: string;
       Status: string | undefined;
@@ -44,14 +46,17 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
     readonly VpcPeeringConnectionId?: string;
   }
 
-  const ec2 = new AWS.EC2({ customUserAgent: process.env['SOLUTION_ID'] });
+  const ec2 = new EC2Client({
+    customUserAgent: process.env['SOLUTION_ID'],
+    retryStrategy: setRetryStrategy(),
+  });
   const props: RouteProps = event.ResourceProperties['routeDefinition'];
   const resourceId = `${props.DestinationPrefixListId}${props.RouteTableId}`;
 
   switch (event.RequestType) {
     case 'Create':
     case 'Update':
-      await throttlingBackOff(() => ec2.createRoute(props).promise());
+      await throttlingBackOff(() => ec2.send(new CreateRouteCommand(props)));
 
       return {
         PhysicalResourceId: resourceId,
@@ -60,9 +65,12 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
 
     case 'Delete':
       await throttlingBackOff(() =>
-        ec2
-          .deleteRoute({ DestinationPrefixListId: props.DestinationPrefixListId, RouteTableId: props.RouteTableId })
-          .promise(),
+        ec2.send(
+          new DeleteRouteCommand({
+            DestinationPrefixListId: props.DestinationPrefixListId,
+            RouteTableId: props.RouteTableId,
+          }),
+        ),
       );
 
       return {

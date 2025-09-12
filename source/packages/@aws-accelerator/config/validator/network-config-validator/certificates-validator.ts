@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -12,6 +12,7 @@
  */
 
 import { CertificateConfig, NetworkConfig } from '../../lib/network-config';
+import { hasDuplicates } from '../utils/common-validator-functions';
 
 export class CertificatesValidator {
   constructor(values: NetworkConfig, errors: string[]) {
@@ -56,14 +57,10 @@ export class CertificatesValidator {
       );
     }
   }
+
   private checkCertificateForDuplicateNames(allCertificateNames: string[], errors: string[]) {
-    if (allCertificateNames.length > 1) {
-      const duplicateCertNames = allCertificateNames.some(element => {
-        return allCertificateNames.indexOf(element) !== allCertificateNames.lastIndexOf(element);
-      });
-      if (duplicateCertNames) {
-        errors.push(`There are duplicates in certificate names. Certificate names: ${allCertificateNames.join(',')}`);
-      }
+    if (hasDuplicates(allCertificateNames)) {
+      errors.push(`There are duplicates in certificate names. Certificate names: ${allCertificateNames.join(',')}`);
     }
   }
 }

@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,6 +11,7 @@
  *  and limitations under the License.
  */
 
+import { DEFAULT_LAMBDA_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
@@ -25,13 +26,13 @@ export interface VpcIdLookupProps {
    */
   readonly vpcName: string;
   /**
-   * Custom resource lambda key
+   * Custom resource lambda key, when undefined default AWS managed key will be used
    */
-  readonly lambdaKey: cdk.aws_kms.IKey;
+  readonly lambdaKey?: cdk.aws_kms.IKey;
   /**
-   * Custom resource CloudWatch log group encryption key
+   * Custom resource CloudWatch log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly cloudwatchKey: cdk.aws_kms.IKey;
+  readonly cloudwatchKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource CloudWatch log retention in days
    */
@@ -48,7 +49,7 @@ export class VpcIdLookup extends Construct {
 
     const providerLambda = new cdk.aws_lambda.Function(this, 'VpcIdLookupFunction', {
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, 'get-vpc-id/dist')),
-      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
+      runtime: DEFAULT_LAMBDA_RUNTIME,
       handler: 'index.handler',
       timeout: cdk.Duration.minutes(15),
       description: 'Lookup vpc id from account',
@@ -65,7 +66,7 @@ export class VpcIdLookup extends Construct {
     );
 
     // Custom resource lambda log group
-    new cdk.aws_logs.LogGroup(this, `${providerLambda.node.id}LogGroup`, {
+    const logGroup = new cdk.aws_logs.LogGroup(this, `${providerLambda.node.id}LogGroup`, {
       logGroupName: `/aws/lambda/${providerLambda.functionName}`,
       retention: props.cloudwatchLogRetentionInDays,
       encryptionKey: props.cloudwatchKey,
@@ -83,7 +84,8 @@ export class VpcIdLookup extends Construct {
         vpcName: props.vpcName,
       },
     });
-
+    // Ensure that the LogGroup is created by Cloudformation prior to Lambda execution
+    resource.node.addDependency(logGroup);
     this.vpcId = resource.ref;
   }
 }

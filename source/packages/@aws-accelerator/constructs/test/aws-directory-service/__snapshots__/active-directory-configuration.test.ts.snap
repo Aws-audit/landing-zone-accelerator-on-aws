@@ -16,9 +16,6 @@ exports[`ActiveDirectoryConfiguration Construct(ActiveDirectoryConfiguration):  
           "Timeout": "PT30M",
         },
       },
-      "DependsOn": [
-        "ActiveDirectoryConfigurationAcceleratorManagedActiveDirectoryInstanceKeyPairE9E46E76",
-      ],
       "Metadata": {
         "AWS::CloudFormation::Init": {
           "configSets": {
@@ -607,7 +604,15 @@ catch {
           "Ref": "SsmParameterValueawsserviceamiwindowslatestWindowsServer2016EnglishFullBaseC96584B6F00A464EAD1953AFF4B05118Parameter",
         },
         "InstanceType": "t3.large",
-        "KeyName": "AcceleratorManagedActiveDirectoryInstanceKeyPair",
+        "LaunchTemplate": {
+          "LaunchTemplateName": "AcceleratorManagedActiveDirectoryLaunchTemplate",
+          "Version": {
+            "Fn::GetAtt": [
+              "ActiveDirectoryConfigurationAcceleratorManagedActiveDirectoryLaunchTemplate077F7F9E",
+              "LatestVersionNumber",
+            ],
+          },
+        },
         "SecurityGroupIds": [
           "securityGroupId",
         ],
@@ -648,12 +653,6 @@ catch {
       },
       "Type": "AWS::EC2::Instance",
     },
-    "ActiveDirectoryConfigurationAcceleratorManagedActiveDirectoryInstanceKeyPairE9E46E76": {
-      "Properties": {
-        "KeyName": "AcceleratorManagedActiveDirectoryInstanceKeyPair",
-      },
-      "Type": "AWS::EC2::KeyPair",
-    },
     "ActiveDirectoryConfigurationAcceleratorManagedActiveDirectoryKmsPolicy4922950D": {
       "Properties": {
         "PolicyDocument": {
@@ -672,6 +671,18 @@ catch {
         ],
       },
       "Type": "AWS::IAM::Policy",
+    },
+    "ActiveDirectoryConfigurationAcceleratorManagedActiveDirectoryLaunchTemplate077F7F9E": {
+      "Properties": {
+        "LaunchTemplateData": {
+          "MetadataOptions": {
+            "HttpEndpoint": "enabled",
+            "HttpTokens": "required",
+          },
+        },
+        "LaunchTemplateName": "AcceleratorManagedActiveDirectoryLaunchTemplate",
+      },
+      "Type": "AWS::EC2::LaunchTemplate",
     },
   },
 }

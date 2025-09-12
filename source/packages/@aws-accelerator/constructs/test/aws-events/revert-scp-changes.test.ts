@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -22,7 +22,8 @@ const stack = new cdk.Stack();
 const configDirPath = `${__dirname}/../../../accelerator/test/configs/all-enabled`;
 
 new RevertScpChanges(stack, 'RevertScpChanges', {
-  configDirPath: configDirPath,
+  acceleratorPrefix: 'AWSAccelerator',
+  configDirPath: `${__dirname}/../../../accelerator/test/configs/snapshot-only`,
   homeRegion: 'us-west-2',
   kmsKeyCloudWatch: new cdk.aws_kms.Key(stack, 'CustomCloudWatchKey', {}),
   kmsKeyLambda: new cdk.aws_kms.Key(stack, 'CustomLambdaKey', {}),
@@ -41,8 +42,34 @@ new RevertScpChanges(stack, 'RevertScpChanges', {
       tempPath: `${configDirPath}/service-control-policies/guardrails-2.json`,
     },
   ],
+  singleAccountMode: true,
+  organizationEnabled: true,
 });
 
+new RevertScpChanges(stack, 'RevertScpChanges2', {
+  acceleratorPrefix: 'AWSAccelerator',
+  configDirPath: `${__dirname}/../../../accelerator/test/configs/snapshot-only`,
+  homeRegion: 'us-west-2',
+  kmsKeyCloudWatch: new cdk.aws_kms.Key(stack, 'CustomCloudWatchKey2', {}),
+  kmsKeyLambda: new cdk.aws_kms.Key(stack, 'CustomLambdaKey2', {}),
+  logRetentionInDays: 365,
+  acceleratorTopicNamePrefix: 'aws-accelerator',
+  snsTopicName: 'Security',
+  scpFilePaths: [
+    {
+      name: 'AcceleratorGuardrails1',
+      path: 'service-control-policies/guardrails-1.json',
+      tempPath: `${configDirPath}/service-control-policies/guardrails-1.json`,
+    },
+    {
+      name: 'AcceleratorGuardrails2',
+      path: 'service-control-policies/guardrails-2.json',
+      tempPath: `${configDirPath}/service-control-policies/guardrails-2.json`,
+    },
+  ],
+  singleAccountMode: false,
+  organizationEnabled: false,
+});
 /**
  * RevertScpChanges construct test
  */

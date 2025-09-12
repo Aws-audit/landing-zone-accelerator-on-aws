@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,7 +11,9 @@
  *  and limitations under the License.
  */
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
+import { getGlobalRegion } from '@aws-accelerator/utils/lib/common-functions';
 import * as AWS from 'aws-sdk';
 AWS.config.logger = console;
 
@@ -21,10 +23,11 @@ AWS.config.logger = console;
  * @param event
  * @returns
  */
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent) {
+export async function handler(event: CloudFormationCustomResourceEvent) {
   console.log(JSON.stringify(event, null, 4));
-  const fmsClient = new AWS.FMS({ region: 'us-east-1' });
-  const organizationsClient = new AWS.Organizations({ region: 'us-east-1' });
+  const partition = event.ResourceProperties['partition'];
+  const globalRegion = getGlobalRegion(partition);
+  const fmsClient = new AWS.FMS({ region: globalRegion });
   const fmsServicePrincipal = 'fms.amazonaws.com';
   const currentFMSAdminAccount = await throttlingBackOff(() => fmsClient.getAdminAccount({}).promise()).catch(err => {
     console.log(err);
@@ -32,10 +35,10 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
   });
   const newFMSAdminAccount = event.ResourceProperties['adminAccountId'];
   const assumeRoleName = event.ResourceProperties['assumeRoleName'];
-  const partition = event.ResourceProperties['partition'];
   const region = event.ResourceProperties['region'];
-
   const solutionId = process.env['SOLUTION_ID'];
+
+  const organizationsClient = new AWS.Organizations({ customUserAgent: solutionId, region: globalRegion });
 
   console.log(`Current FMS Account: ${currentFMSAdminAccount?.AdminAccount || 'No account found'}`);
   console.log(`New FMS Account: ${newFMSAdminAccount}`);
@@ -98,7 +101,7 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
       if (adminAccountId) {
         const assumeRoleCredentials = await assumeRole(stsClient, assumeRoleName, adminAccountId, partition);
         console.log('Deregistering Admin Account');
-        const adminFmsClient = new AWS.FMS({ credentials: assumeRoleCredentials, region: 'us-east-1' });
+        const adminFmsClient = new AWS.FMS({ credentials: assumeRoleCredentials, region: globalRegion });
         await throttlingBackOff(() => adminFmsClient.disassociateAdminAccount({}).promise());
         await throttlingBackOff(() =>
           organizationsClient

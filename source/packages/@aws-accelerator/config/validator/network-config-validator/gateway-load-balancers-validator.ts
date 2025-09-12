@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,20 +11,14 @@
  *  and limitations under the License.
  */
 
+import { isNetworkType } from '../../lib/common';
 import {
   CustomizationsConfig,
   Ec2FirewallAutoScalingGroupConfig,
   Ec2FirewallInstanceConfig,
   TargetGroupItemConfig,
 } from '../../lib/customizations-config';
-import {
-  GwlbConfig,
-  NetworkConfig,
-  NetworkConfigTypes,
-  SubnetConfig,
-  VpcConfig,
-  VpcTemplatesConfig,
-} from '../../lib/network-config';
+import { GwlbConfig, NetworkConfig, SubnetConfig, VpcConfig, VpcTemplatesConfig } from '../../lib/network-config';
 import { NetworkValidatorFunctions } from './network-validator-functions';
 
 /**
@@ -141,15 +135,15 @@ export class GatewayLoadBalancersValidator {
     vpc: VpcConfig | VpcTemplatesConfig,
     errors: string[],
   ) {
-    if (NetworkConfigTypes.vpcTemplatesConfig.is(vpc)) {
+    if (isNetworkType<VpcTemplatesConfig>('IVpcTemplatesConfig', vpc)) {
       errors.push(
         `[Gateway Load Balancer ${gwlb.name}]: VPC templates are not a supported target VPC type for Gateway Load Balancer`,
       );
     } else {
-      const delegatedAdmin = values.centralNetworkServices!.delegatedAdminAccount;
-      if (vpc.account !== delegatedAdmin) {
+      const vpcAccount = gwlb.account ? gwlb.account : values.centralNetworkServices!.delegatedAdminAccount;
+      if (vpc.account !== vpcAccount) {
         errors.push(
-          `[Gateway Load Balancer ${gwlb.name}]: VPC "${vpc.name}" is not deployed to delegated admin account "${delegatedAdmin}". Gateway Load Balancers must be deployed to the delegated admin account`,
+          `[Gateway Load Balancer ${gwlb.name}]: VPC "${vpc.name}" is not deployed to account "${vpcAccount}". Gateway Load Balancers must either be deployed to the delegated admin account or the account specified in the "account" property`,
         );
       }
     }

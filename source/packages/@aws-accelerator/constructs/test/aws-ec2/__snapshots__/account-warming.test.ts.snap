@@ -35,7 +35,7 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -88,7 +88,6 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
                 "ec2:DescribeVpcs",
                 "ec2:DescribeInstances",
                 "ec2:DescribeSubnets",
-                "ec2:RunInstances",
               ],
               "Effect": "Allow",
               "Resource": "*",
@@ -121,18 +120,92 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             {
               "Action": "ec2:RunInstances",
               "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":ec2:us-east-1:333333333333:subnet/*",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":ec2:us-east-1:333333333333:subnet/*",
+                    ],
                   ],
-                ],
-              },
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":ec2:us-east-1:333333333333:instance/*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":ec2:us-east-1:333333333333:volume/*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":ec2:us-east-1:333333333333:security-group/*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":ec2:us-east-1::image/*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":ec2:us-east-1::snapshot/*",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":ec2:us-east-1:333333333333:network-interface/*",
+                    ],
+                  ],
+                },
+              ],
               "Sid": "ec2Run",
             },
             {
@@ -310,6 +383,21 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
+    "AccountWarmingWarmAccountFunctionWaiterLogGroupFFD70AF4": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "KmsKeyId": {
+          "Fn::GetAtt": [
+            "CustomKey1E6D0D07",
+            "Arn",
+          ],
+        },
+        "LogGroupName": "/aws/vendedlogs/states/waiter-state-machine/WarmAccountFunction",
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
     "AccountWarmingWarmAccountProviderframeworkisComplete33FFB4AE": {
       "DependsOn": [
         "AccountWarmingWarmAccountProviderframeworkisCompleteServiceRoleDefaultPolicy6C15320E",
@@ -325,6 +413,14 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             {
               "id": "AwsSolutions-IAM5",
               "reason": "CDK Generated Policy",
+            },
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "CDK Generated StateMachine",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "CDK Generated StateMachine",
             },
           ],
         },
@@ -358,7 +454,7 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -374,6 +470,14 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             {
               "id": "AwsSolutions-IAM5",
               "reason": "CDK Generated Policy",
+            },
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "CDK Generated StateMachine",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "CDK Generated StateMachine",
             },
           ],
         },
@@ -419,6 +523,14 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             {
               "id": "AwsSolutions-IAM5",
               "reason": "CDK Generated Policy",
+            },
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "CDK Generated StateMachine",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "CDK Generated StateMachine",
             },
           ],
         },
@@ -506,6 +618,14 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
               "id": "AwsSolutions-IAM5",
               "reason": "CDK Generated Policy",
             },
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "CDK Generated StateMachine",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "CDK Generated StateMachine",
+            },
           ],
         },
       },
@@ -541,7 +661,7 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -557,6 +677,14 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             {
               "id": "AwsSolutions-IAM5",
               "reason": "CDK Generated Policy",
+            },
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "CDK Generated StateMachine",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "CDK Generated StateMachine",
             },
           ],
         },
@@ -602,6 +730,14 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             {
               "id": "AwsSolutions-IAM5",
               "reason": "CDK Generated Policy",
+            },
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "CDK Generated StateMachine",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "CDK Generated StateMachine",
             },
           ],
         },
@@ -696,6 +832,14 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
               "id": "AwsSolutions-IAM5",
               "reason": "CDK Generated Policy",
             },
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "CDK Generated StateMachine",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "CDK Generated StateMachine",
+            },
           ],
         },
       },
@@ -728,7 +872,7 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs14.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -744,6 +888,14 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             {
               "id": "AwsSolutions-IAM5",
               "reason": "CDK Generated Policy",
+            },
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "CDK Generated StateMachine",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "CDK Generated StateMachine",
             },
           ],
         },
@@ -789,6 +941,14 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             {
               "id": "AwsSolutions-IAM5",
               "reason": "CDK Generated Policy",
+            },
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "CDK Generated StateMachine",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "CDK Generated StateMachine",
             },
           ],
         },
@@ -876,6 +1036,14 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
               "id": "AwsSolutions-IAM5",
               "reason": "CDK Generated Policy",
             },
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "CDK Generated StateMachine",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "CDK Generated StateMachine",
+            },
           ],
         },
       },
@@ -902,6 +1070,22 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             ],
           ],
         },
+        "LoggingConfiguration": {
+          "Destinations": [
+            {
+              "CloudWatchLogsLogGroup": {
+                "LogGroupArn": {
+                  "Fn::GetAtt": [
+                    "AccountWarmingWarmAccountFunctionWaiterLogGroupFFD70AF4",
+                    "Arn",
+                  ],
+                },
+              },
+            },
+          ],
+          "IncludeExecutionData": true,
+          "Level": "ERROR",
+        },
         "RoleArn": {
           "Fn::GetAtt": [
             "AccountWarmingWarmAccountProviderwaiterstatemachineRole0437F7B9",
@@ -923,6 +1107,14 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
               "id": "AwsSolutions-IAM5",
               "reason": "CDK Generated Policy",
             },
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "CDK Generated StateMachine",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "CDK Generated StateMachine",
+            },
           ],
         },
       },
@@ -933,7 +1125,7 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
               "Principal": {
-                "Service": "states.us-east-1.amazonaws.com",
+                "Service": "states.amazonaws.com",
               },
             },
           ],
@@ -953,6 +1145,14 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             {
               "id": "AwsSolutions-IAM5",
               "reason": "CDK Generated Policy",
+            },
+            {
+              "id": "AwsSolutions-SF1",
+              "reason": "CDK Generated StateMachine",
+            },
+            {
+              "id": "AwsSolutions-SF2",
+              "reason": "CDK Generated StateMachine",
             },
           ],
         },
@@ -1012,6 +1212,22 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
                 },
               ],
             },
+            {
+              "Action": [
+                "logs:CreateLogDelivery",
+                "logs:CreateLogStream",
+                "logs:GetLogDelivery",
+                "logs:UpdateLogDelivery",
+                "logs:DeleteLogDelivery",
+                "logs:ListLogDeliveries",
+                "logs:PutLogEvents",
+                "logs:PutResourcePolicy",
+                "logs:DescribeResourcePolicies",
+                "logs:DescribeLogGroups",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -1026,6 +1242,11 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
     },
     "AccountWarmingWarmAccountResourceA5323DBB": {
       "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "AccountWarmingWarmAccountFunctionLogGroupF216C336",
+        "AccountWarmingWarmAccountFunctionWaiterLogGroupFFD70AF4",
+        "AccountWarmingWarmAccountStatusFunctionLogGroupBD74C59F",
+      ],
       "Properties": {
         "ServiceToken": {
           "Fn::GetAtt": [
@@ -1033,6 +1254,7 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
+        "ssmPrefix": "/accelerator",
       },
       "Type": "Custom::WarmAccount",
       "UpdateReplacePolicy": "Delete",
@@ -1069,7 +1291,7 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -1167,7 +1389,6 @@ exports[`AccountWarming Construct(WarmAccount):  Snapshot Test 1`] = `
                 "ec2:DescribeVpcs",
                 "ec2:DescribeInstances",
                 "ec2:DescribeSubnets",
-                "ec2:RunInstances",
               ],
               "Effect": "Allow",
               "Resource": "*",

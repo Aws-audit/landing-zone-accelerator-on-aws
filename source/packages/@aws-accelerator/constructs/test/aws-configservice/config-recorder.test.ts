@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -32,6 +32,7 @@ new ConfigServiceRecorder(stack, 'TestConfigServiceRecorder', {
   lambdaKmsKey: new cdk.aws_kms.Key(stack, 'LambdaKey', {}),
   partition: 'aws',
   acceleratorPrefix: 'AWSAccelerator',
+  homeRegion: 'us-west-2',
 });
 
 /**

@@ -22,7 +22,7 @@ exports[`GuardDutyPublishingDestination Construct(GuardDutyPublishingDestination
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -221,9 +221,6 @@ exports[`GuardDutyPublishingDestination Construct(GuardDutyPublishingDestination
             "DestinationKeyEE1EE37E",
             "Arn",
           ],
-        },
-        "region": {
-          "Ref": "AWS::Region",
         },
       },
       "Type": "Custom::GuardDutyCreatePublishingDestinationCommand",

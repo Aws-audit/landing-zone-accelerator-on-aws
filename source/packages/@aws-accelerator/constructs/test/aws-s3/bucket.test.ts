@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -12,7 +12,8 @@
  */
 
 import * as cdk from 'aws-cdk-lib';
-import { Bucket, BucketEncryptionType, BucketAccessType } from '../../lib/aws-s3/bucket';
+import { BucketAccessType } from '@aws-accelerator/utils';
+import { Bucket, BucketEncryptionType } from '../../lib/aws-s3/bucket';
 import { snapShotTest } from '../snapshot-test';
 import { describe, it, expect } from '@jest/globals';
 
@@ -39,7 +40,10 @@ describe('Bucket', () => {
         },
         kmsKey: new cdk.aws_kms.Key(stack, 'CWLKey', {}),
         logRetentionInDays: 3653,
+        useExistingRoles: false,
+        acceleratorPrefix: 'AWSAccelerator',
       },
+      nagSuppressionPrefix: 'BucketPrefix/Resource',
     });
     // test methods to call bucket and bucket kms key
     // the values are cdk tokens so just check if they are string
@@ -65,6 +69,8 @@ describe('Bucket', () => {
         },
         kmsKey: new cdk.aws_kms.Key(stack, 'CWLKey1', {}),
         logRetentionInDays: 3653,
+        useExistingRoles: false,
+        acceleratorPrefix: 'AWSAccelerator',
       },
     });
   });
@@ -82,6 +88,8 @@ describe('Bucket', () => {
         },
         kmsKey: new cdk.aws_kms.Key(stack, 'CWLKey2', {}),
         logRetentionInDays: 3653,
+        useExistingRoles: false,
+        acceleratorPrefix: 'AWSAccelerator',
       },
     });
   });
@@ -98,6 +106,8 @@ describe('Bucket', () => {
         },
         kmsKey: new cdk.aws_kms.Key(stack, 'CWLKey4', {}),
         logRetentionInDays: 3653,
+        useExistingRoles: false,
+        acceleratorPrefix: 'AWSAccelerator',
       },
     });
   });
@@ -115,6 +125,8 @@ describe('Bucket', () => {
           },
           kmsKey: new cdk.aws_kms.Key(stack, 'CWLKey4', {}),
           logRetentionInDays: 3653,
+          useExistingRoles: false,
+          acceleratorPrefix: 'AWSAccelerator',
         },
       });
       noKmsBucket.getKey().keyArn;
@@ -137,6 +149,8 @@ describe('Bucket', () => {
         },
         kmsKey: new cdk.aws_kms.Key(stack, 'CWLKey5', {}),
         logRetentionInDays: 3653,
+        useExistingRoles: false,
+        acceleratorPrefix: 'AWSAccelerator',
       },
     });
   });
@@ -153,6 +167,8 @@ describe('Bucket', () => {
           },
           kmsKey: new cdk.aws_kms.Key(stack, 'CWLKey6', {}),
           logRetentionInDays: 3653,
+          useExistingRoles: false,
+          acceleratorPrefix: 'AWSAccelerator',
         },
       });
     }
@@ -174,6 +190,8 @@ describe('Bucket', () => {
           },
           kmsKey: new cdk.aws_kms.Key(stack, 'CWLKeyTooMuchServerAccess', {}),
           logRetentionInDays: 3653,
+          useExistingRoles: false,
+          acceleratorPrefix: 'AWSAccelerator',
         },
       });
     }
@@ -197,6 +215,8 @@ describe('Bucket', () => {
           },
           kmsKey: new cdk.aws_kms.Key(stack, 'CWLKeyNoBucketAccessToAwsPrincipal', {}),
           logRetentionInDays: 3653,
+          useExistingRoles: false,
+          acceleratorPrefix: 'AWSAccelerator',
         },
       });
     }
@@ -214,6 +234,46 @@ describe('Bucket', () => {
           abortIncompleteMultipartUploadAfter: 1,
           enabled: true,
           expiration: 24,
+          expiredObjectDeleteMarker: false,
+          noncurrentVersionExpiration: 12,
+          transitions: [
+            {
+              storageClass: 'STANDARD_IA',
+              transitionAfter: 7,
+            },
+          ],
+          noncurrentVersionTransitions: [
+            {
+              storageClass: 'GLACIER',
+              transitionAfter: 365,
+            },
+          ],
+        },
+        {
+          id: '2',
+          abortIncompleteMultipartUploadAfter: 1,
+          enabled: true,
+          expiration: 24,
+          expiredObjectDeleteMarker: false,
+          noncurrentVersionExpiration: 12,
+          transitions: [
+            {
+              storageClass: 'STANDARD_IA',
+              transitionAfter: 7,
+            },
+          ],
+          noncurrentVersionTransitions: [
+            {
+              storageClass: 'GLACIER',
+              transitionAfter: 365,
+            },
+          ],
+          prefix: 'PREFIX1',
+        },
+        {
+          id: '3',
+          abortIncompleteMultipartUploadAfter: 1,
+          enabled: true,
           expiredObjectDeleteMarker: true,
           noncurrentVersionExpiration: 12,
           transitions: [
@@ -228,6 +288,7 @@ describe('Bucket', () => {
               transitionAfter: 365,
             },
           ],
+          prefix: 'PREFIX2',
         },
       ],
     });

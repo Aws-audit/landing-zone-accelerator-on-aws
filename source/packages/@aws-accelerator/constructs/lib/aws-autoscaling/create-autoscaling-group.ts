@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -33,10 +33,15 @@ export interface AutoscalingGroupProps {
   readonly healthCheckType?: string;
   readonly targetGroups?: string[];
   readonly subnets: string[];
-  readonly lambdaKey: cdk.aws_kms.IKey;
-  readonly cloudWatchLogKmsKey: cdk.aws_kms.IKey;
-  readonly cloudWatchLogRetentionInDays: number;
   readonly tags?: cdk.CfnTag[];
+  readonly lambdaKey?: cdk.aws_kms.IKey;
+  readonly cloudWatchLogKmsKey?: cdk.aws_kms.IKey;
+  readonly cloudWatchLogRetentionInDays: number;
+  readonly maxInstanceLifetime?: number;
+  /**
+   * Prefix for nag suppression
+   */
+  readonly nagSuppressionPrefix?: string;
 }
 
 export class AutoscalingGroup extends cdk.Resource implements IAutoscalingGroupResource {
@@ -68,6 +73,7 @@ export class AutoscalingGroup extends cdk.Resource implements IAutoscalingGroupR
       healthCheckGracePeriod: props.healthCheckGracePeriod,
       targetGroupArns: props.targetGroups,
       vpcZoneIdentifier: props.subnets,
+      maxInstanceLifetime: props.maxInstanceLifetime,
       tags: props.tags ? this.processTags(props.tags) : undefined,
       // autoScalingGroupName: props.name,
     });

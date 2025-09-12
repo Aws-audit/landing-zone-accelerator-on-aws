@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -10,16 +10,10 @@
  *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions
  *  and limitations under the License.
  */
-import { IPv4, IPv4CidrRange } from 'ip-num';
+import { IPv4, IPv4CidrRange, IPv6, IPv6CidrRange } from 'ip-num';
 import { AccountConfig, GovCloudAccountConfig } from '../../lib/accounts-config';
-import {
-  NetworkConfig,
-  VpcConfig,
-  VpcTemplatesConfig,
-  NetworkConfigTypes,
-  SubnetConfig,
-} from '../../lib/network-config';
-import * as t from '../../lib/common-types';
+import { NetworkConfig, VpcConfig, VpcTemplatesConfig, SubnetConfig } from '../../lib/network-config';
+import * as t from '../../lib/common';
 
 /**
  * Class for helper functions
@@ -108,7 +102,7 @@ export class NetworkValidatorFunctions {
   public getVpcAccountNames(vpcItem: VpcConfig | VpcTemplatesConfig): string[] {
     let vpcAccountNames: string[];
 
-    if (NetworkConfigTypes.vpcConfig.is(vpcItem)) {
+    if (t.isNetworkType<VpcConfig>('IVpcConfig', vpcItem)) {
       vpcAccountNames = [vpcItem.account];
     } else {
       const excludedAccountNames = this.getExcludedAccountNames(vpcItem.deploymentTargets);
@@ -146,7 +140,7 @@ export class NetworkValidatorFunctions {
    * @param arr
    * @returns
    */
-  public hasDuplicates(arr: string[]): boolean {
+  public hasDuplicates(arr: (string | number)[]): boolean {
     return new Set(arr).size !== arr.length;
   }
 
@@ -203,9 +197,31 @@ export class NetworkValidatorFunctions {
    * @param cidr
    * @returns
    */
-  public isValidIpv4Cidr(cidr: string): boolean {
+  public isValidIpv4Cidr(cidr?: string): boolean {
+    if (!cidr) {
+      return false;
+    }
+
     try {
       IPv4CidrRange.fromCidr(cidr);
+    } catch (e) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Returns true if valid CIDR is valid
+   * @param cidr
+   * @returns
+   */
+  public isValidIpv6Cidr(cidr?: string): boolean {
+    if (!cidr) {
+      return false;
+    }
+
+    try {
+      IPv6CidrRange.fromCidr(cidr);
     } catch (e) {
       return false;
     }
@@ -220,6 +236,20 @@ export class NetworkValidatorFunctions {
   public isValidIpv4(ip: string): boolean {
     try {
       IPv4.fromString(ip);
+    } catch (e) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Returns true if valid IPv6 address
+   * @param ip
+   * @returns
+   */
+  public isValidIpv6(ip: string): boolean {
+    try {
+      IPv6.fromString(ip);
     } catch (e) {
       return false;
     }
@@ -250,5 +280,14 @@ export class NetworkValidatorFunctions {
   public matchesRegex(value: string, expression: string): boolean {
     const regex = new RegExp(expression);
     return regex.test(value);
+  }
+
+  /**
+   * Returns true if region is included in the enabledRegions
+   * @param global
+   * @returns
+   */
+  public isEnabledRegion(region: string): boolean {
+    return this.enabledRegions.includes(region as t.Region);
   }
 }

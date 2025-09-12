@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,8 +11,15 @@
  *  and limitations under the License.
  */
 
-import { TransitGatewayAttachmentConfig, VpcConfig, VpcTemplatesConfig } from '@aws-accelerator/config';
 import {
+  AseaResourceType,
+  TransitGatewayAttachmentConfig,
+  TransitGatewayPeeringConfig,
+  VpcConfig,
+  VpcTemplatesConfig,
+} from '@aws-accelerator/config';
+import {
+  ITransitGatewayAttachment,
   PutSsmParameter,
   SsmParameterLookup,
   Subnet,
@@ -20,7 +27,7 @@ import {
   TransitGatewayPeering,
   Vpc,
 } from '@aws-accelerator/constructs';
-import { SsmResourceType } from '@aws-accelerator/utils';
+import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
 import * as cdk from 'aws-cdk-lib';
 import { NagSuppressions } from 'cdk-nag';
 import { pascalCase } from 'pascal-case';
@@ -30,7 +37,7 @@ import { getSubnet, getTransitGatewayId, getVpc } from '../utils/getter-utils';
 import { NetworkVpcStack } from './network-vpc-stack';
 
 export class TgwResources {
-  public readonly tgwAttachmentMap: Map<string, TransitGatewayAttachment>;
+  public readonly tgwAttachmentMap: Map<string, ITransitGatewayAttachment>;
   public readonly tgwPeeringMap: Map<string, string>;
   public readonly vpcAttachmentRole?: cdk.aws_iam.Role;
 
@@ -82,9 +89,13 @@ export class TgwResources {
       transitGatewayAccountIds.forEach(accountId => {
         principals.push(new cdk.aws_iam.AccountPrincipal(accountId));
       });
+      const roleArns = [
+        `arn:${cdk.Stack.of(this.stack).partition}:iam::*:role/${
+          props.prefixes.accelerator
+        }-*-CustomGetTransitGateway*`,
+      ];
       const role = new cdk.aws_iam.Role(this.stack, 'DescribeTgwAttachRole', {
         roleName: `${props.prefixes.accelerator}-DescribeTgwAttachRole-${cdk.Stack.of(this.stack).region}`,
-        assumedBy: new cdk.aws_iam.CompositePrincipal(...principals),
         inlinePolicies: {
           default: new cdk.aws_iam.PolicyDocument({
             statements: [
@@ -96,6 +107,14 @@ export class TgwResources {
             ],
           }),
         },
+        assumedBy: new cdk.aws_iam.PrincipalWithConditions(new cdk.aws_iam.CompositePrincipal(...principals), {
+          ArnLike: {
+            'aws:PrincipalArn': roleArns,
+          },
+          StringEquals: {
+            'aws:PrincipalOrgID': this.stack.organizationId,
+          },
+        }),
       });
       // AwsSolutions-IAM5: The IAM entity contains wildcard permissions and does not have a cdk_nag rule suppression with evidence for those permission.
       // rule suppression with evidence for this permission.
@@ -159,8 +178,8 @@ export class TgwResources {
     vpcMap: Map<string, Vpc>,
     subnetMap: Map<string, Subnet>,
     partition: string,
-  ): Map<string, TransitGatewayAttachment> {
-    const transitGatewayAttachments = new Map<string, TransitGatewayAttachment>();
+  ): Map<string, ITransitGatewayAttachment> {
+    const transitGatewayAttachments = new Map<string, ITransitGatewayAttachment>();
 
     for (const vpcItem of vpcResources) {
       for (const tgwAttachmentItem of vpcItem.transitGatewayAttachments ?? []) {
@@ -173,28 +192,50 @@ export class TgwResources {
           LogLevel.INFO,
           `Adding Transit Gateway Attachment to VPC ${vpcItem.name} for TGW ${tgwAttachmentItem.transitGateway.name}`,
         );
-        const attachment = new TransitGatewayAttachment(
-          this.stack,
-          pascalCase(`${tgwAttachmentItem.name}VpcTransitGatewayAttachment`),
-          {
-            name: tgwAttachmentItem.name,
-            partition,
-            transitGatewayId,
-            subnetIds,
-            vpcId: vpc.vpcId,
-            options: tgwAttachmentItem.options,
-            tags: tgwAttachmentItem.tags,
-          },
-        );
+        let attachment;
+        if (
+          this.stack.isManagedByAsea(
+            AseaResourceType.TRANSIT_GATEWAY_ATTACHMENT,
+            `${vpcItem.name}/${tgwAttachmentItem.name}`,
+          )
+        ) {
+          const attachmentId = this.stack.getExternalResourceParameter(
+            this.stack.getSsmPath(SsmResourceType.TGW_ATTACHMENT, [vpcItem.name, tgwAttachmentItem.name]),
+          );
+          attachment = TransitGatewayAttachment.fromTransitGatewayAttachmentId(
+            this.stack,
+            pascalCase(`${tgwAttachmentItem.name}VpcTransitGatewayAttachment`),
+            {
+              attachmentId,
+              attachmentName: tgwAttachmentItem.name,
+            },
+          );
+        } else {
+          attachment = new TransitGatewayAttachment(
+            this.stack,
+            pascalCase(`${tgwAttachmentItem.name}VpcTransitGatewayAttachment`),
+            {
+              name: tgwAttachmentItem.name,
+              partition,
+              transitGatewayId,
+              subnetIds,
+              vpcId: vpc.vpcId,
+              options: tgwAttachmentItem.options,
+              tags: tgwAttachmentItem.tags,
+            },
+          );
+          this.stack.addSsmParameter({
+            logicalId: pascalCase(
+              `SsmParam${pascalCase(vpcItem.name) + pascalCase(tgwAttachmentItem.name)}TransitGatewayAttachmentId`,
+            ),
+            parameterName: this.stack.getSsmPath(SsmResourceType.TGW_ATTACHMENT, [
+              vpcItem.name,
+              tgwAttachmentItem.name,
+            ]),
+            stringValue: attachment.transitGatewayAttachmentId,
+          });
+        }
         transitGatewayAttachments.set(`${vpcItem.name}_${tgwAttachmentItem.transitGateway.name}`, attachment);
-
-        this.stack.addSsmParameter({
-          logicalId: pascalCase(
-            `SsmParam${pascalCase(vpcItem.name) + pascalCase(tgwAttachmentItem.name)}TransitGatewayAttachmentId`,
-          ),
-          parameterName: this.stack.getSsmPath(SsmResourceType.TGW_ATTACHMENT, [vpcItem.name, tgwAttachmentItem.name]),
-          stringValue: attachment.transitGatewayAttachmentId,
-        });
       }
     }
     return transitGatewayAttachments;
@@ -221,10 +262,94 @@ export class TgwResources {
   }
 
   /**
+   * Function to get Transit Gateway peering requestor tags
+   * @param transitGatewayPeeringItem {@link TransitGatewayPeeringConfig}
+   * @returns
+   */
+  private getTgwPeeringRequestorTags(transitGatewayPeeringItem: TransitGatewayPeeringConfig): cdk.CfnTag[] | undefined {
+    let requesterTags: cdk.CfnTag[] | undefined;
+
+    if (transitGatewayPeeringItem.requester.tags) {
+      if (transitGatewayPeeringItem.requester.tags.length > 0) {
+        requesterTags = transitGatewayPeeringItem.requester.tags;
+      }
+    }
+
+    return requesterTags;
+  }
+
+  /**
+   * Function to create SSM parameter in accepter environment for Transit Gateway peering attachment id
+   * @param transitGatewayPeeringItem
+   * @param crossAccountCondition
+   * @param peeringAttachmentId
+   * @param props
+   *
+   * @remarks
+   * Create SSM parameter for peering attachment ID in accepter account/region.
+   */
+  private createTgwPeeringSsmParameterInAccepterEnvironment(
+    transitGatewayPeeringItem: TransitGatewayPeeringConfig,
+    crossAccountCondition: boolean,
+    peeringAttachmentId: string,
+    props: AcceleratorStackProps,
+  ) {
+    // Create SSM parameter for peering attachment ID in accepter account/region if different than requester account/region
+    if (crossAccountCondition) {
+      new PutSsmParameter(
+        this.stack,
+        pascalCase(
+          `CrossAcctSsmParam${transitGatewayPeeringItem.accepter.transitGatewayName}${transitGatewayPeeringItem.name}PeeringAttachmentId`,
+        ),
+        {
+          accountIds: [props.accountsConfig.getAccountId(transitGatewayPeeringItem.accepter.account)],
+          region: transitGatewayPeeringItem.accepter.region,
+          roleName: this.stack.acceleratorResourceNames.roles.crossAccountSsmParameterShare,
+          kmsKey: this.stack.cloudwatchKey,
+          logRetentionInDays: this.stack.logRetention,
+          parameters: [
+            {
+              name: this.stack.getSsmPath(SsmResourceType.TGW_PEERING, [
+                transitGatewayPeeringItem.accepter.transitGatewayName,
+                transitGatewayPeeringItem.name,
+              ]),
+              value: peeringAttachmentId,
+            },
+          ],
+          invokingAccountId: cdk.Stack.of(this.stack).account,
+          acceleratorPrefix: props.prefixes.accelerator,
+        },
+      );
+    } else {
+      // Create SSM parameter for peering attachment ID in accepter account/region if same as requester account/region
+      this.stack.addSsmParameter({
+        logicalId: pascalCase(
+          `SsmParam${transitGatewayPeeringItem.accepter.transitGatewayName}${transitGatewayPeeringItem.name}PeeringAttachmentId`,
+        ),
+        parameterName: this.stack.getSsmPath(SsmResourceType.TGW_PEERING, [
+          transitGatewayPeeringItem.accepter.transitGatewayName,
+          transitGatewayPeeringItem.name,
+        ]),
+        stringValue: peeringAttachmentId,
+      });
+    }
+  }
+
+  private createAcceptorList(props: AcceleratorStackProps): string[] {
+    const principals: string[] = [];
+    for (const transitGatewayPeeringItem of props.networkConfig.transitGatewayPeering ?? []) {
+      const accepterAccountId = props.accountsConfig.getAccountId(transitGatewayPeeringItem.accepter.account);
+      principals.push(accepterAccountId);
+    }
+    return principals;
+  }
+
+  /**
    * Function to create TGW peering
    */
   private createTransitGatewayPeering(props: AcceleratorStackProps): Map<string, string> {
     const tgwPeeringMap = new Map<string, string>();
+    const principals = this.createAcceptorList(props);
 
     for (const transitGatewayPeeringItem of props.networkConfig.transitGatewayPeering ?? []) {
       // Get account IDs
@@ -248,19 +373,27 @@ export class TgwResources {
           ]),
         );
 
-        const accepterTransitGatewayId = new SsmParameterLookup(this.stack, 'AccepterTransitGatewayIdLookup', {
-          name: this.stack.getSsmPath(SsmResourceType.TGW, [transitGatewayPeeringItem.accepter.transitGatewayName]),
-          accountId: props.accountsConfig.getAccountId(transitGatewayPeeringItem.accepter.account),
-          parameterRegion: transitGatewayPeeringItem.accepter.region,
-          roleName: this.stack.acceleratorResourceNames.roles.tgwPeering,
-          kmsKey: this.stack.cloudwatchKey,
-          logRetentionInDays: this.stack.logRetention ?? 365,
-          acceleratorPrefix: props.prefixes.accelerator,
-        }).value;
+        const accepterTransitGatewayId = new SsmParameterLookup(
+          this.stack,
+          pascalCase(
+            `${transitGatewayPeeringItem.requester.transitGatewayName}-${transitGatewayPeeringItem.accepter.transitGatewayName}-AccepterTransitGatewayIdLookup`,
+          ),
+          {
+            name: this.stack.getSsmPath(SsmResourceType.TGW, [transitGatewayPeeringItem.accepter.transitGatewayName]),
+            accountId: props.accountsConfig.getAccountId(transitGatewayPeeringItem.accepter.account),
+            parameterRegion: transitGatewayPeeringItem.accepter.region,
+            roleName: this.stack.acceleratorResourceNames.roles.tgwPeering,
+            kmsKey: this.stack.cloudwatchKey,
+            logRetentionInDays: this.stack.logRetention ?? 365,
+            acceleratorPrefix: props.prefixes.accelerator,
+          },
+        ).value;
 
         const accepterTransitGatewayRouteTableId = new SsmParameterLookup(
           this.stack,
-          'AccepterTransitGatewayRouteTableIdLookup',
+          pascalCase(
+            `${transitGatewayPeeringItem.requester.transitGatewayName}-${transitGatewayPeeringItem.accepter.transitGatewayName}-AccepterTransitGatewayRouteTableIdLookup`,
+          ),
           {
             name: this.stack.getSsmPath(SsmResourceType.TGW_ROUTE_TABLE, [
               transitGatewayPeeringItem.accepter.transitGatewayName,
@@ -275,13 +408,8 @@ export class TgwResources {
           },
         ).value;
 
-        let requesterTags: cdk.CfnTag[] | undefined;
-
-        if (transitGatewayPeeringItem.requester.tags) {
-          if (transitGatewayPeeringItem.requester.tags.length > 0) {
-            requesterTags = transitGatewayPeeringItem.requester.tags;
-          }
-        }
+        // Get peering requestor tags
+        const requesterTags = this.getTgwPeeringRequestorTags(transitGatewayPeeringItem);
 
         const peeringAttachmentId = new TransitGatewayPeering(
           this.stack,
@@ -291,6 +419,11 @@ export class TgwResources {
           {
             requester: {
               accountName: transitGatewayPeeringItem.requester.account,
+              principals: principals,
+              transitGatewayId: cdk.aws_ssm.StringParameter.valueForStringParameter(
+                this.stack,
+                this.stack.getSsmPath(SsmResourceType.TGW, [transitGatewayPeeringItem.requester.transitGatewayName]),
+              ),
               transitGatewayName: transitGatewayPeeringItem.requester.transitGatewayName,
               transitGatewayRouteTableId: requesterTransitGatewayRouteTableId,
               tags: requesterTags,
@@ -323,45 +456,13 @@ export class TgwResources {
           stringValue: peeringAttachmentId,
         });
 
-        // Create SSM parameter for peering attachment ID in accepter account/region if different than requester account/region
-        if (crossAccountCondition) {
-          new PutSsmParameter(
-            this.stack,
-            pascalCase(
-              `CrossAcctSsmParam${transitGatewayPeeringItem.accepter.transitGatewayName}${transitGatewayPeeringItem.name}PeeringAttachmentId`,
-            ),
-            {
-              accountIds: [props.accountsConfig.getAccountId(transitGatewayPeeringItem.accepter.account)],
-              region: transitGatewayPeeringItem.accepter.region,
-              roleName: this.stack.acceleratorResourceNames.roles.crossAccountSsmParameterShare,
-              kmsKey: this.stack.cloudwatchKey,
-              logRetentionInDays: this.stack.logRetention,
-              parameters: [
-                {
-                  name: this.stack.getSsmPath(SsmResourceType.TGW_PEERING, [
-                    transitGatewayPeeringItem.accepter.transitGatewayName,
-                    transitGatewayPeeringItem.name,
-                  ]),
-                  value: peeringAttachmentId,
-                },
-              ],
-              invokingAccountId: cdk.Stack.of(this.stack).account,
-              acceleratorPrefix: props.prefixes.accelerator,
-            },
-          );
-        } else {
-          // Create SSM parameter for peering attachment ID in accepter account/region if same as requester account/region
-          this.stack.addSsmParameter({
-            logicalId: pascalCase(
-              `SsmParam${transitGatewayPeeringItem.accepter.transitGatewayName}${transitGatewayPeeringItem.name}PeeringAttachmentId`,
-            ),
-            parameterName: this.stack.getSsmPath(SsmResourceType.TGW_PEERING, [
-              transitGatewayPeeringItem.accepter.transitGatewayName,
-              transitGatewayPeeringItem.name,
-            ]),
-            stringValue: peeringAttachmentId,
-          });
-        }
+        // Create SSM parameter for peering attachment ID in accepter account/region.
+        this.createTgwPeeringSsmParameterInAccepterEnvironment(
+          transitGatewayPeeringItem,
+          crossAccountCondition,
+          peeringAttachmentId,
+          props,
+        );
 
         this.stack.addLogs(
           LogLevel.INFO,

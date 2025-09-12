@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -23,6 +23,9 @@ export interface PipelineStackProps extends cdk.StackProps {
   readonly sourceRepositoryOwner: string;
   readonly sourceRepositoryName: string;
   readonly sourceBranchName: string;
+  readonly sourceBucketName: string;
+  readonly sourceBucketObject: string;
+  readonly sourceBucketKmsKeyArn?: string;
   readonly enableApprovalStage: boolean;
   readonly qualifier?: string;
   readonly managementAccountId?: string;
@@ -38,6 +41,14 @@ export interface PipelineStackProps extends cdk.StackProps {
   readonly approvalStageNotifyEmailList?: string;
   readonly partition: string;
   /**
+   * Location used to host LZA configuration files
+   */
+  readonly configRepositoryLocation: string;
+  /**
+   * Optional CodeConnection ARN to specify a 3rd-party configuration repository
+   */
+  readonly codeconnectionArn: string;
+  /**
    * Flag indicating installer using existing CodeCommit repository
    */
   readonly useExistingConfigRepo: boolean;
@@ -49,6 +60,10 @@ export interface PipelineStackProps extends cdk.StackProps {
    * User defined pre-existing config repository branch name
    */
   readonly configRepositoryBranchName: string;
+  /**
+   * Accelerator configuration repository owner (CodeConnection only)
+   */
+  readonly configRepositoryOwner: string;
   /**
    * Accelerator resource name prefixes
    */
@@ -66,13 +81,31 @@ export interface PipelineStackProps extends cdk.StackProps {
     readonly trailLogName: string;
     readonly databaseName: string;
   };
+  /**
+   * Boolean for single account mode (i.e. AWS Jam or Workshop)
+   */
   readonly enableSingleAccountMode: boolean;
+  /**
+   * Accelerator pipeline account id, for external deployment it will be pipeline account otherwise management account
+   */
+  pipelineAccountId: string;
+  /**
+   * Flag indicating existing role
+   */
+  readonly useExistingRoles: boolean;
+  /**
+   * AWS Control Tower Landing Zone identifier
+   */
+  readonly landingZoneIdentifier?: string;
+  /**
+   * Accelerator region by region deploy order
+   */
+  readonly regionByRegionDeploymentOrder?: string;
 }
 
 export class PipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: PipelineStackProps) {
     super(scope, id, props);
-
     new cdk.aws_ssm.StringParameter(this, 'SsmParamStackId', {
       parameterName: `${props.prefixes.ssmParamName}/${cdk.Stack.of(this).stackName}/stack-id`,
       stringValue: cdk.Stack.of(this).stackId,
@@ -114,7 +147,11 @@ export class PipelineStack extends cdk.Stack {
     });
 
     // cdk-nag suppressions
-    const iam4SuppressionPaths = ['AdminCdkToolkitRole/Resource'];
+    const iam4SuppressionPaths = [
+      'AdminCdkToolkitRole/Resource',
+      'Pipeline/AWSServiceRoleForCodeStarNotifications/ServiceLinkedRoleCodestarNotificationsAmazonawsCom/ServiceLinkedRoleCodestarNotificationsAmazonawsComFunction/ServiceRole/Resource',
+      'Pipeline/AWSServiceRoleForCodeStarNotifications/ServiceLinkedRoleCodestarNotificationsAmazonawsCom/Resource/framework-onEvent/ServiceRole/Resource',
+    ];
 
     const iam5SuppressionPaths = [
       'Pipeline/PipelineRole/DefaultPolicy/Resource',

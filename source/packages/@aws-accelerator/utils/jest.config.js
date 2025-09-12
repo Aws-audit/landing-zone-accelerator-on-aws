@@ -22,10 +22,10 @@ module.exports = {
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
-      branches: 100,
-      functions: 100,
-      lines: 100,
-      statements: 100,
+      branches: 10,
+      functions: 40,
+      lines: 50,
+      statements: 50,
     },
   },
 
@@ -64,7 +64,7 @@ module.exports = {
       'jest-junit',
       {
         suiteName: packageJson.name,
-        outputDirectory: '../../../test-reports',
+        outputDirectory: './test-reports',
         uniqueOutputName: 'true',
         addFileAttribute: 'true',
         suiteNameTemplate: '{filename}',

@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -13,9 +13,13 @@
 
 import * as AWS from 'aws-sdk';
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
-
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import {
+  CloudFormationCustomResourceEvent,
+  CloudFormationCustomResourceUpdateEvent,
+} from '@aws-accelerator/utils/lib/common-types';
 import { VirtualInterfaceAttributes } from './attributes';
+import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 
 /**
  * direct-connect-virtual-interface - lambda handler
@@ -23,17 +27,21 @@ import { VirtualInterfaceAttributes } from './attributes';
  * @param event
  * @returns
  */
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent): Promise<
+export async function handler(event: CloudFormationCustomResourceEvent): Promise<
   | {
       PhysicalResourceId: string;
       Status: string;
     }
   | undefined
 > {
+  const secretsClient = new SecretsManagerClient({
+    region: event.ResourceProperties['region'],
+    customUserAgent: process.env['SOLUTION_ID'],
+  });
+
   // Set variables
   const solutionId = process.env['SOLUTION_ID'];
   const vif = vifInit(event);
-  const apiProps = setApiProps(vif);
   const dx = new AWS.DirectConnect({
     region: event.ResourceProperties['region'],
     customUserAgent: solutionId,
@@ -46,6 +54,7 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
       let virtualInterfaceId: string | undefined;
       // Create interfaces if based on interface type
       if (vif.virtualInterfaceType === 'private') {
+        const apiProps = await setApiProps(vif, secretsClient);
         const response = await createPrivateInterface(
           dx,
           apiProps as AWS.DirectConnect.CreatePrivateVirtualInterfaceRequest,
@@ -54,6 +63,7 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
       }
 
       if (vif.virtualInterfaceType === 'transit') {
+        const apiProps = await setApiProps(vif, secretsClient);
         const response = await createTransitInterface(
           dx,
           apiProps as AWS.DirectConnect.CreateTransitVirtualInterfaceRequest,
@@ -164,10 +174,11 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
  * Initialize the virtual interface attributes object
  * @param event
  */
-function vifInit(event: AWSLambda.CloudFormationCustomResourceEvent): VirtualInterfaceAttributes {
+function vifInit(event: CloudFormationCustomResourceEvent): VirtualInterfaceAttributes {
   // Set variables from event
   const addressFamily: string = event.ResourceProperties['addressFamily'];
   const amazonAddress: string | undefined = event.ResourceProperties['amazonAddress'];
+  const authKey: string | undefined = event.ResourceProperties['authKey'];
   const asn: number = event.ResourceProperties['customerAsn'];
   const connectionId: string = event.ResourceProperties['connectionId'];
   const customerAddress: string | undefined = event.ResourceProperties['customerAddress'];
@@ -185,6 +196,7 @@ function vifInit(event: AWSLambda.CloudFormationCustomResourceEvent): VirtualInt
   return new VirtualInterfaceAttributes({
     addressFamily,
     amazonAddress,
+    authKey,
     asn,
     connectionId,
     customerAddress,
@@ -201,9 +213,12 @@ function vifInit(event: AWSLambda.CloudFormationCustomResourceEvent): VirtualInt
  * Set API props based on properties passed in to the custom resource
  * @param event
  */
-function setApiProps(
+async function setApiProps(
   vif: VirtualInterfaceAttributes,
-): AWS.DirectConnect.CreatePrivateVirtualInterfaceRequest | AWS.DirectConnect.CreateTransitVirtualInterfaceRequest {
+  secretsClient: SecretsManagerClient,
+): Promise<
+  AWS.DirectConnect.CreatePrivateVirtualInterfaceRequest | AWS.DirectConnect.CreateTransitVirtualInterfaceRequest
+> {
   // Set API props based on virtual interface type
   let apiProps:
     | AWS.DirectConnect.CreatePrivateVirtualInterfaceRequest
@@ -214,6 +229,7 @@ function setApiProps(
     vlan: vif.vlan,
     addressFamily: vif.addressFamily,
     amazonAddress: vif.amazonAddress,
+    authKey: vif.authKey ? await getSecretValue(secretsClient, vif.authKey) : undefined,
     customerAddress: vif.customerAddress,
     directConnectGatewayId: vif.directConnectGatewayId,
     enableSiteLink: vif.siteLink,
@@ -245,10 +261,11 @@ function setApiProps(
  * @param event
  * @returns
  */
-function oldVifInit(event: AWSLambda.CloudFormationCustomResourceUpdateEvent) {
+function oldVifInit(event: CloudFormationCustomResourceUpdateEvent) {
   // Set variables from event
   const addressFamily: string = event.OldResourceProperties['addressFamily'];
   const amazonAddress: string | undefined = event.OldResourceProperties['amazonAddress'];
+  const authKey: string | undefined = event.OldResourceProperties['authKey'];
   const asn: number = event.OldResourceProperties['customerAsn'];
   const connectionId: string = event.OldResourceProperties['connectionId'];
   const customerAddress: string | undefined = event.OldResourceProperties['customerAddress'];
@@ -266,6 +283,7 @@ function oldVifInit(event: AWSLambda.CloudFormationCustomResourceUpdateEvent) {
   return new VirtualInterfaceAttributes({
     addressFamily,
     amazonAddress,
+    authKey,
     asn,
     connectionId,
     customerAddress,
@@ -331,7 +349,7 @@ async function createTransitInterface(
  * @param event
  * @returns
  */
-function generateVifArn(event: AWSLambda.CloudFormationCustomResourceUpdateEvent): string {
+function generateVifArn(event: CloudFormationCustomResourceUpdateEvent): string {
   const accountId = event.ServiceToken.split(':')[4];
   const partition = event.ServiceToken.split(':')[1];
   const region = event.ResourceProperties['region'];
@@ -446,10 +464,7 @@ async function inProgress(dx: AWS.DirectConnect, virtualInterfaceId: string): Pr
  * @param lambdaClient
  * @param event
  */
-async function retryLambda(
-  lambdaClient: AWS.Lambda,
-  event: AWSLambda.CloudFormationCustomResourceEvent,
-): Promise<void> {
+async function retryLambda(lambdaClient: AWS.Lambda, event: CloudFormationCustomResourceEvent): Promise<void> {
   // Add retry attempt to event
   if (!event.ResourceProperties['retryAttempt']) {
     event.ResourceProperties['retryAttempt'] = 0;
@@ -491,4 +506,25 @@ function returnBoolean(input: string): boolean | undefined {
  */
 async function sleep(ms: number) {
   return new Promise(f => setTimeout(f, ms));
+}
+
+/**
+ * Retrieves a bgp auth key value from Secrets Manager
+ * @param secretsClient SecretsManagerClient
+ * @param secretName string
+ * @returns string
+ */
+async function getSecretValue(secretsClient: SecretsManagerClient, secretName: string): Promise<string> {
+  console.log(`Retrieving bgp auth key value ${secretName} from Secrets Manager...`);
+  try {
+    const response = await throttlingBackOff(() =>
+      secretsClient.send(new GetSecretValueCommand({ SecretId: secretName })),
+    );
+    if (!response.SecretString) {
+      throw new Error(`GetSecretValue command did not return a value`);
+    }
+    return response.SecretString;
+  } catch (e) {
+    throw new Error(`Error while retrieving secret: ${e}`);
+  }
 }

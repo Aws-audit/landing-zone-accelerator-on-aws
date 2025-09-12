@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -27,7 +27,7 @@ const provider = new CrossAccountRouteFramework(stack, 'Framework', {
   acceleratorPrefix: 'AWSAccelerator',
 }).provider;
 
-new CrossAccountRoute(stack, 'Resource', {
+new CrossAccountRoute(stack, 'Resourcev4', {
   ownerAccount: 'TestAccount',
   ownerRegion: 'us-east-1',
   partition: 'aws',
@@ -35,6 +35,28 @@ new CrossAccountRoute(stack, 'Resource', {
   roleName: 'TestRole',
   routeTableId: 'rtb-test123',
   destination: '10.0.0.0/16',
+  vpcPeeringConnectionId: 'pcx-test123',
+});
+
+new CrossAccountRoute(stack, 'Resourcev6', {
+  ownerAccount: 'TestAccount',
+  ownerRegion: 'us-east-1',
+  partition: 'aws',
+  provider,
+  roleName: 'TestRole',
+  routeTableId: 'rtb-test123',
+  ipv6Destination: '::/0',
+  vpcPeeringConnectionId: 'pcx-test123',
+});
+
+new CrossAccountRoute(stack, 'ResourcePl', {
+  ownerAccount: 'TestAccount',
+  ownerRegion: 'us-east-1',
+  partition: 'aws',
+  provider,
+  roleName: 'TestRole',
+  routeTableId: 'rtb-test123',
+  destinationPrefixListId: 'pl-test',
   vpcPeeringConnectionId: 'pcx-test123',
 });
 

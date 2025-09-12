@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -26,6 +26,7 @@ const stack = new cdk.Stack(app, 'Stack', { env: env });
 new WarmAccount(stack, 'AccountWarming', {
   cloudwatchKmsKey: new cdk.aws_kms.Key(stack, 'CustomKey', {}),
   logRetentionInDays: 3653,
+  ssmPrefix: '/accelerator',
 });
 
 /**

@@ -9,26 +9,148 @@ exports[`CloudWatchLogsSubscriptionFilter Construct(CloudWatchLogsSubscriptionFi
         "CustomUpdateSubscriptionFilterCustomResourceProviderLogGroup0738E05B",
       ],
       "Properties": {
-        "LogDestination": "LogRetentionArn",
-        "LogKmsKeyArn": {
-          "Fn::GetAtt": [
-            "CustomKey1E6D0D07",
-            "Arn",
-          ],
-        },
-        "LogRetention": "731",
-        "LogSubscriptionRole": "testString",
         "ServiceToken": {
           "Fn::GetAtt": [
             "CustomUpdateSubscriptionFilterCustomResourceProviderHandler1BAA7608",
             "Arn",
           ],
         },
+        "acceleratorCreatedLogDestinationArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":logs:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":111111111111:destination:AWSAcceleratorCloudWatchToS3",
+            ],
+          ],
+        },
+        "acceleratorLogKmsKeyArn": {
+          "Fn::GetAtt": [
+            "CustomKey1E6D0D07",
+            "Arn",
+          ],
+        },
+        "acceleratorLogRetentionInDays": "731",
+        "acceleratorLogSubscriptionRoleArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":iam::111111111111:role/AWSAccelerator-LoggingSta-SubscriptionFilterRole",
+            ],
+          ],
+        },
+        "replaceLogDestinationArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":logs:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":111111111111:destination:ReplaceDestination",
+            ],
+          ],
+        },
+        "subscriptionType": "LOG_GROUP",
+      },
+      "Type": "Custom::UpdateSubscriptionFilter",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CloudWatchLogsSubscriptionFilterExistingIam9E6C2804": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomUpdateSubscriptionFilterCustomResourceProviderLogGroup0738E05B",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomUpdateSubscriptionFilterCustomResourceProviderHandler1BAA7608",
+            "Arn",
+          ],
+        },
+        "acceleratorCreatedLogDestinationArn": "LogRetentionArn",
+        "acceleratorLogKmsKeyArn": {
+          "Fn::GetAtt": [
+            "CustomKeyExistingIam1584FEB7",
+            "Arn",
+          ],
+        },
+        "acceleratorLogRetentionInDays": "731",
+        "acceleratorLogSubscriptionRoleArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":iam::",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":role/AWSAcceleratorLogReplicationRole-",
+              {
+                "Ref": "AWS::Region",
+              },
+            ],
+          ],
+        },
+        "subscriptionType": "ACCOUNT",
       },
       "Type": "Custom::UpdateSubscriptionFilter",
       "UpdateReplacePolicy": "Delete",
     },
     "CustomKey1E6D0D07": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "KeyPolicy": {
+          "Statement": [
+            {
+              "Action": "kms:*",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::",
+                      {
+                        "Ref": "AWS::AccountId",
+                      },
+                      ":root",
+                    ],
+                  ],
+                },
+              },
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::KMS::Key",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "CustomKeyExistingIam1584FEB7": {
       "DeletionPolicy": "Retain",
       "Properties": {
         "KeyPolicy": {
@@ -82,7 +204,7 @@ exports[`CloudWatchLogsSubscriptionFilter Construct(CloudWatchLogsSubscriptionFi
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -141,6 +263,7 @@ exports[`CloudWatchLogsSubscriptionFilter Construct(CloudWatchLogsSubscriptionFi
                     "logs:AssociateKmsKey",
                     "logs:DescribeLogGroups",
                     "logs:DescribeSubscriptionFilters",
+                    "logs:DescribeAccountPolicies",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -207,6 +330,50 @@ exports[`CloudWatchLogsSubscriptionFilter Construct(CloudWatchLogsSubscriptionFi
                           },
                           ":some-acc-id:destination:*",
                         ],
+                      ],
+                    },
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "arn:",
+                          {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":logs:",
+                          {
+                            "Ref": "AWS::Region",
+                          },
+                          ":",
+                          {
+                            "Ref": "AWS::AccountId",
+                          },
+                          ":*:*",
+                        ],
+                      ],
+                    },
+                  ],
+                },
+                {
+                  "Action": [
+                    "logs:PutAccountPolicy",
+                    "logs:DeleteAccountPolicy",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+                {
+                  "Action": [
+                    "kms:Decrypt",
+                    "kms:Encrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "CustomKey1E6D0D07",
+                        "Arn",
                       ],
                     },
                   ],

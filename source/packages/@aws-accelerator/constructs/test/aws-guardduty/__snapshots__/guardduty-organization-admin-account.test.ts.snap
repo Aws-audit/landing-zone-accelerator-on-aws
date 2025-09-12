@@ -22,7 +22,7 @@ exports[`GuardDutyOrganizationAdminAccount Construct(GuardDutyOrganizationAdminA
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 180,
       },
       "Type": "AWS::Lambda::Function",
@@ -124,8 +124,8 @@ exports[`GuardDutyOrganizationAdminAccount Construct(GuardDutyOrganizationAdminA
                 },
                 {
                   "Action": [
-                    "GuardDuty:EnableOrganizationAdminAccount",
-                    "GuardDuty:ListOrganizationAdminAccounts",
+                    "guardduty:EnableOrganizationAdminAccount",
+                    "guardduty:ListOrganizationAdminAccounts",
                     "guardduty:DisableOrganizationAdminAccount",
                   ],
                   "Effect": "Allow",

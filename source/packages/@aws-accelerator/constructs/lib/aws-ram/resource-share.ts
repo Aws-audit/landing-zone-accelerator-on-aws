@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,6 +11,7 @@
  *  and limitations under the License.
  */
 
+import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import * as ram from 'aws-cdk-lib/aws-ram';
 import { pascalCase } from 'change-case';
@@ -72,9 +73,9 @@ export interface ResourceShareItemLookupOptions {
   readonly resourceShare: IResourceShare;
   readonly resourceShareItemType: string;
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly kmsKey: cdk.aws_kms.Key;
+  readonly kmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
@@ -108,7 +109,7 @@ export abstract class ResourceShareItem extends cdk.Resource implements IResourc
 
         const provider = cdk.CustomResourceProvider.getOrCreateProvider(this, GET_RESOURCE_SHARE_ITEM, {
           codeDirectory: path.join(__dirname, 'get-resource-share-item/dist'),
-          runtime: cdk.CustomResourceProviderRuntime.NODEJS_16_X,
+          runtime: CUSTOM_RESOURCE_PROVIDER_RUNTIME,
           policyStatements: [
             {
               Effect: 'Allow',
@@ -172,7 +173,7 @@ export class ResourceShare extends cdk.Resource implements IResourceShare {
         //
         const cr = cdk.CustomResourceProvider.getOrCreateProvider(this, GET_RESOURCE_SHARE, {
           codeDirectory: path.join(__dirname, 'get-resource-share/dist'),
-          runtime: cdk.CustomResourceProviderRuntime.NODEJS_16_X,
+          runtime: CUSTOM_RESOURCE_PROVIDER_RUNTIME,
           policyStatements: [
             {
               Effect: 'Allow',

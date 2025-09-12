@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -12,7 +12,8 @@
  */
 
 import { NlbTargetTypeConfig } from '@aws-accelerator/config';
-import { throttlingBackOff } from '@aws-accelerator/utils';
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
 import * as AWS from 'aws-sdk';
 AWS.config.logger = console;
 
@@ -23,7 +24,7 @@ AWS.config.logger = console;
  * @returns
  */
 
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent) {
+export async function handler(event: CloudFormationCustomResourceEvent) {
   const region: string = event.ResourceProperties['region'];
   const targets: (string | NlbTargetTypeConfig)[] = event.ResourceProperties['targets'];
   const assumeRoleName: string = event.ResourceProperties['assumeRoleName'];

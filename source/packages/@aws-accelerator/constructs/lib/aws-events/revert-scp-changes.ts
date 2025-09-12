@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,6 +11,7 @@
  *  and limitations under the License.
  */
 
+import { DEFAULT_LAMBDA_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
@@ -27,6 +28,10 @@ import * as path from 'path';
  */
 export interface RevertScpChangesProps {
   /**
+   * Prefix for accelerator resources
+   */
+  readonly acceleratorPrefix: string;
+  /**
    * Configuration directory path
    */
   readonly configDirPath: string;
@@ -35,13 +40,13 @@ export interface RevertScpChangesProps {
    */
   readonly homeRegion: string;
   /**
-   * Lambda log group encryption key
+   * Lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly kmsKeyCloudWatch: cdk.aws_kms.Key;
+  readonly kmsKeyCloudWatch?: cdk.aws_kms.IKey;
   /**
-   * Lambda environment variable encryption key
+   * Lambda environment variable encryption key, when undefined default AWS managed key will be used
    */
-  readonly kmsKeyLambda: cdk.aws_kms.Key;
+  readonly kmsKeyLambda?: cdk.aws_kms.IKey;
   /**
    * Lambda log retention in days
    */
@@ -58,6 +63,14 @@ export interface RevertScpChangesProps {
    * SCP File Paths
    */
   readonly scpFilePaths: { name: string; path: string; tempPath: string }[];
+  /**
+   * Single Account mode
+   */
+  readonly singleAccountMode: boolean;
+  /**
+   * Organization enabled
+   */
+  readonly organizationEnabled: boolean;
 }
 
 export class RevertScpChanges extends Construct {
@@ -110,14 +123,17 @@ export class RevertScpChanges extends Construct {
 
     const revertScpChangesFunction = new cdk.aws_lambda.Function(this, 'RevertScpChangesFunction', {
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, 'revert-scp-changes/dist')),
-      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
+      runtime: DEFAULT_LAMBDA_RUNTIME,
       handler: 'index.handler',
       description: 'Lambda function to revert changes made to LZA-controlled service control policies',
       timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_IN_MINUTES),
       environment: {
+        ACCELERATOR_PREFIX: props.acceleratorPrefix,
         AWS_PARTITION: cdk.Aws.PARTITION,
         HOME_REGION: props.homeRegion,
         SNS_TOPIC_ARN: snsTopicArn ?? '',
+        SINGLE_ACCOUNT_MODE: `${props.singleAccountMode}`,
+        ORGANIZATIONS_ENABLED: `${props.organizationEnabled}`,
       },
       environmentEncryption: props.kmsKeyLambda,
       initialPolicy: revertScpChangesPolicyList,

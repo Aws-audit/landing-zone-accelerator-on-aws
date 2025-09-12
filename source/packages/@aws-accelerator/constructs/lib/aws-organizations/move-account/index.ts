@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -27,7 +27,10 @@ import {
   MoveAccountCommand,
   OrganizationsClient,
 } from '@aws-sdk/client-organizations';
-import { throttlingBackOff } from '@aws-accelerator/utils';
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { setRetryStrategy } from '@aws-accelerator/utils/lib/common-functions';
+
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
 
 const marshallOptions = {
   convertEmptyValues: false,
@@ -73,7 +76,7 @@ const awsOuKeys: AwsOrganizationalUnitKeys[] = [];
  * @param event
  * @returns
  */
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent): Promise<
+export async function handler(event: CloudFormationCustomResourceEvent): Promise<
   | {
       Status: string;
     }
@@ -87,6 +90,7 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
   organizationsClient = new OrganizationsClient({
     region: event.ResourceProperties['globalRegion'],
     customUserAgent: solutionId,
+    retryStrategy: setRetryStrategy(),
   });
 
   dynamodbClient = new DynamoDBClient({ customUserAgent: solutionId });

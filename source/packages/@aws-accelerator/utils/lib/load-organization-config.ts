@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -17,7 +17,7 @@ import {
   ListRootsCommand,
   ListOrganizationalUnitsForParentCommandOutput,
 } from '@aws-sdk/client-organizations';
-import { ConfiguredRetryStrategy } from '@aws-sdk/util-retry';
+import { getGlobalRegion, setRetryStrategy } from './common-functions';
 
 type OrgUnit = {
   Id: string;
@@ -41,10 +41,14 @@ type OrganizationConfigArray = {
 export async function loadOrganizationalUnits(
   partition: string,
   arrayFromConfig: OrganizationConfigArray[],
+  /**
+   * Management account credential when deployed from external account, otherwise this should remain undefined
+   */ managementAccountCredentials?: AWS.Credentials,
 ): Promise<AcceleratorOu[]> {
   const client = new OrganizationsClient({
-    retryStrategy: new ConfiguredRetryStrategy(10, (attempt: number) => 100 + attempt * 1000),
-    region: await getRegion(partition),
+    retryStrategy: setRetryStrategy(),
+    region: getGlobalRegion(partition),
+    credentials: managementAccountCredentials,
   });
   const acceleratorOrganizationalUnit: AcceleratorOu[] = [];
   const rootResults = await client.send(new ListRootsCommand({}));
@@ -58,7 +62,6 @@ export async function loadOrganizationalUnits(
       id: rootId,
     });
   }
-
   const level0 = await getChildrenForParent(rootId!, undefined, client);
   const level1 = await processLevel(level0, client);
   const level2 = await processLevel(level1, client);
@@ -76,18 +79,6 @@ export async function loadOrganizationalUnits(
     });
   });
   return filteredArray;
-}
-
-async function getRegion(partition: string): Promise<string> {
-  let region: string;
-  if (partition === 'aws-us-gov') {
-    region = 'us-gov-west-1';
-  } else if (partition === 'aws-cn') {
-    region = 'cn-northwest-1';
-  } else {
-    region = 'us-east-1';
-  }
-  return region;
 }
 
 async function parseArray(levelArray: OrgUnits): Promise<AcceleratorOu[]> {

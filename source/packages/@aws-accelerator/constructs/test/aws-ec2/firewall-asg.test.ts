@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,15 +11,17 @@
  *  and limitations under the License.
  */
 
-import * as cdk from 'aws-cdk-lib';
 import {
   AutoScalingConfig,
   EbsItemConfig,
   LaunchTemplateConfig,
   NetworkInterfaceItemConfig,
 } from '@aws-accelerator/config';
-import { snapShotTest } from '../snapshot-test';
+import * as cdk from 'aws-cdk-lib';
+import path from 'path';
 import { FirewallAutoScalingGroup } from '../../lib/aws-ec2/firewall-asg';
+import { snapShotTest } from '../snapshot-test';
+import { describe } from '@jest/globals';
 
 const testNamePrefix = 'Construct(FirewallAutoScalingGroup): ';
 
@@ -49,7 +51,7 @@ const launchTemplate: LaunchTemplateConfig = {
     } as NetworkInterfaceItemConfig,
   ],
   securityGroups: [],
-  userData: undefined,
+  userData: 'aws-ec2/launchTemplateFiles/firewallUserData.txt',
 };
 
 const autoscaling: AutoScalingConfig = {
@@ -62,16 +64,18 @@ const autoscaling: AutoScalingConfig = {
   healthCheckType: 'ELB',
   subnets: ['subnet-123xyz', 'subnet-456abc'],
   targetGroups: [],
+  maxInstanceLifetime: 86400,
 };
 
 new FirewallAutoScalingGroup(stack, 'TestFirewall', {
   name: 'Test',
   autoscaling,
-  configDir: './',
+  configBucketName: 'test-bucket',
+  configDir: path.dirname(__dirname),
   launchTemplate,
   vpc: 'TestVpc',
-  lambdaKey: new cdk.aws_kms.Key(stack, 'LambdaKey', {}),
-  cloudWatchLogKmsKey: new cdk.aws_kms.Key(stack, 'CloudWatchKey', {}),
+  lambdaKey: new cdk.aws_kms.Key(stack, 'CustomKey', {}),
+  cloudWatchLogKmsKey: new cdk.aws_kms.Key(stack, 'CustomKeyCloudWatch', {}),
   cloudWatchLogRetentionInDays: 3653,
 });
 

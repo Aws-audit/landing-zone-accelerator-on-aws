@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,9 +11,9 @@
  *  and limitations under the License.
  */
 
-import { createLogger } from '@aws-accelerator/utils';
+import { createLogger } from '@aws-accelerator/utils/lib/logger';
 import * as emailValidator from 'email-validator';
-import { AccountsConfig } from '../lib/accounts-config';
+import { AccountsConfig, AccountConfig } from '../lib/accounts-config';
 import { OrganizationConfig } from '../lib/organization-config';
 
 export class AccountsConfigValidator {
@@ -46,10 +46,57 @@ export class AccountsConfigValidator {
     // Email validation
     //
     this.validateEmails(values, errors);
+    //
+    // Account Alias validation
+    //
+    this.validateAccountAliases(values, errors);
 
     if (errors.length) {
       throw new Error(`${AccountsConfig.FILENAME} has ${errors.length} issues:\n${errors.join('\n')}`);
     }
+  }
+
+  /**
+   * Function to validate account aliases and look for duplicates within the config
+   * @param values
+   */
+  private validateAccountAliases(values: AccountsConfig, errors: string[]) {
+    const aliases = new Set<string>();
+
+    // Helper function to check for duplicate aliases
+    const checkForDuplicateAliases = (accounts: AccountConfig[], accountType = '') => {
+      for (const account of accounts ?? []) {
+        if (account.accountAlias) {
+          if (aliases.has(account.accountAlias)) {
+            errors.push(
+              `${accountType} alias "${account.accountAlias}" is duplicated. Account aliases must be unique across all accounts.`,
+            );
+          } else {
+            aliases.add(account.accountAlias);
+          }
+        }
+      }
+    };
+
+    // Check mandatory and workload accounts for duplicate aliases
+    checkForDuplicateAliases(values.mandatoryAccounts, 'Account');
+    checkForDuplicateAliases(values.workloadAccounts, 'Workload Account');
+
+    // Validate alias format
+    aliases.forEach(alias => {
+      // AWS account alias constraints:
+      // - Must be unique across all AWS accounts
+      // - Must contain only lowercase letters, digits, and dashes
+      // - Must start with a letter or number
+      // - Must be between 3 and 63 characters long
+      const aliasRegex = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
+      if (!aliasRegex.test(alias)) {
+        errors.push(
+          `Account alias "${alias}" is invalid. Aliases must be between 3 and 63 characters long, ` +
+            `contain only lowercase letters, numbers, and hyphens, and must start and end with a letter or number.`,
+        );
+      }
+    });
   }
 
   /**
@@ -81,11 +128,39 @@ export class AccountsConfigValidator {
     // Check for duplicates altered to allow for single account deployment
     const singleAccountDeployment = process.env['ACCELERATOR_ENABLE_SINGLE_ACCOUNT_MODE']
       ? process.env['ACCELERATOR_ENABLE_SINGLE_ACCOUNT_MODE'] === 'true'
-      : true;
+      : false;
     if (singleAccountDeployment) {
       return;
-    } else if (new Set(emails).size !== emails.length) {
-      errors.push(`Duplicate emails defined [${emails}].`);
+    } else {
+      this.findDuplicateEmails(values, errors);
+    }
+  }
+
+  /**
+   * Finds duplicate emails in the given accounts configuration.
+   *
+   * @param values - The AccountsConfig object containing mandatory and workload accounts.
+   * @param errors - An array to store error messages for duplicate emails.
+   *
+   * @description This function iterates over the mandatory and workload accounts in the provided AccountsConfig object.
+   * It checks for duplicate emails by maintaining a Map of emails and their associated account names.
+   * If a duplicate email is found, it adds an error message to the `errors` array with the duplicate email
+   * and the associated account names.
+   * Adding account name will help find all affected accounts in arrays with over 100 objects.
+   */
+  private findDuplicateEmails(values: AccountsConfig, errors: string[]) {
+    const emailMap = new Map<string, string[]>();
+    const allAccounts = [...values.mandatoryAccounts, ...values.workloadAccounts];
+
+    for (const account of allAccounts) {
+      const { name, email } = account;
+      if (emailMap.has(email)) {
+        const accountNames = emailMap.get(email);
+        accountNames?.push(name);
+        errors.push(`Duplicate email: ${email}, associated with multiple accounts: ${accountNames?.join(', ')}`);
+      } else {
+        emailMap.set(email, [name]);
+      }
     }
   }
 
@@ -133,7 +208,7 @@ export class AccountsConfigValidator {
     organizationConfig: OrganizationConfig,
     errors: string[],
   ) {
-    for (const account of [...values.mandatoryAccounts, ...values.workloadAccounts] ?? []) {
+    for (const account of [...values.mandatoryAccounts, ...values.workloadAccounts]) {
       if (account.organizationalUnit) {
         // Check if OU exists
         if (!ouIdNames.includes(account.organizationalUnit)) {

@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -58,7 +58,7 @@ describe('VpcEndpoint', () => {
       }),
       routeTables: ['Test1', 'Test2'],
     });
-    expect(typeof initialStack.createEndpointRoute('id', '10.100.0.0/16', 'routeTableId')).toBe('undefined');
+    expect(typeof initialStack.createEndpointRoute('id', 'routeTableId', '10.100.0.0/16')).toBe('undefined');
   });
   it('vpc interface end point type test with sagemaker', () => {
     new VpcEndpoint(stack, 'VpcEndpointInterfaceSagemaker', {
@@ -170,5 +170,49 @@ describe('VpcEndpoint', () => {
       routeTables: ['Test1', 'Test2'],
     });
   });
+
+  it('vpc gateway end point for s3', () => {
+    VpcEndpoint.fromAttributes(stack, 'ImportedVpcEndpointS3', {
+      service: 's3',
+      vpcEndpointId: 'importedEndpointId',
+      vpcId: 'Test',
+    });
+  });
+  it('serviceName override for gatewayEndpoint', () => {
+    const checkVpcEndpointGatewayEndpointServiceNameStack = new cdk.Stack();
+    new VpcEndpoint(checkVpcEndpointGatewayEndpointServiceNameStack, 'VpcEndpointGatewayEndpointServiceName', {
+      vpcId: 'Test',
+      vpcEndpointType: VpcEndpointType.GATEWAY,
+      service: 'service',
+      serviceName: 'testGatewayEndpointServiceName',
+      subnets: ['Test1', 'Test2'],
+      securityGroups: [securityGroup],
+      privateDnsEnabled: true,
+      policyDocument: new cdk.aws_iam.PolicyDocument({
+        statements: [
+          new cdk.aws_iam.PolicyStatement({
+            sid: 'AccessToTrustedPrincipalsAndResources',
+            actions: ['*'],
+            effect: cdk.aws_iam.Effect.ALLOW,
+            resources: ['*'],
+            principals: [new cdk.aws_iam.AnyPrincipal()],
+            conditions: {
+              StringEquals: {
+                'aws:PrincipalOrgID': ['organizationId'],
+              },
+            },
+          }),
+        ],
+      }),
+      routeTables: ['Test1', 'Test2'],
+    });
+    const checkVpcEndpointGatewayEndpointServiceNameTemplate = cdk.assertions.Template.fromStack(
+      checkVpcEndpointGatewayEndpointServiceNameStack,
+    );
+    checkVpcEndpointGatewayEndpointServiceNameTemplate.hasResourceProperties('AWS::EC2::VPCEndpoint', {
+      ServiceName: cdk.assertions.Match.exact('testGatewayEndpointServiceName'),
+    });
+  });
+
   snapShotTest(testNamePrefix, stack);
 });

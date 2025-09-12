@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,11 +11,27 @@
  *  and limitations under the License.
  */
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
-import * as AWS from 'aws-sdk';
-import { PermissionSet } from 'aws-sdk/clients/ssoadmin';
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
+import { getGlobalRegion, setRetryStrategy } from '@aws-accelerator/utils/lib/common-functions';
 import { IdentityCenterPermissionSetConfig } from '@aws-accelerator/config/lib/iam-config';
-AWS.config.logger = console;
+import {
+  DeregisterDelegatedAdministratorCommand,
+  EnableAWSServiceAccessCommand,
+  EnabledServicePrincipal,
+  ListDelegatedAdministratorsCommand,
+  OrganizationsClient,
+  paginateListAWSServiceAccessForOrganization,
+  RegisterDelegatedAdministratorCommand,
+} from '@aws-sdk/client-organizations';
+import {
+  DescribePermissionSetCommand,
+  ListAccountAssignmentsCommand,
+  ListInstancesCommand,
+  ListPermissionSetsCommand,
+  PermissionSet,
+  SSOAdminClient,
+} from '@aws-sdk/client-sso-admin';
 
 /**
  * enable-identity-center - lambda handler
@@ -23,7 +39,7 @@ AWS.config.logger = console;
  * @param event
  * @returns
  */
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent): Promise<
+export async function handler(event: CloudFormationCustomResourceEvent): Promise<
   | {
       Status: string | undefined;
       StatusCode: number | undefined;
@@ -32,21 +48,24 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
   | undefined
 > {
   console.log(JSON.stringify(event, null, 4));
-  let organizationsClient = new AWS.Organizations();
-  const identityCenterClient = new AWS.SSOAdmin();
+  const solutionId = process.env['SOLUTION_ID'];
   const identityCenterServicePrincipal = 'sso.amazonaws.com';
-  const partition = event.ResourceProperties['partition'];
-  if (partition === 'aws-us-gov') {
-    organizationsClient = new AWS.Organizations({ region: 'us-gov-west-1' });
-  } else if (partition === 'aws-cn') {
-    organizationsClient = new AWS.Organizations({ region: 'cn-northwest-1' });
-  } else {
-    organizationsClient = new AWS.Organizations({ region: 'us-east-1' });
-  }
-
   const newIdentityCenterDelegatedAdminAccount = event.ResourceProperties['adminAccountId'];
   const lzaManagedPermissionSets = event.ResourceProperties['lzaManagedPermissionSets'];
   const lzaManagedAssignments = event.ResourceProperties['lzaManagedAssignments'];
+  const partition = event.ResourceProperties['partition'];
+  const globalRegion = getGlobalRegion(partition);
+
+  const organizationsClient = new OrganizationsClient({
+    region: globalRegion,
+    customUserAgent: solutionId,
+    retryStrategy: setRetryStrategy(),
+  });
+
+  const identityCenterClient = new SSOAdminClient({
+    customUserAgent: solutionId,
+    retryStrategy: setRetryStrategy(),
+  });
 
   const currentIdentityCenterDelegatedAdmin = await getCurrentDelegatedAdminAccount(
     organizationsClient,
@@ -73,7 +92,9 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
       if (!identityCenterEnabled) {
         console.log('Enabling Identity service in Organizations');
         await throttlingBackOff(() =>
-          organizationsClient.enableAWSServiceAccess({ ServicePrincipal: identityCenterServicePrincipal }).promise(),
+          organizationsClient.send(
+            new EnableAWSServiceAccessCommand({ ServicePrincipal: identityCenterServicePrincipal }),
+          ),
         );
       }
 
@@ -96,12 +117,12 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
       if (isDelegatedAdminDeregistered) {
         console.log('Registering Delegated Administrator for Identity Center');
         await throttlingBackOff(() =>
-          organizationsClient
-            .registerDelegatedAdministrator({
+          organizationsClient.send(
+            new RegisterDelegatedAdministratorCommand({
               AccountId: newIdentityCenterDelegatedAdminAccount,
               ServicePrincipal: identityCenterServicePrincipal,
-            })
-            .promise(),
+            }),
+          ),
         );
       }
 
@@ -113,12 +134,12 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
         console.log('Deregistering Delegated Admin Account');
         console.log(adminAccountId);
         await throttlingBackOff(() =>
-          organizationsClient
-            .deregisterDelegatedAdministrator({
+          organizationsClient.send(
+            new DeregisterDelegatedAdministratorCommand({
               AccountId: adminAccountId,
               ServicePrincipal: identityCenterServicePrincipal,
-            })
-            .promise(),
+            }),
+          ),
         );
       } else {
         console.log('No Identity Center Admin Account exists');
@@ -128,33 +149,27 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
   }
 }
 
-async function isOrganizationServiceEnabled(
-  orgnizationsClient: AWS.Organizations,
-  servicePrincipal: string,
-): Promise<boolean> {
-  let nextToken;
-  const enabledOrgServices = [];
-  do {
-    const services = await orgnizationsClient.listAWSServiceAccessForOrganization({ NextToken: nextToken }).promise();
-    if (services.EnabledServicePrincipals) {
-      enabledOrgServices.push(...services.EnabledServicePrincipals);
-    }
-  } while (nextToken);
+async function isOrganizationServiceEnabled(client: OrganizationsClient, servicePrincipal: string): Promise<boolean> {
+  const enabledServicePrincipals: EnabledServicePrincipal[] = [];
+  const paginator = paginateListAWSServiceAccessForOrganization({ client }, {});
 
-  const enabledServiceNames = enabledOrgServices.map(service => {
+  for await (const page of paginator) {
+    if (page.EnabledServicePrincipals) {
+      enabledServicePrincipals.push(...page.EnabledServicePrincipals);
+    }
+  }
+
+  const enabledServiceNames = enabledServicePrincipals.map(service => {
     return service.ServicePrincipal;
   });
 
   return enabledServiceNames.includes(servicePrincipal);
 }
 
-async function getCurrentDelegatedAdminAccount(
-  organizationsClient: AWS.Organizations,
-  identityCenterServicePrincipal: string,
-) {
+async function getCurrentDelegatedAdminAccount(client: OrganizationsClient, identityCenterServicePrincipal: string) {
   console.log('Getting Delegated Administrator for Identity Center');
   const delegatedAdmins = await throttlingBackOff(() =>
-    organizationsClient.listDelegatedAdministrators({ ServicePrincipal: identityCenterServicePrincipal }).promise(),
+    client.send(new ListDelegatedAdministratorsCommand({ ServicePrincipal: identityCenterServicePrincipal })),
   );
 
   let delegatedAdminAccounts: string[] = [];
@@ -177,8 +192,8 @@ function delay(ms: number) {
 }
 
 async function deregisterDelegatedAdministrators(
-  organizationsClient: AWS.Organizations,
-  identityCenterClient: AWS.SSOAdmin,
+  organizationsClient: OrganizationsClient,
+  identityCenterClient: SSOAdminClient,
   servicePrincipal: string,
   delegatedAdmin: string,
   permissionSetsFromConfig: IdentityCenterPermissionSetConfig[],
@@ -198,12 +213,12 @@ async function deregisterDelegatedAdministrators(
     if (isIdentityCenterDeregisterable) {
       console.log(`Deregistering Delegated Admin Account ${delegatedAdmin}`);
       await throttlingBackOff(() =>
-        organizationsClient
-          .deregisterDelegatedAdministrator({
+        organizationsClient.send(
+          new DeregisterDelegatedAdministratorCommand({
             AccountId: delegatedAdmin,
             ServicePrincipal: servicePrincipal,
-          })
-          .promise(),
+          }),
+        ),
       );
       console.log('Waiting 5 seconds to allow DelegatedAdmin account to de-register');
       await delay(5000);
@@ -214,19 +229,14 @@ async function deregisterDelegatedAdministrators(
 }
 
 async function verifyIdentityCenterResourcesBeforeDeletion(
-  identityCenterClient: AWS.SSOAdmin,
+  client: SSOAdminClient,
   ssoInstanceId: string,
   permissionSetsFromConfig: IdentityCenterPermissionSetConfig[],
   assignmentsFromConfig: Map<string, string[]>,
 ): Promise<boolean> {
-  const permissionSetList = await getPermissionSetList(identityCenterClient, ssoInstanceId);
+  const permissionSetList = await getPermissionSetList(client, ssoInstanceId);
   const filteredPermissionSetList = await filterPermissionSetList(permissionSetList, permissionSetsFromConfig);
-  const assignmentList = await getAssignmentsList(
-    identityCenterClient,
-    ssoInstanceId,
-    assignmentsFromConfig,
-    permissionSetList,
-  );
+  const assignmentList = await getAssignmentsList(client, ssoInstanceId, assignmentsFromConfig, permissionSetList);
 
   if (
     (filteredPermissionSetList && filteredPermissionSetList.length > 0) ||
@@ -239,21 +249,18 @@ async function verifyIdentityCenterResourcesBeforeDeletion(
   return true;
 }
 
-async function getPermissionSetList(
-  identityCenterClient: AWS.SSOAdmin,
-  ssoInstanceId: string,
-): Promise<PermissionSet[]> {
+async function getPermissionSetList(client: SSOAdminClient, ssoInstanceId: string): Promise<PermissionSet[]> {
   let permissionSetArnList: string[] = [];
   let permissionSetList: PermissionSet[] = [];
   const listPermissionsResponse = await throttlingBackOff(() =>
-    identityCenterClient
-      .listPermissionSets({
+    client.send(
+      new ListPermissionSetsCommand({
         InstanceArn: ssoInstanceId,
-      })
-      .promise(),
+      }),
+    ),
   );
   permissionSetArnList = listPermissionsResponse.PermissionSets!;
-  permissionSetList = await getPermissionSetObject(identityCenterClient, ssoInstanceId, permissionSetArnList);
+  permissionSetList = await getPermissionSetObject(client, ssoInstanceId, permissionSetArnList);
 
   return permissionSetList!;
 }
@@ -286,19 +293,19 @@ async function filterPermissionSetList(
 }
 
 async function getPermissionSetObject(
-  identityCenterClient: AWS.SSOAdmin,
+  client: SSOAdminClient,
   ssoInstanceId: string,
   permissionSetArnList: string[],
 ): Promise<PermissionSet[]> {
   const permissionSetList: PermissionSet[] = [];
   for (const permissionSetArn of permissionSetArnList) {
     const describePermissionSetResponse = await throttlingBackOff(() =>
-      identityCenterClient
-        .describePermissionSet({
+      client.send(
+        new DescribePermissionSetCommand({
           InstanceArn: ssoInstanceId,
           PermissionSetArn: permissionSetArn,
-        })
-        .promise(),
+        }),
+      ),
     );
     if (describePermissionSetResponse.PermissionSet) {
       permissionSetList.push(describePermissionSetResponse.PermissionSet);
@@ -308,7 +315,7 @@ async function getPermissionSetObject(
 }
 
 async function getAssignmentsList(
-  identityCenterClient: AWS.SSOAdmin,
+  client: SSOAdminClient,
   ssoInstanceId: string,
   assignmentsFromConfig: Map<string, string[]>,
   permissionSetList: PermissionSet[],
@@ -330,13 +337,13 @@ async function getAssignmentsList(
       if (permissionSet && permissionSet.PermissionSetArn) {
         for (const deploymentTargetAccount of deploymentTargetAccounts) {
           const listAccountAssignmentsResponse = await throttlingBackOff(() =>
-            identityCenterClient
-              .listAccountAssignments({
+            client.send(
+              new ListAccountAssignmentsCommand({
                 InstanceArn: ssoInstanceId!,
                 AccountId: deploymentTargetAccount!,
                 PermissionSetArn: permissionSet.PermissionSetArn!,
-              })
-              .promise(),
+              }),
+            ),
           );
           if (
             listAccountAssignmentsResponse.AccountAssignments &&
@@ -358,9 +365,9 @@ async function getAssignmentsList(
   return accountAssignmentList!;
 }
 
-async function getSsoInstanceId(identityCenterClient: AWS.SSOAdmin): Promise<string | undefined> {
+async function getSsoInstanceId(client: SSOAdminClient): Promise<string | undefined> {
   console.log('Checking for Identity Center Instance Id...');
-  const listInstanceResponse = await throttlingBackOff(() => identityCenterClient.listInstances().promise());
+  const listInstanceResponse = await throttlingBackOff(() => client.send(new ListInstancesCommand({})));
   const identityCenterInstanceIdList = listInstanceResponse.Instances;
   let identityCenterInstance;
   if (identityCenterInstanceIdList) {

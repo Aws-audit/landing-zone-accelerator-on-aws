@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,6 +11,7 @@
  *  and limitations under the License.
  */
 
+import { DEFAULT_LAMBDA_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
@@ -33,13 +34,13 @@ export interface ActiveDirectoryLogSubscriptionProps {
    */
   readonly activeDirectoryLogRetentionInDays: number;
   /**
-   * Custom resource lambda key to encrypt environment variables
+   * Custom resource lambda key to encrypt environment variables, when undefined default AWS managed key will be used
    */
-  readonly lambdaKmsKey: cdk.aws_kms.IKey;
+  readonly lambdaKmsKey?: cdk.aws_kms.IKey;
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly cloudWatchLogsKmsKey: cdk.aws_kms.IKey;
+  readonly cloudWatchLogsKmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
@@ -77,7 +78,7 @@ export class ActiveDirectoryLogSubscription extends Construct {
 
     const providerLambda = new cdk.aws_lambda.Function(this, 'ManageActiveDirectoryLogSubscriptionFunction', {
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, 'create-log-subscription/dist')),
-      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
+      runtime: DEFAULT_LAMBDA_RUNTIME,
       handler: 'index.handler',
       timeout: cdk.Duration.seconds(30),
       description: 'Manage active directory log subscription handler',
@@ -94,7 +95,7 @@ export class ActiveDirectoryLogSubscription extends Construct {
     );
 
     // Custom resource lambda log group
-    new cdk.aws_logs.LogGroup(this, `${providerLambda.node.id}LogGroup`, {
+    const logGroup = new cdk.aws_logs.LogGroup(this, `${providerLambda.node.id}LogGroup`, {
       logGroupName: `/aws/lambda/${providerLambda.functionName}`,
       retention: props.logRetentionInDays,
       encryptionKey: props.cloudWatchLogsKmsKey,
@@ -114,6 +115,8 @@ export class ActiveDirectoryLogSubscription extends Construct {
       },
     });
 
+    // Ensure that the LogGroup is created by Cloudformation prior to Lambda execution
+    resource.node.addDependency(logGroup);
     this.id = resource.ref;
   }
 }

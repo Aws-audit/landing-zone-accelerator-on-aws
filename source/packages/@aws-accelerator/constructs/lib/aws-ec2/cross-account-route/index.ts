@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -18,11 +18,13 @@
  * @returns
  */
 
-import * as AWS from 'aws-sdk';
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
+import { CreateRouteCommand, DeleteRouteCommand, EC2Client } from '@aws-sdk/client-ec2';
+import { STSClient } from '@aws-sdk/client-sts';
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { setRetryStrategy, getStsCredentials } from '@aws-accelerator/utils/lib/common-functions';
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
-
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent): Promise<
+export async function handler(event: CloudFormationCustomResourceEvent): Promise<
   | {
       PhysicalResourceId: string;
       Status: string | undefined;
@@ -34,6 +36,7 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
     readonly CarrierGatewayId?: string;
     readonly DestinationCidrBlock?: string;
     readonly DestinationPrefixListId?: string;
+    readonly DestinationIpv6CidrBlock?: string;
     readonly EgressOnlyInternetGatewayId?: string;
     readonly GatewayId?: string;
     readonly InstanceId?: string;
@@ -45,43 +48,18 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
     readonly VpcPeeringConnectionId?: string;
   }
 
-  let ec2: AWS.EC2;
   const props: RouteProps = event.ResourceProperties['routeDefinition'];
   const region: string = event.ResourceProperties['region'];
   const solutionId = process.env['SOLUTION_ID'];
-  const resourceId = props.DestinationCidrBlock
-    ? `${props.DestinationCidrBlock}${props.RouteTableId}`
-    : `${props.DestinationPrefixListId}${props.RouteTableId}`;
   const roleArn: string | undefined = event.ResourceProperties['roleArn'];
+  const resourceId = setResourceId(props);
 
-  if (roleArn) {
-    const stsClient = new AWS.STS({ customUserAgent: solutionId, region });
-    const assumeRoleCredential = await throttlingBackOff(() =>
-      stsClient
-        .assumeRole({
-          RoleArn: event.ResourceProperties['roleArn'],
-          RoleSessionName: 'acceleratorAssumeRoleSession',
-        })
-        .promise(),
-    );
-    ec2 = new AWS.EC2({
-      customUserAgent: solutionId,
-      region,
-      credentials: {
-        accessKeyId: assumeRoleCredential.Credentials!.AccessKeyId,
-        secretAccessKey: assumeRoleCredential.Credentials!.SecretAccessKey,
-        sessionToken: assumeRoleCredential.Credentials!.SessionToken,
-        expireTime: assumeRoleCredential.Credentials!.Expiration,
-      },
-    });
-  } else {
-    ec2 = new AWS.EC2({ customUserAgent: solutionId, region });
-  }
+  const ec2Client = await setClient(solutionId, region, roleArn);
 
   switch (event.RequestType) {
     case 'Create':
     case 'Update':
-      await throttlingBackOff(() => ec2.createRoute(props).promise());
+      await throttlingBackOff(() => ec2Client.send(new CreateRouteCommand(props)));
 
       return {
         PhysicalResourceId: resourceId,
@@ -90,18 +68,56 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
 
     case 'Delete':
       await throttlingBackOff(() =>
-        ec2
-          .deleteRoute({
+        ec2Client.send(
+          new DeleteRouteCommand({
             DestinationCidrBlock: props.DestinationCidrBlock,
             DestinationPrefixListId: props.DestinationPrefixListId,
+            DestinationIpv6CidrBlock: props.DestinationIpv6CidrBlock,
             RouteTableId: props.RouteTableId,
-          })
-          .promise(),
+          }),
+        ),
       );
 
       return {
         PhysicalResourceId: event.PhysicalResourceId,
         Status: 'SUCCESS',
       };
+  }
+
+  /**
+   * Set physical resource ID based on event input
+   * @param props
+   * @returns string
+   */
+  function setResourceId(props: RouteProps): string {
+    if (props.DestinationCidrBlock) {
+      return `${props.DestinationCidrBlock}${props.RouteTableId}`;
+    } else if (props.DestinationIpv6CidrBlock) {
+      return `${props.DestinationIpv6CidrBlock}${props.RouteTableId}`;
+    } else {
+      return `${props.DestinationPrefixListId}${props.RouteTableId}`;
+    }
+  }
+
+  /**
+   * Set EC2 client
+   * @param solutionId string | undefined
+   * @param region string | undefined
+   * @param roleArn string | undefined
+   * @returns Promise<EC2Client>
+   */
+  async function setClient(solutionId?: string, region?: string, roleArn?: string): Promise<EC2Client> {
+    if (roleArn) {
+      const stsClient = new STSClient({ customUserAgent: solutionId, region, retryStrategy: setRetryStrategy() });
+
+      return new EC2Client({
+        customUserAgent: solutionId,
+        region,
+        retryStrategy: setRetryStrategy(),
+        credentials: await getStsCredentials(stsClient, roleArn),
+      });
+    } else {
+      return new EC2Client({ customUserAgent: solutionId, region, retryStrategy: setRetryStrategy() });
+    }
   }
 }

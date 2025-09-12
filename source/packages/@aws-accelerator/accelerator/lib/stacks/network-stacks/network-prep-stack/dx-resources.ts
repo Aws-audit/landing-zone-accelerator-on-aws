@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,9 +11,9 @@
  *  and limitations under the License.
  */
 
-import { DxGatewayConfig } from '@aws-accelerator/config';
+import { DxGatewayConfig, DxTransitGatewayAssociationConfig } from '@aws-accelerator/config';
 import { DirectConnectGateway, VirtualInterface, VirtualInterfaceProps } from '@aws-accelerator/constructs';
-import { SsmResourceType } from '@aws-accelerator/utils';
+import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
 import * as cdk from 'aws-cdk-lib';
 import { NagSuppressions } from 'cdk-nag';
 import { pascalCase } from 'pascal-case';
@@ -127,6 +127,7 @@ export class DxResources {
           vlan: vifItem.vlan,
           addressFamily: vifItem.addressFamily,
           amazonAddress: vifItem.amazonAddress,
+          authKey: vifItem.authKey,
           customerAddress: vifItem.customerAddress,
           enableSiteLink: vifItem.enableSiteLink,
           jumboFrames: vifItem.jumboFrames,
@@ -163,6 +164,7 @@ export class DxResources {
           vlan: vifItem.vlan,
           addressFamily: vifItem.addressFamily,
           amazonAddress: vifItem.amazonAddress,
+          authKey: vifItem.authKey,
           customerAddress: vifItem.customerAddress,
           directConnectGatewayId,
           enableSiteLink: vifItem.enableSiteLink,
@@ -201,6 +203,7 @@ export class DxResources {
       );
       throw new Error(`Configuration validation failed at runtime.`);
     }
+
     const virtualInterface = new VirtualInterface(this.stack, vifLogicalId, vifProps);
     this.stack.addSsmParameter({
       logicalId: pascalCase(`SsmParam${dxgwName}${vifName}VirtualInterface`),
@@ -209,6 +212,39 @@ export class DxResources {
     });
 
     return virtualInterface;
+  }
+
+  /**
+   * Function to get TGW account ids
+   * @param dxgwItem {@link DxGatewayConfig}
+   * @param associationItem {@link DxTransitGatewayAssociationConfig}
+   * @param props {@link AcceleratorStackProps}
+   * @param accountIds string[]
+   */
+  private getTgwAccountIds(
+    dxgwItem: DxGatewayConfig,
+    associationItem: DxTransitGatewayAssociationConfig,
+    props: AcceleratorStackProps,
+    accountIds: string[],
+  ) {
+    const tgw = props.networkConfig.transitGateways.find(
+      item => item.name === associationItem.name && item.account === associationItem.account,
+    );
+    if (!tgw) {
+      this.stack.addLogs(LogLevel.ERROR, `Unable to locate transit gateway ${associationItem.name}`);
+      throw new Error(`Configuration validation failed at runtime.`);
+    }
+
+    const tgwAccountId = props.accountsConfig.getAccountId(tgw.account);
+
+    // Add to accountIds if accounts do not match
+    if (dxgwItem.account !== tgw.account && !accountIds.includes(tgwAccountId)) {
+      accountIds.push(tgwAccountId);
+    }
+    // Add to accountIds if regions don't match
+    if (tgw.region !== cdk.Stack.of(this.stack).region && !accountIds.includes(tgwAccountId)) {
+      accountIds.push(tgwAccountId);
+    }
   }
 
   /**
@@ -223,23 +259,7 @@ export class DxResources {
     if (props.globalConfig.homeRegion === cdk.Stack.of(this.stack).region) {
       for (const dxgwItem of props.networkConfig.directConnectGateways ?? []) {
         for (const associationItem of dxgwItem.transitGatewayAssociations ?? []) {
-          const tgw = props.networkConfig.transitGateways.find(
-            item => item.name === associationItem.name && item.account === associationItem.account,
-          );
-          if (!tgw) {
-            this.stack.addLogs(LogLevel.ERROR, `Unable to locate transit gateway ${associationItem.name}`);
-            throw new Error(`Configuration validation failed at runtime.`);
-          }
-          const tgwAccountId = props.accountsConfig.getAccountId(tgw.account);
-
-          // Add to accountIds if accounts do not match
-          if (dxgwItem.account !== tgw.account && !accountIds.includes(tgwAccountId)) {
-            accountIds.push(tgwAccountId);
-          }
-          // Add to accountIds if regions don't match
-          if (tgw.region !== cdk.Stack.of(this.stack).region && !accountIds.includes(tgwAccountId)) {
-            accountIds.push(tgwAccountId);
-          }
+          this.getTgwAccountIds(dxgwItem, associationItem, props, accountIds);
         }
         // Create role
         if (accountIds.length > 0) {

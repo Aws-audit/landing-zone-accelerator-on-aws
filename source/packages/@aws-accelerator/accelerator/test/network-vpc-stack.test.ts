@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -12,23 +12,24 @@
  */
 
 import { AcceleratorStage } from '../lib/accelerator-stage';
-import { AcceleratorSynthStacks } from './accelerator-synth-stacks';
 import { describe } from '@jest/globals';
 import { snapShotTest } from './snapshot-test';
+import { Create } from './accelerator-test-helpers';
 
 const testNamePrefix = 'Construct(NetworkVpcStack): ';
 
-/**
- * NetworkVpcStack
- */
-const acceleratorTestStacks = new AcceleratorSynthStacks(
-  AcceleratorStage.NETWORK_VPC,
-  'all-enabled',
-  'aws',
-  'us-east-1',
-);
-const stack = acceleratorTestStacks.stacks.get(`Network-us-east-1`)!;
-
 describe('NetworkVpcStack', () => {
-  snapShotTest(testNamePrefix, stack);
+  snapShotTest(testNamePrefix, Create.stackProvider(`Network-us-east-1`, AcceleratorStage.NETWORK_VPC));
+});
+
+describe('NoVpcFlowLogStack', () => {
+  snapShotTest(
+    testNamePrefix,
+    Create.stackProvider(`Management-us-east-1`, [
+      AcceleratorStage.NETWORK_VPC,
+      'aws',
+      'us-east-1',
+      'all-enabled-ou-targets',
+    ]),
+  );
 });

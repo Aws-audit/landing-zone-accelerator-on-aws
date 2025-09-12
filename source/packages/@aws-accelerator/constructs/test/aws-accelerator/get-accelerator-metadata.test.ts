@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -33,6 +33,8 @@ new AcceleratorMetadata(stack, 'AcceleratorMetadata', {
   logRetentionInDays: 3653,
   acceleratorSsmParamPrefix: '/accelerator',
   globalRegion: 'us-east-1',
+  configRepositoryLocation: 'codecommit',
+  configBucketName: 'aws-accelerator-config-111111111111-us-east-1',
 });
 
 /**

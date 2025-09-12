@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -17,6 +17,7 @@ import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import { IpamAllocationConfig } from '@aws-accelerator/config';
+import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 
 export interface IIpamSubnet extends cdk.IResource {
   /**
@@ -41,7 +42,15 @@ export interface IpamSubnetProps {
   /**
    * The availability zone (AZ) of the subnet
    */
-  readonly availabilityZone: string;
+  readonly availabilityZone?: string;
+
+  /**
+   * The Physical Availability Zone ID the subnet is located in
+   *
+   * @attribute
+   */
+  readonly availabilityZoneId?: string;
+
   /**
    * The base IPAM pool CIDR range the subnet is assigned to
    */
@@ -51,9 +60,9 @@ export interface IpamSubnetProps {
    */
   readonly ipamAllocation: IpamAllocationConfig;
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly kmsKey: cdk.aws_kms.Key;
+  readonly kmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
@@ -82,9 +91,9 @@ export interface IpamSubnetLookupOptions {
   readonly roleName?: string;
   readonly region?: string;
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly kmsKey: cdk.aws_kms.Key;
+  readonly kmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
@@ -104,7 +113,7 @@ export class IpamSubnet extends cdk.Resource implements IIpamSubnet {
 
         const provider = cdk.CustomResourceProvider.getOrCreateProvider(this, GET_IPAM_SUBNET_CIDR, {
           codeDirectory: path.join(__dirname, 'get-ipam-subnet-cidr/dist'),
-          runtime: cdk.CustomResourceProviderRuntime.NODEJS_16_X,
+          runtime: CUSTOM_RESOURCE_PROVIDER_RUNTIME,
           policyStatements: [
             {
               Effect: 'Allow',
@@ -170,11 +179,11 @@ export class IpamSubnet extends cdk.Resource implements IIpamSubnet {
 
     const provider = cdk.CustomResourceProvider.getOrCreateProvider(this, IPAM_SUBNET, {
       codeDirectory: path.join(__dirname, 'ipam-subnet/dist'),
-      runtime: cdk.CustomResourceProviderRuntime.NODEJS_16_X,
+      runtime: CUSTOM_RESOURCE_PROVIDER_RUNTIME,
       policyStatements: [
         {
           Effect: 'Allow',
-          Action: ['ec2:CreateTags', 'ec2:DeleteSubnet', 'ec2:ModifySubnetAttribute'],
+          Action: ['ec2:CreateTags', 'ec2:DeleteSubnet', 'ec2:DeleteTags', 'ec2:ModifySubnetAttribute'],
           Resource: `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:subnet/*`,
         },
         {
@@ -209,6 +218,7 @@ export class IpamSubnet extends cdk.Resource implements IIpamSubnet {
       properties: {
         name: props.name,
         availabilityZone: props.availabilityZone,
+        availabilityZoneId: props.availabilityZoneId,
         basePool: props.basePool,
         ipamAllocation: props.ipamAllocation,
         vpcId: props.vpcId,

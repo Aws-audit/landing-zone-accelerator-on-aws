@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -14,6 +14,8 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as path from 'path';
+import { getGlobalRegion } from '@aws-accelerator/utils/lib/common-functions';
+import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 
 export interface IReportDefinition extends cdk.IResource {
   /**
@@ -114,9 +116,9 @@ export interface ReportDefinitionProps {
   readonly billingViewArn?: string;
 
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly kmsKey: cdk.aws_kms.Key;
+  readonly kmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
@@ -137,12 +139,7 @@ export class ReportDefinition extends cdk.Resource implements IReportDefinition 
     });
 
     this.reportName = this.physicalName;
-
-    if (props.partition === 'aws-cn') {
-      this.globalRegion = 'cn-northwest-1';
-    } else {
-      this.globalRegion = 'us-east-1';
-    }
+    this.globalRegion = getGlobalRegion(props.partition);
 
     // Cfn resource AWS::CUR::ReportDefinition is available in region us-east-1 only.
     if (cdk.Stack.of(this).region === 'us-east-1') {
@@ -165,7 +162,7 @@ export class ReportDefinition extends cdk.Resource implements IReportDefinition 
       // Use custom resource
       const provider = cdk.CustomResourceProvider.getOrCreateProvider(this, 'Custom::CrossRegionReportDefinition', {
         codeDirectory: path.join(__dirname, 'cross-region-report-definition/dist'),
-        runtime: cdk.CustomResourceProviderRuntime.NODEJS_16_X,
+        runtime: CUSTOM_RESOURCE_PROVIDER_RUNTIME,
         policyStatements: [
           {
             Effect: 'Allow',

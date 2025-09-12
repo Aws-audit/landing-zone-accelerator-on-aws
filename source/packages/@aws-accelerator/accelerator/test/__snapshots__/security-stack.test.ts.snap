@@ -21,6 +21,40 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Delete",
     },
+    "AcceleratorImportedCentralLogBucketKeyLookupCDD7B719": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomSsmGetParameterValueCustomResourceProviderLogGroup780D220D",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomSsmGetParameterValueCustomResourceProviderHandlerAAD0E7EE",
+            "Arn",
+          ],
+        },
+        "assumeRoleArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":iam::333333333333:role/AWSAccelerator-CrossAccountSsmParameterShare",
+            ],
+          ],
+        },
+        "invokingAccountID": "111111111111",
+        "invokingRegion": "us-east-1",
+        "parameterAccountID": "333333333333",
+        "parameterName": "/accelerator/imported-resources/logging/central-bucket/kms/arn",
+        "parameterRegion": "us-west-2",
+        "uuid": "REPLACED-UUID",
+      },
+      "Type": "Custom::SsmGetParameterValue",
+      "UpdateReplacePolicy": "Delete",
+    },
     "AcceleratorMetadataAWSAcceleratormetadatacollectionEBD85CF6": {
       "DependsOn": [
         "AcceleratorMetadataMetadataLambdaDefaultPolicy03C222B6",
@@ -36,10 +70,12 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "Variables": {
             "ACCELERATOR_PREFIX": "AWSAccelerator",
             "ACCELERATOR_VERSION_SSM_PATH": "/accelerator/AWSAccelerator-InstallerStack/version",
-            "CENTRAL_LOG_BUCKET": "aws-accelerator-central-logs-333333333333-us-west-2",
+            "CENTRAL_LOG_BUCKET": "existing-central-log-bucket",
+            "CONFIG_BUCKET_NAME": "undefined-config-111111111111-us-east-1",
+            "CONFIG_REPOSITORY_LOCATION": "codecommit",
             "CONFIG_REPOSITORY_NAME": "aws-accelerator-config",
             "CROSS_ACCOUNT_ROLE": "AWSControlTowerExecution",
-            "ELB_LOGGING_BUCKET": "aws-accelerator-elb-access-logs-333333333333-us-west-2",
+            "ELB_LOGGING_BUCKET": "existing-elb-logs-bucket-111111111111-us-east-1",
             "GLOBAL_REGION": "us-east-1",
             "LOG_ACCOUNT_ID": "333333333333",
             "METADATA_BUCKET": "aws-accelerator-metadata-333333333333-us-east-1",
@@ -57,13 +93,45 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 600,
       },
       "Type": "AWS::Lambda::Function",
     },
     "AcceleratorMetadataAwsAcceleratorMetadataCollectionRule1FFE12D2": {
       "Properties": {
+        "EventPattern": {
+          "account": [
+            "111111111111",
+          ],
+          "detail": {
+            "stack-id": [
+              {
+                "Ref": "AWS::StackId",
+              },
+            ],
+            "status-details": {
+              "status": [
+                "CREATE_COMPLETE",
+                "UPDATE_COMPLETE",
+              ],
+            },
+          },
+          "detail-type": [
+            "CloudFormation Stack Status Change",
+          ],
+          "region": [
+            "us-east-1",
+          ],
+          "resources": [
+            {
+              "Ref": "AWS::StackId",
+            },
+          ],
+          "source": [
+            "aws.cloudformation",
+          ],
+        },
         "Name": "AWSAccelerator-metadata-collection-rule",
         "ScheduleExpression": "rate(1 day)",
         "State": "ENABLED",
@@ -200,6 +268,30 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
                     ],
                   ],
                 },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::undefined-config-111111111111-us-east-1",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::undefined-config-111111111111-us-east-1/*",
+                    ],
+                  ],
+                },
               ],
             },
           ],
@@ -226,48 +318,17 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "bucketName": "aws-accelerator-central-logs-333333333333-us-west-2",
+        "bucketName": "existing-central-log-bucket",
+        "findingPublishingFrequency": "FIFTEEN_MINUTES",
         "keyPrefix": "macie/111111111111/",
         "kmsKeyArn": {
-          "Ref": "CentralLogsBucketKeyLookup52CD8A37",
+          "Ref": "AcceleratorImportedCentralLogBucketKeyLookupCDD7B719",
         },
+        "publishClassificationFindings": true,
+        "publishPolicyFindings": true,
         "region": "us-east-1",
       },
       "Type": "Custom::MaciePutClassificationExportConfiguration",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "CentralLogsBucketKeyLookup52CD8A37": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomSsmGetParameterValueCustomResourceProviderLogGroup780D220D",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomSsmGetParameterValueCustomResourceProviderHandlerAAD0E7EE",
-            "Arn",
-          ],
-        },
-        "assumeRoleArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":iam::333333333333:role/AWSAccelerator-CentralBucket-KeyArnParam-Role",
-            ],
-          ],
-        },
-        "invokingAccountID": "111111111111",
-        "invokingRegion": "us-east-1",
-        "parameterAccountID": "333333333333",
-        "parameterName": "/accelerator/logging/central-bucket/kms/arn",
-        "parameterRegion": "us-west-2",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::SsmGetParameterValue",
       "UpdateReplacePolicy": "Delete",
     },
     "CustomEbsDefaultVolumeEncryptionCustomResourceProviderHandler6551B35B": {
@@ -287,7 +348,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -387,7 +448,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -467,7 +528,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
                           {
                             "Ref": "AWS::Partition",
                           },
-                          ":s3:::aws-accelerator-central-logs-333333333333-us-west-2/guardduty",
+                          ":s3:::existing-central-log-bucket/guardduty",
                         ],
                       ],
                     },
@@ -479,7 +540,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
                           {
                             "Ref": "AWS::Partition",
                           },
-                          ":s3:::aws-accelerator-central-logs-333333333333-us-west-2/guardduty/*",
+                          ":s3:::existing-central-log-bucket/guardduty/*",
                         ],
                       ],
                     },
@@ -512,7 +573,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -595,7 +656,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -649,8 +710,10 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
                   "Action": [
                     "macie2:EnableMacie",
                     "macie2:GetClassificationExportConfiguration",
+                    "macie2:UpdateMacieSession",
                     "macie2:GetMacieSession",
                     "macie2:PutClassificationExportConfiguration",
+                    "macie2:PutFindingsPublicationConfiguration",
                   ],
                   "Effect": "Allow",
                   "Resource": "*",
@@ -682,7 +745,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -785,7 +848,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -793,6 +856,9 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
     "CustomSsmGetParameterValueCustomResourceProviderLogGroup780D220D": {
       "DeletionPolicy": "Delete",
       "Properties": {
+        "KmsKeyId": {
+          "Ref": "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
         "LogGroupName": {
           "Fn::Join": [
             "",
@@ -1008,17 +1074,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
               "Condition": {
                 "StringEquals": {
                   "kms:CallerAccount": "111111111111",
-                  "kms:ViaService": {
-                    "Fn::Join": [
-                      "",
-                      [
-                        "ec2.us-east-1.",
-                        {
-                          "Ref": "AWS::URLSuffix",
-                        },
-                      ],
-                    ],
-                  },
+                  "kms:ViaService": "ec2.us-east-1.amazonaws.com",
                 },
               },
               "Effect": "Allow",
@@ -1122,16 +1178,15 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
               {
                 "Ref": "AWS::Partition",
               },
-              ":s3:::aws-accelerator-central-logs-333333333333-us-west-2/guardduty",
+              ":s3:::existing-central-log-bucket/guardduty",
             ],
           ],
         },
         "exportDestinationOverride": true,
         "exportDestinationType": "S3",
         "kmsKeyArn": {
-          "Ref": "CentralLogsBucketKeyLookup52CD8A37",
+          "Ref": "AcceleratorImportedCentralLogBucketKeyLookupCDD7B719",
         },
-        "region": "us-east-1",
       },
       "Type": "Custom::GuardDutyCreatePublishingDestinationCommand",
       "UpdateReplacePolicy": "Delete",
@@ -1203,6 +1258,18 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "enable": true,
             "name": "CIS AWS Foundations Benchmark v1.2.0",
           },
+          {
+            "controlsToDisable": [
+              "1.17",
+              "1.16",
+            ],
+            "enable": true,
+            "name": "CIS AWS Foundations Benchmark v1.4.0",
+          },
+          {
+            "enable": true,
+            "name": "CIS AWS Foundations Benchmark v3.0.0",
+          },
         ],
       },
       "Type": "Custom::SecurityHubBatchEnableStandards",
@@ -1212,7 +1279,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SecurityStack-111111111111-us-east-1/version",
         "Type": "String",
-        "Value": "1.4.3",
+        "Value": "1.12.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -1255,6 +1322,40 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
       "Type": "AWS::Logs::LogGroup",
       "UpdateReplacePolicy": "Delete",
     },
+    "AcceleratorCentralLogBucketKeyLookup26F8C418": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomSsmGetParameterValueCustomResourceProviderLogGroup780D220D",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomSsmGetParameterValueCustomResourceProviderHandlerAAD0E7EE",
+            "Arn",
+          ],
+        },
+        "assumeRoleArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":iam::333333333333:role/AWSAccelerator-us-west-2-CentralBucket-KeyArnParam-Role",
+            ],
+          ],
+        },
+        "invokingAccountID": "111111111111",
+        "invokingRegion": "us-east-1",
+        "parameterAccountID": "333333333333",
+        "parameterName": "/accelerator/logging/central-bucket/kms/arn",
+        "parameterRegion": "us-west-2",
+        "uuid": "REPLACED-UUID",
+      },
+      "Type": "Custom::SsmGetParameterValue",
+      "UpdateReplacePolicy": "Delete",
+    },
     "AcceleratorMetadataAWSAcceleratormetadatacollectionEBD85CF6": {
       "DependsOn": [
         "AcceleratorMetadataMetadataLambdaDefaultPolicy03C222B6",
@@ -1271,9 +1372,11 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "ACCELERATOR_PREFIX": "AWSAccelerator",
             "ACCELERATOR_VERSION_SSM_PATH": "/accelerator/AWSAccelerator-InstallerStack/version",
             "CENTRAL_LOG_BUCKET": "aws-accelerator-central-logs-333333333333-us-west-2",
+            "CONFIG_BUCKET_NAME": "undefined-config-111111111111-us-east-1",
+            "CONFIG_REPOSITORY_LOCATION": "codecommit",
             "CONFIG_REPOSITORY_NAME": "aws-accelerator-config",
             "CROSS_ACCOUNT_ROLE": "AWSControlTowerExecution",
-            "ELB_LOGGING_BUCKET": "aws-accelerator-elb-access-logs-333333333333-us-west-2",
+            "ELB_LOGGING_BUCKET": "aws-accelerator-elb-access-logs-333333333333-us-east-1",
             "GLOBAL_REGION": "us-east-1",
             "LOG_ACCOUNT_ID": "333333333333",
             "METADATA_BUCKET": "aws-accelerator-metadata-333333333333-us-east-1",
@@ -1291,13 +1394,45 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 600,
       },
       "Type": "AWS::Lambda::Function",
     },
     "AcceleratorMetadataAwsAcceleratorMetadataCollectionRule1FFE12D2": {
       "Properties": {
+        "EventPattern": {
+          "account": [
+            "111111111111",
+          ],
+          "detail": {
+            "stack-id": [
+              {
+                "Ref": "AWS::StackId",
+              },
+            ],
+            "status-details": {
+              "status": [
+                "CREATE_COMPLETE",
+                "UPDATE_COMPLETE",
+              ],
+            },
+          },
+          "detail-type": [
+            "CloudFormation Stack Status Change",
+          ],
+          "region": [
+            "us-east-1",
+          ],
+          "resources": [
+            {
+              "Ref": "AWS::StackId",
+            },
+          ],
+          "source": [
+            "aws.cloudformation",
+          ],
+        },
         "Name": "AWSAccelerator-metadata-collection-rule",
         "ScheduleExpression": "rate(1 day)",
         "State": "ENABLED",
@@ -1434,6 +1569,30 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
                     ],
                   ],
                 },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::undefined-config-111111111111-us-east-1",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::undefined-config-111111111111-us-east-1/*",
+                    ],
+                  ],
+                },
               ],
             },
           ],
@@ -1461,47 +1620,16 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
           ],
         },
         "bucketName": "aws-accelerator-central-logs-333333333333-us-west-2",
+        "findingPublishingFrequency": "FIFTEEN_MINUTES",
         "keyPrefix": "macie/111111111111/",
         "kmsKeyArn": {
-          "Ref": "CentralLogsBucketKeyLookup52CD8A37",
+          "Ref": "AcceleratorCentralLogBucketKeyLookup26F8C418",
         },
+        "publishClassificationFindings": true,
+        "publishPolicyFindings": true,
         "region": "us-east-1",
       },
       "Type": "Custom::MaciePutClassificationExportConfiguration",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "CentralLogsBucketKeyLookup52CD8A37": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomSsmGetParameterValueCustomResourceProviderLogGroup780D220D",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomSsmGetParameterValueCustomResourceProviderHandlerAAD0E7EE",
-            "Arn",
-          ],
-        },
-        "assumeRoleArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":iam::333333333333:role/AWSAccelerator-CentralBucket-KeyArnParam-Role",
-            ],
-          ],
-        },
-        "invokingAccountID": "111111111111",
-        "invokingRegion": "us-east-1",
-        "parameterAccountID": "333333333333",
-        "parameterName": "/accelerator/logging/central-bucket/kms/arn",
-        "parameterRegion": "us-west-2",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::SsmGetParameterValue",
       "UpdateReplacePolicy": "Delete",
     },
     "CustomEbsDefaultVolumeEncryptionCustomResourceProviderHandler6551B35B": {
@@ -1521,7 +1649,7 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1618,7 +1746,7 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1743,7 +1871,7 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1826,7 +1954,7 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1880,8 +2008,10 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
                   "Action": [
                     "macie2:EnableMacie",
                     "macie2:GetClassificationExportConfiguration",
+                    "macie2:UpdateMacieSession",
                     "macie2:GetMacieSession",
                     "macie2:PutClassificationExportConfiguration",
+                    "macie2:PutFindingsPublicationConfiguration",
                   ],
                   "Effect": "Allow",
                   "Resource": "*",
@@ -1913,7 +2043,7 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2016,7 +2146,7 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2024,6 +2154,9 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
     "CustomSsmGetParameterValueCustomResourceProviderLogGroup780D220D": {
       "DeletionPolicy": "Delete",
       "Properties": {
+        "KmsKeyId": {
+          "Ref": "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
         "LogGroupName": {
           "Fn::Join": [
             "",
@@ -2181,9 +2314,8 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
         "exportDestinationOverride": true,
         "exportDestinationType": "S3",
         "kmsKeyArn": {
-          "Ref": "CentralLogsBucketKeyLookup52CD8A37",
+          "Ref": "AcceleratorCentralLogBucketKeyLookup26F8C418",
         },
-        "region": "us-east-1",
       },
       "Type": "Custom::GuardDutyCreatePublishingDestinationCommand",
       "UpdateReplacePolicy": "Delete",
@@ -2264,7 +2396,7 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SecurityStack-111111111111-us-east-1/version",
         "Type": "String",
-        "Value": "1.4.3",
+        "Value": "1.12.0",
       },
       "Type": "AWS::SSM::Parameter",
     },

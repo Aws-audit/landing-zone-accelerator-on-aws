@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -28,6 +28,16 @@ new Document(stack, 'Document', {
   sharedWithAccountIds: ['accountA'],
   logRetentionInDays: 3653,
   kmsKey: new cdk.aws_kms.Key(stack, 'Key', {}),
+  targetType: undefined,
+});
+new Document(stack, 'Document1', {
+  name: 'DocumentName1',
+  content: JSON.parse('{}'),
+  documentType: 'Automation',
+  sharedWithAccountIds: ['accountA'],
+  logRetentionInDays: 3653,
+  kmsKey: new cdk.aws_kms.Key(stack, 'Key1', {}),
+  targetType: '/AWS::EC2::Instance',
 });
 
 /**

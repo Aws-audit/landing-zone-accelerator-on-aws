@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -24,6 +24,8 @@ import {
 } from '@aws-sdk/client-organizations';
 import { DynamoDBDocumentClient, paginateQuery, DynamoDBDocumentPaginationConfiguration } from '@aws-sdk/lib-dynamodb';
 import { AssumeRoleCommand, STSClient } from '@aws-sdk/client-sts';
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
+import { getGlobalRegion } from '@aws-accelerator/utils/lib/common-functions';
 
 const marshallOptions = {
   convertEmptyValues: false,
@@ -57,7 +59,7 @@ type AccountDetails = Array<AccountDetail>;
  * @param event
  * @returns
  */
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent): Promise<
+export async function handler(event: CloudFormationCustomResourceEvent): Promise<
   | {
       Status: string;
     }
@@ -68,6 +70,7 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
   const assumeRoleName = event.ResourceProperties['assumeRoleName'];
   const partition = event.ResourceProperties['partition'];
   const solutionId = process.env['SOLUTION_ID'];
+  const globalRegion = getGlobalRegion(partition);
 
   dynamodbClient = new DynamoDBClient({ customUserAgent: solutionId });
   documentClient = DynamoDBDocumentClient.from(dynamodbClient, translateConfig);
@@ -76,14 +79,7 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
     pageSize: 100,
   };
 
-  let organizationsClient: OrganizationsClient;
-  if (partition === 'aws-us-gov') {
-    organizationsClient = new OrganizationsClient({ region: 'us-gov-west-1', customUserAgent: solutionId });
-  } else if (partition === 'aws-cn') {
-    organizationsClient = new OrganizationsClient({ region: 'cn-northwest-1', customUserAgent: solutionId });
-  } else {
-    organizationsClient = new OrganizationsClient({ region: 'us-east-1', customUserAgent: solutionId });
-  }
+  const organizationsClient = new OrganizationsClient({ customUserAgent: solutionId, region: globalRegion });
 
   if (partition !== 'aws-us-gov') {
     return {

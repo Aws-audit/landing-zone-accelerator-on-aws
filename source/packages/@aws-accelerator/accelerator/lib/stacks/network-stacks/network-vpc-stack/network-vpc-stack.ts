@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -13,8 +13,15 @@
 
 import { Construct } from 'constructs';
 
-import { OutpostsConfig, VpcConfig } from '@aws-accelerator/config';
-import { NatGateway, TransitGatewayAttachment } from '@aws-accelerator/constructs';
+import { OutpostsConfig, VpcConfig, VpcTemplatesConfig } from '@aws-accelerator/config';
+import {
+  INatGateway,
+  ITransitGatewayAttachment,
+  IVpc,
+  PutSsmParameter,
+  SsmParameterProps,
+  ISubnet,
+} from '@aws-accelerator/constructs';
 
 import { AcceleratorStackProps } from '../../accelerator-stack';
 import { NetworkStack } from '../network-stack';
@@ -31,7 +38,9 @@ import { SecurityGroupResources } from './security-group-resources';
 import { SubnetResources } from './subnet-resources';
 import { TgwResources } from './tgw-resources';
 import { VpcResources } from './vpc-resources';
-
+import { pascalCase } from 'pascal-case';
+import { SsmResourceType } from '@aws-accelerator/utils';
+import { getVpcConfig } from '../utils/getter-utils';
 export class NetworkVpcStack extends NetworkStack {
   constructor(scope: Construct, id: string, props: AcceleratorStackProps) {
     super(scope, id, props);
@@ -51,7 +60,28 @@ export class NetworkVpcStack extends NetworkStack {
     // Create VPC resources
     //
     const ipamPoolMap = this.setIpamPoolMap(props);
-    const vpcResources = new VpcResources(this, ipamPoolMap, dhcpResources.dhcpOptionsIds, props);
+
+    const vpcResources = new VpcResources(
+      this,
+      ipamPoolMap,
+      dhcpResources.dhcpOptionsIds,
+      this.vpcResources,
+      {
+        acceleratorPrefix: props.prefixes.accelerator,
+        managementAccountAccessRole: props.globalConfig.managementAccountAccessRole,
+        ssmParamName: props.prefixes.ssmParamName,
+        partition: props.partition,
+        useExistingRoles: props.useExistingRoles,
+      },
+      {
+        defaultVpcsConfig: props.networkConfig.defaultVpc,
+        centralEndpointVpc: props.networkConfig.vpcs.find(vpc => vpc.interfaceEndpoints?.central),
+        vpcFlowLogsConfig: props.networkConfig.vpcFlowLogs,
+        customerGatewayConfigs: props.networkConfig.customerGateways,
+        vpcPeeringConfigs: props.networkConfig.vpcPeering,
+        firewalls: this.getFirewallInfo(props, this.vpcResources),
+      },
+    );
     //
     // Create VPC and outpost route table resources
     //
@@ -60,6 +90,7 @@ export class NetworkVpcStack extends NetworkStack {
     // Create subnet resources
     //
     const outpostMap = this.setOutpostsMap(props.networkConfig.vpcs);
+
     const subnetResources = new SubnetResources(
       this,
       vpcResources.vpcMap,
@@ -83,15 +114,17 @@ export class NetworkVpcStack extends NetworkStack {
       props,
     );
     //
-    // Create route table entires
+    // Create route table entries
     //
     new RouteEntryResources(
       this,
       routeTableResources.routeTableMap,
       transitGatewayIds,
       tgwResources.tgwAttachmentMap,
+      subnetResources.subnetMap,
       natGatewayResources.natGatewayMap,
       plResources.prefixListMap,
+      outpostMap,
     );
     //
     // Create security groups
@@ -115,11 +148,56 @@ export class NetworkVpcStack extends NetworkStack {
     //
     new IpamResources(this, props.globalConfig.homeRegion, this.organizationId);
     //
+    // Create Stack resource SSM Parameters
+    //
+    this.createStackResourceParameters(vpcResources.vpcMap, subnetResources.subnetMap);
+    //
     // Create SSM Parameters
     //
     this.createSsmParameters();
+    //
+    // Add nag suppressions
+    //
+    this.addResourceSuppressionsByPath();
 
     this.logger.info('Completed stack synthesis');
+  }
+
+  /**
+   * Creates SSM Parameters for stack
+   *
+   * * Creates SSM Parameters for VPC and Subnet CIDR Blocks
+   */
+  private createStackResourceParameters(vpcMap: Map<string, IVpc>, subnetMap: Map<string, ISubnet>) {
+    const parameters: SsmParameterProps[] = [];
+    vpcMap.forEach((vpc, key) => {
+      parameters.push({
+        name: this.getSsmPath(SsmResourceType.VPC_IPV4_CIDR_BLOCK, [key]),
+        value: vpc.cidrBlock,
+      });
+    });
+    for (const vpcItem of this.vpcsInScope) {
+      for (const subnetItem of vpcItem.subnets ?? []) {
+        const subnet = subnetMap.get(`${vpcItem.name}_${subnetItem.name}`)!;
+        if (subnet.ipv4CidrBlock) {
+          parameters.push({
+            name: this.getSsmPath(SsmResourceType.SUBNET_IPV4_CIDR_BLOCK, [vpcItem.name, subnetItem.name]),
+            value: subnet.ipv4CidrBlock,
+          });
+        }
+      }
+    }
+    if (parameters.length === 0) return;
+    new PutSsmParameter(this, pascalCase(`PutNetworkVPCStackResourceParameters`), {
+      accountIds: [this.account],
+      region: this.region,
+      roleName: this.acceleratorResourceNames.roles.crossAccountSsmParameterShare,
+      kmsKey: this.cloudwatchKey,
+      logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+      parameters,
+      invokingAccountId: this.account,
+      acceleratorPrefix: this.props.prefixes.accelerator,
+    });
   }
 
   /**
@@ -150,10 +228,10 @@ export class NetworkVpcStack extends NetworkStack {
    * @returns
    */
   public getTgwAttachment(
-    tgwAttachmentMap: Map<string, TransitGatewayAttachment>,
+    tgwAttachmentMap: Map<string, ITransitGatewayAttachment>,
     vpcName: string,
     transitGatewayName: string,
-  ): TransitGatewayAttachment {
+  ): ITransitGatewayAttachment {
     const key = `${vpcName}_${transitGatewayName}`;
 
     if (!tgwAttachmentMap.get(key)) {
@@ -171,7 +249,7 @@ export class NetworkVpcStack extends NetworkStack {
    * @param natGatewayName
    * @returns
    */
-  public getNatGateway(natGatewayMap: Map<string, NatGateway>, vpcName: string, natGatewayName: string): NatGateway {
+  public getNatGateway(natGatewayMap: Map<string, INatGateway>, vpcName: string, natGatewayName: string): INatGateway {
     const key = `${vpcName}_${natGatewayName}`;
 
     if (!natGatewayMap.get(key)) {
@@ -180,6 +258,34 @@ export class NetworkVpcStack extends NetworkStack {
     }
 
     return natGatewayMap.get(key)!;
+  }
+
+  /**
+   * Returns a Local gateway object from a given map if it exists
+   * Requires iterating over all outposts
+   * @param outpostMap
+   * @param vpcName
+   * @param localGatewayName
+   * @returns
+   */
+  public getLocalGatewayFromOutpostMap(
+    outpostMap: Map<string, OutpostsConfig>,
+    vpcName: string,
+    localGatewayName: string,
+  ): string {
+    let localGatewayId = undefined;
+
+    for (const outpost of outpostMap.values()) {
+      if (outpost.localGateway && outpost.localGateway.name === localGatewayName) {
+        localGatewayId = outpost.localGateway.id;
+      }
+    }
+
+    if (!localGatewayId) {
+      this.logger.error(`VPC ${vpcName} Local Gateway ${localGatewayName} does not exist in map`);
+      throw new Error(`Configuration validation failed at runtime.`);
+    }
+    return localGatewayId;
   }
 
   /**
@@ -198,5 +304,40 @@ export class NetworkVpcStack extends NetworkStack {
     }
 
     return outpostMap.get(key)!;
+  }
+
+  /**
+   * Return an array of cross-account ENI target account IDs
+   * if a VPC containing relevant route table exists in this account+region
+   * @param props
+   * @returns
+   */
+  private getFirewallInfo(
+    props: AcceleratorStackProps,
+    vpcResourcesToDeploy: (VpcConfig | VpcTemplatesConfig)[],
+  ): { accountId: string; firewallVpc: VpcConfig | VpcTemplatesConfig }[] {
+    const firewallAccountInfo: { accountId: string; firewallVpc: VpcConfig | VpcTemplatesConfig }[] = [];
+
+    for (const firewallInstance of [
+      ...(props.customizationsConfig.firewalls?.instances ?? []),
+      ...(props.customizationsConfig.firewalls?.managerInstances ?? []),
+    ]) {
+      // check for potential targets
+
+      const vpcConfig = getVpcConfig(vpcResourcesToDeploy, firewallInstance.vpc);
+      for (const routeTable of vpcConfig.routeTables ?? []) {
+        for (const route of routeTable.routes ?? []) {
+          if (
+            route.type === 'networkInterface' &&
+            route?.target?.includes(firewallInstance.name) &&
+            firewallInstance.account
+          ) {
+            const firewallOwner = props.accountsConfig.getAccountId(firewallInstance.account);
+            firewallAccountInfo.push({ accountId: firewallOwner, firewallVpc: vpcConfig });
+          }
+        }
+      }
+    }
+    return firewallAccountInfo;
   }
 }

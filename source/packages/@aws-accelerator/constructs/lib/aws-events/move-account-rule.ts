@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -14,6 +14,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import { SsmParameterLookup } from '../aws-ssm/ssm-parameter-lookup';
+import { DEFAULT_LAMBDA_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 
 /**
  * MoveAccountRuleProps
@@ -49,9 +50,9 @@ export interface MoveAccountRuleProps {
    */
   readonly configTableArnParameterName: string;
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly kmsKey: cdk.aws_kms.Key;
+  readonly kmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
@@ -95,7 +96,7 @@ export class MoveAccountRule extends Construct {
     // resources for control tower lifecycle events
     const moveAccountTargetFunction = new cdk.aws_lambda.Function(this, 'MoveAccountTargetFunction', {
       code: cdk.aws_lambda.Code.fromAsset(path.join(__dirname, 'move-account/dist')),
-      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
+      runtime: DEFAULT_LAMBDA_RUNTIME,
       handler: 'index.handler',
       description: 'Lambda function to process Organizations MoveAccount event from CloudTrail',
       timeout: cdk.Duration.minutes(5),

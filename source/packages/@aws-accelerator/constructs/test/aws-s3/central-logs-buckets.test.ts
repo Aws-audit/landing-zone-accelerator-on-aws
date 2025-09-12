@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -28,7 +28,7 @@ new CentralLogsBucket(stack, 'CentralLogsBucket', {
     s3BucketName: `aws-accelerator-s3-access-logs-${stack.account}-${stack.region}`,
     kmsAliasName: 'alias/accelerator/s3-access-logs/s3',
     kmsDescription: 'AWS Accelerator S3 Access Logs Bucket CMK',
-  }),
+  }).getS3Bucket(),
   kmsAliasName: 'alias/accelerator/central-logs/s3',
   kmsDescription: 'AWS Accelerator Central Logs Bucket CMK',
   principalOrgIdCondition: { 'aws:PrincipalOrgID': organizationId },
@@ -36,6 +36,7 @@ new CentralLogsBucket(stack, 'CentralLogsBucket', {
   acceleratorPrefix: 'AWSAccelerator',
   crossAccountAccessRoleName: 'AWSAccelerator-CentralBucket-KeyArnParam-Role',
   cmkArnSsmParameterName: '/accelerator/logging/central-bucket/kms/arn',
+  managementAccountAccessRole: 'AWSControlTowerExecution',
 });
 
 /**

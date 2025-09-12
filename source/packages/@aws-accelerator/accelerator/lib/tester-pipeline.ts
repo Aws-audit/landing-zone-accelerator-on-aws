@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -197,14 +197,13 @@ export class TesterPipeline extends Construct {
         phases: {
           install: {
             'runtime-versions': {
-              nodejs: 16,
+              nodejs: 18,
             },
           },
           build: {
             commands: [
               'cd source',
               'yarn install',
-              'yarn lerna link',
               'yarn build',
               'cd packages/@aws-accelerator/tester',
               'env',
@@ -214,7 +213,7 @@ export class TesterPipeline extends Construct {
         },
       }),
       environment: {
-        buildImage: codebuild.LinuxBuildImage.STANDARD_6_0,
+        buildImage: codebuild.LinuxBuildImage.STANDARD_7_0,
         privileged: true, // Allow access to the Docker daemon
         computeType: codebuild.ComputeType.MEDIUM,
         environmentVariables: {

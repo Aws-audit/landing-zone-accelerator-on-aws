@@ -52,14 +52,14 @@ exports[`AssociateHostedZones Construct(AssociateHostedZones):  Snapshot Test 1`
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomRoute53AssociateHostedZonesCustomResourceProviderRole17C82AD6",
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs20.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",

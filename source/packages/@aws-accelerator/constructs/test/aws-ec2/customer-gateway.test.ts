@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -26,6 +26,16 @@ new CustomerGateway(stack, 'TestCgw', {
   bgpAsn: 65000,
   ipAddress: '1.1.1.1',
   tags: [{ key: 'Test-Key', value: 'Test-Value' }],
+});
+
+new CustomerGateway(stack, 'TestCustomCgw', {
+  name: 'Custom-CGW',
+  bgpAsn: 65123,
+  ipAddress: '1.2.3.4',
+  customResourceHandler: cdk.aws_lambda.Function.fromFunctionName(stack, 'Function', 'TestFunction'),
+  owningAccountId: '111111111111',
+  owningRegion: 'us-west-2',
+  roleName: 'test-role',
 });
 
 /**

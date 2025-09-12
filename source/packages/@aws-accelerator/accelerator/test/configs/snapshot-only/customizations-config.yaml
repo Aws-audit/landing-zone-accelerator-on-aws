@@ -10,6 +10,11 @@ customizations:
       runOrder: 1
       template: cloudformation-templates/custom-s3-bucket.yaml
       terminationProtection: false
+      parameters:
+        - name: pStringParameter
+          value: "test"
+        - name: pDynamicParameter
+          value: "{{resolve:ssm:/accelerator/lza-prefix}}"
     - deploymentTargets:
         organizationalUnits:
           - Security
@@ -47,6 +52,9 @@ customizations:
         - us-east-1
       runOrder: 1
       template: cloudformation-templates/custom-s3-bucket.yaml
+      administrationRoleArn: arn:aws:iam::12345678:role/CustomStackSetsAdminRole
+      executionRoleName: CustomStackSetsExecutionRole
+
   serviceCatalogPortfolios:
     - name: My-Portfolio
       provider: LZA
@@ -119,7 +127,7 @@ customizations:
 applications:
   - name: appA
     # vpc name is taken from network-config.yaml under vpcs
-    vpc: SharedServices-Main
+    vpc: SharedServices-appVpc
     deploymentTargets:
       accounts:
         - SharedServices
@@ -127,19 +135,21 @@ applications:
         - us-west-2
     autoscaling:
       name: appA-asg
-      maxSize: 4
-      minSize: 1
-      desiredSize: 2
+      maxSize: 2
+      minSize: 0
+      desiredSize: 1
       # Launch Template name should match name from launchTemplate section
       launchTemplate: appA-lt
       healthCheckGracePeriod: 300
+      # this is the only example with ELB so targetGroups are also specified
       healthCheckType: ELB # EC2|ELB
       # target group names should match the names from targetGroup section
       targetGroups:
         - appA-nlb-tg-1
       subnets:
-        - SharedServices-App-A
-        - SharedServices-App-B
+        - SharedServices-appVpc-PrivateSubnetA
+        - SharedServices-appVpc-PrivateSubnetB
+      maxInstanceLifetime: 86400
 
     launchTemplate:
       name: appA-lt
@@ -149,32 +159,27 @@ applications:
             deleteOnTermination: true
             encrypted: true
             # this kms key is in security-config.yaml under keyManagementService
-            kmsKeyId: key1
+            kmsKeyId: appEbsKey
         - deviceName: /dev/xvdg
           ebs:
             deleteOnTermination: true
             encrypted: true
             volumeSize: 20
-      securityGroups:
-        # security group is from network-config.yaml under the same vpc
-        - SharedServices-Main-Rsyslog-sg
-      # Key pair should exist in that account and region
-      keyName: keyName
       # this instance profile is in iam-config.yaml under roleSets
       iamInstanceProfile: EC2-Default-SSM-AD-Role
       # Local or public SSM parameter store lookup for Image ID
       imageId: ${ACCEL_LOOKUP::ImageId:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}
-      instanceType: t3.xlarge
+      instanceType: t3.large
       networkInterfaces:
         - deleteOnTermination: true
           description: secondary network interface
-          deviceIndex: 1
+          deviceIndex: 0
           groups:
             # security group is from network-config.yaml under the same vpc
-            - SharedServices-Main-Rsyslog-sg
-          networkCardIndex: 1
+            - SharedServices-appVpc-appSecurityGroup
+          networkCardIndex: 0
           # subnet is from network-config.yaml under the same vpc
-          subnetId: SharedServices-App-A
+          subnetId: SharedServices-appVpc-PrivateSubnetA
       # this path is relative to the config repository and the content should be in regular text.
       # Its encoded in base64 before passing in to launch Template
       userData: appConfigs/appA/launchTemplate/userData.sh
@@ -182,21 +187,22 @@ applications:
     targetGroups:
       - name: appA-nlb-tg-1
         port: 80
-        protocol: HTTP
+        protocol: TCP
         type: instance
-        attributes:
-          protocolVersion: HTTP1
-          connectionTermination: true
-          preserveClientIp: true
-          proxyProtocolV2: true
       - name: appA-alb-tg-1
         port: 80
         protocol: HTTP
         type: instance
         attributes:
-          connectionTermination: true
-          preserveClientIp: true
-          proxyProtocolV2: true
+          deregistrationDelay: 1200
+          stickiness: true
+          # applies to application load balancer
+          stickinessType: app_cookie
+          algorithm: round_robin
+          slowStart: 120
+          appCookieName: chocolate-chip
+          appCookieDuration: 4800
+          lbCookieDuration: 4800
         healthCheck:
           enabled: true
           port: 80
@@ -204,11 +210,11 @@ applications:
     networkLoadBalancer:
       name: appA-nlb
       scheme: internal
-      deletionProtection: true
+      deletionProtection: false
       subnets:
         # subnets are from network-config.yaml under the same vpc
-        - SharedServices-App-A
-        - SharedServices-App-B
+        - SharedServices-appVpc-PrivateSubnetA
+        - SharedServices-appVpc-PrivateSubnetB
       crossZoneLoadBalancing: true
       listeners:
         - name: appA-listener-1
@@ -221,10 +227,10 @@ applications:
       name: appA-alb-01
       scheme: internet-facing
       subnets:
-        - SharedServices-App-A
-        - SharedServices-App-B
+        - SharedServices-appVpc-PrivateSubnetA
+        - SharedServices-appVpc-PrivateSubnetB
       securityGroups:
-        - SharedServices-Main-Rsyslog-sg
+        - SharedServices-appVpc-appSecurityGroup
       listeners:
         - name: appA-listener-2
           port: 80
@@ -233,7 +239,7 @@ applications:
           type: forward
   - name: appB
     # vpc name is taken from network-config.yaml under vpcs
-    vpc: SharedServices-Main
+    vpc: SharedServices-appVpc
     deploymentTargets:
       accounts:
         - SharedServices
@@ -241,19 +247,17 @@ applications:
         - us-west-2
     autoscaling:
       name: testTgAsg-asg
-      maxSize: 4
-      minSize: 1
-      desiredSize: 2
+      maxSize: 2
+      minSize: 0
+      desiredSize: 1
       # Launch Template name should match name from launchTemplate section
       launchTemplate: testTgAsg-lt
       healthCheckGracePeriod: 300
-      healthCheckType: ELB # EC2|ELB
-      # target group names should match the names from targetGroup section
-      # targetGroups:
-      #   - testTgAsg-nlb-tg-1
+      healthCheckType: EC2 # EC2|ELB
       subnets:
-        - SharedServices-App-A
-        - SharedServices-App-B
+        - SharedServices-appVpc-PrivateSubnetA
+        - SharedServices-appVpc-PrivateSubnetB
+      maxInstanceLifetime: 86400
 
     launchTemplate:
       name: testTgAsg-lt
@@ -263,7 +267,7 @@ applications:
             deleteOnTermination: true
             encrypted: true
             # this kms key is in security-config.yaml under keyManagementService
-            kmsKeyId: key1
+            kmsKeyId: appEbsKey
         - deviceName: /dev/xvdg
           ebs:
             deleteOnTermination: true
@@ -271,19 +275,17 @@ applications:
             volumeSize: 20
       securityGroups:
         # security group is from network-config.yaml under the same vpc
-        - SharedServices-Main-Rsyslog-sg
-      # Key pair should exist in that account and region
-      keyName: keyName
+        - SharedServices-appVpc-appSecurityGroup
       # this instance profile is in iam-config.yaml under roleSets
       iamInstanceProfile: EC2-Default-SSM-AD-Role
       # Local or public SSM parameter store lookup for Image ID
       imageId: ${ACCEL_LOOKUP::ImageId:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}
-      instanceType: t3.xlarge
+      instanceType: t3.large
 
     targetGroups:
       - name: testTgAsg-nlb-tg-1
         port: 80
-        protocol: HTTP
+        protocol: TCP
         type: instance
         attributes:
           protocolVersion: HTTP1
@@ -293,11 +295,11 @@ applications:
     networkLoadBalancer:
       name: testTgAsg-nlb
       scheme: internal
-      deletionProtection: true
+      deletionProtection: false
       subnets:
         # subnets are from network-config.yaml under the same vpc
-        - SharedServices-App-A
-        - SharedServices-App-B
+        - SharedServices-appVpc-PrivateSubnetA
+        - SharedServices-appVpc-PrivateSubnetB
       crossZoneLoadBalancing: true
       listeners:
         - name: testTgAsg-listener-1
@@ -308,7 +310,7 @@ applications:
   # minimum config for application target group in vpc created
   - name: appC
     # vpc name is taken from network-config.yaml under vpcs
-    vpc: SharedServices-Main
+    vpc: SharedServices-appVpc
     deploymentTargets:
       accounts:
         - SharedServices
@@ -330,7 +332,7 @@ applications:
   # target group and launch template created
   - name: appD
     # vpc name is taken from network-config.yaml under vpcs
-    vpc: SharedServices-Main
+    vpc: SharedServices-appVpc
     deploymentTargets:
       accounts:
         - SharedServices
@@ -357,7 +359,7 @@ applications:
             deleteOnTermination: true
             encrypted: true
             # this kms key is in security-config.yaml under keyManagementService
-            kmsKeyId: key1
+            kmsKeyId: appEbsKey
         - deviceName: /dev/xvdg
           ebs:
             deleteOnTermination: true
@@ -365,18 +367,16 @@ applications:
             volumeSize: 20
       securityGroups:
         # security group is from network-config.yaml under the same vpc
-        - SharedServices-Main-Rsyslog-sg
-      # Key pair should exist in that account and region
-      keyName: keyName
+        - SharedServices-appVpc-appSecurityGroup
       # this instance profile is in iam-config.yaml under roleSets
       iamInstanceProfile: EC2-Default-SSM-AD-Role
       # Local or public SSM parameter store lookup for Image ID
       imageId: ${ACCEL_LOOKUP::ImageId:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}
-      instanceType: t3.xlarge
+      instanceType: t3.large
   # target group, launch template and autoscaling created. Target group is not tied to AutoScaling
   - name: appE
     # vpc name is taken from network-config.yaml under vpcs
-    vpc: SharedServices-Main
+    vpc: SharedServices-appVpc
     deploymentTargets:
       accounts:
         - SharedServices
@@ -403,7 +403,7 @@ applications:
             deleteOnTermination: true
             encrypted: true
             # this kms key is in security-config.yaml under keyManagementService
-            kmsKeyId: key1
+            kmsKeyId: appEbsKey
         - deviceName: /dev/xvdg
           ebs:
             deleteOnTermination: true
@@ -411,33 +411,29 @@ applications:
             volumeSize: 20
       securityGroups:
         # security group is from network-config.yaml under the same vpc
-        - SharedServices-Main-Rsyslog-sg
-      # Key pair should exist in that account and region
-      keyName: keyName
+        - SharedServices-appVpc-appSecurityGroup
       # this instance profile is in iam-config.yaml under roleSets
       iamInstanceProfile: EC2-Default-SSM-AD-Role
       # Local or public SSM parameter store lookup for Image ID
       imageId: ${ACCEL_LOOKUP::ImageId:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}
-      instanceType: t3.xlarge
+      instanceType: t3.large
     autoscaling:
       name: appE-asg
-      maxSize: 4
-      minSize: 1
-      desiredSize: 2
+      maxSize: 2
+      minSize: 0
+      desiredSize: 1
       # Launch Template name should match name from launchTemplate section
       launchTemplate: testTgAsg-lt
       healthCheckGracePeriod: 300
-      healthCheckType: ELB # EC2|ELB
-      # target group names should match the names from targetGroup section but are not added in this app
-      # targetGroups:
-      #   - appE-nlb-tg-1
+      healthCheckType: EC2 # EC2|ELB
       subnets:
-        - SharedServices-App-A
-        - SharedServices-App-B
+        - SharedServices-appVpc-PrivateSubnetA
+        - SharedServices-appVpc-PrivateSubnetB
+      maxInstanceLifetime: 86400
   # target group, launch template and autoscaling added. Target group is tied to Autoscaling
   - name: appF
     # vpc name is taken from network-config.yaml under vpcs
-    vpc: SharedServices-Main
+    vpc: SharedServices-appVpc
     deploymentTargets:
       accounts:
         - SharedServices
@@ -464,7 +460,7 @@ applications:
             deleteOnTermination: true
             encrypted: true
             # this kms key is in security-config.yaml under keyManagementService
-            kmsKeyId: key1
+            kmsKeyId: appEbsKey
         - deviceName: /dev/xvdg
           ebs:
             deleteOnTermination: true
@@ -472,31 +468,15 @@ applications:
             volumeSize: 20
       securityGroups:
         # security group is from network-config.yaml under the same vpc
-        - SharedServices-Main-Rsyslog-sg
-      # Key pair should exist in that account and region
-      keyName: keyName
+        - SharedServices-appVpc-appSecurityGroup
       # this instance profile is in iam-config.yaml under roleSets
       iamInstanceProfile: EC2-Default-SSM-AD-Role
       # Local or public SSM parameter store lookup for Image ID
       imageId: ${ACCEL_LOOKUP::ImageId:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}
-      instanceType: t3.xlarge
-    autoscaling:
-      name: appF-asg
-      maxSize: 4
-      minSize: 1
-      desiredSize: 2
-      # Launch Template name should match name from launchTemplate section
-      launchTemplate: testTgAsg-lt
-      healthCheckGracePeriod: 300
-      healthCheckType: ELB # EC2|ELB
-      # target group names should match the names from targetGroup section but are not added in this app
-      # targetGroups:
-      #   - appE-nlb-tg-1
-      subnets:
-        - SharedServices-App-A
-        - SharedServices-App-B
+      instanceType: t3.large
+
   - name: appG
-    vpc: SharedServices-Main
+    vpc: SharedServices-appVpc
     deploymentTargets:
       accounts:
         - SharedServices
@@ -551,8 +531,8 @@ applications:
       scheme: internal
       deletionProtection: false
       subnets:
-        - SharedServices-App-A
-        - SharedServices-App-B
+        - SharedServices-appVpc-PrivateSubnetA
+        - SharedServices-appVpc-PrivateSubnetB
       listeners:
         - name: appG-listener-1
           port: 80
@@ -569,10 +549,10 @@ applications:
       name: appG-alb-01
       scheme: internet-facing
       subnets:
-        - SharedServices-App-A
-        - SharedServices-App-B
+        - SharedServices-appVpc-PrivateSubnetA
+        - SharedServices-appVpc-PrivateSubnetB
       securityGroups:
-        - SharedServices-Main-Rsyslog-sg
+        - SharedServices-appVpc-appSecurityGroup
       listeners:
         - name: appG-listener-2
           port: 80
@@ -586,12 +566,63 @@ applications:
           type: forward
           certificate: cert1
           sslPolicy: ELBSecurityPolicy-2016-08
+  # autoscaling group and launch template created using subnet shared from another account
+  - name: appH
+    # vpc name is taken from network-config.yaml under vpcs
+    vpc: SharedServices-Main
+    deploymentTargets:
+      accounts:
+        - Network
+      excludedRegions:
+        - us-west-2
+    autoscaling:
+      name: appH-asg
+      maxSize: 1
+      minSize: 1
+      desiredSize: 1
+      # Launch Template name should match name from launchTemplate section
+      launchTemplate: appH-lt
+      healthCheckGracePeriod: 300
+      # this is the only example with ELB so targetGroups are also specified
+      healthCheckType: EC2 # EC2|ELB
+      # target group names should match the names from targetGroup section
+      subnets:
+        - SharedServices-App-C
+      maxInstanceLifetime: 86400
 
+    launchTemplate:
+      name: appH-lt
+      blockDeviceMappings:
+        - deviceName: /dev/xvda
+          ebs:
+            deleteOnTermination: true
+            encrypted: true
+      securityGroups: 
+        - SharedServices-Main-Rsyslog-sg
+      # this instance profile is in iam-config.yaml under roleSets
+      iamInstanceProfile: EC2-Default-SSM-AD-Role
+      # Local or public SSM parameter store lookup for Image ID
+      imageId: ${ACCEL_LOOKUP::ImageId:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}
+      instanceType: t3.large
+      # this path is relative to the config repository and the content should be in regular text.
+      # Its encoded in base64 before passing in to launch Template
+      userData: appConfigs/appA/launchTemplate/userData.sh
+      metadataOptions:
+        httpTokens: required
+        httpPutResponseHopLimit: 2
+        httpEndpoint: enabled
+        httpProtocolIpv6: disabled
+        instanceMetadataTags: disabled
 firewalls:
   instances:
     - name: accelerator-firewall
       configFile: instance-config.txt
       licenseFile: license.lic
+      staticReplacements:
+        - key: CORP_CIDR_1
+          value: 10.0.0.0/16
+        - key: CORP_CIDR_2
+          value: 192.168.0.0/16
       launchTemplate:
         name: firewall-lt
         blockDeviceMappings:
@@ -613,12 +644,62 @@ firewalls:
               - Data
             subnetId: Network-Inspection-A
           - deviceIndex: 1
+            associateElasticIp: true
             description: Secondary
             groups:
               - Data
             subnetId: Network-Inspection-A
         securityGroups: []
       vpc: Network-Inspection
+    - name: cross-account-firewall
+      launchTemplate:
+        name: firewall-lt
+        blockDeviceMappings:
+          - deviceName: /dev/xvda
+            ebs:
+              encrypted: true
+              volumeSize: 20
+          - deviceName: /dev/xvdb
+            ebs:
+              encrypted: true
+              volumeSize: 10
+        iamInstanceProfile: EC2-Default-SSM-AD-Role
+        imageId: ${ACCEL_LOOKUP::ImageId:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}
+        instanceType: t3.large
+        networkInterfaces:
+          - deviceIndex: 0
+            description: Primary interface
+            associateElasticIp: true
+            groups:
+              - SharedServices-Main-Rsyslog-sg
+            subnetId: SharedServices-App-A
+        securityGroups: []
+      vpc: SharedServices-Main
+    - name: firewall-with-shared-subnet
+      launchTemplate:
+        name: firewall-lt
+        blockDeviceMappings:
+          - deviceName: /dev/xvda
+            ebs:
+              encrypted: true
+              volumeSize: 20
+          - deviceName: /dev/xvdb
+            ebs:
+              encrypted: true
+              volumeSize: 10
+        iamInstanceProfile: EC2-Default-SSM-AD-Role
+        imageId: ${ACCEL_LOOKUP::ImageId:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}
+        instanceType: t3.large
+        networkInterfaces:
+          - deviceIndex: 0
+            description: Primary interface
+            associateElasticIp: true
+            groups:
+              - SharedServices-Main-Rsyslog-sg
+            subnetId: SharedServices-App-C
+        securityGroups: []
+      vpc: SharedServices-Main
+      account: Network
   autoscalingGroups:
     - name: test-asg
       autoscaling:
@@ -634,6 +715,7 @@ firewalls:
         subnets:
           - Network-Inspection-A
           - Network-Inspection-B
+        maxInstanceLifetime: 86400
       configFile: asg-config.txt
       licenseFile: license.lic
       launchTemplate:
@@ -696,6 +778,14 @@ firewalls:
       type: instance
       targets:
         - accelerator-firewall
+      attributes:
+        targetFailover: rebalance
+    - name: shared-services-target
+      port: 6081
+      protocol: GENEVE
+      type: instance
+      targets:
+        - cross-account-firewall
       attributes:
         targetFailover: rebalance
     - name: asg-target

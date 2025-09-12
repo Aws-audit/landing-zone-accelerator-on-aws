@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -13,6 +13,8 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as path from 'path';
+import { PolicyStatementType } from '@aws-accelerator/utils/lib/common-resources';
+import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 
 export interface IDirectConnectGateway extends cdk.IResource {
   /**
@@ -36,14 +38,27 @@ export interface DirectConnectGatewayProps {
    */
   readonly asn: number;
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly kmsKey: cdk.aws_kms.IKey;
+  readonly kmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
   readonly logRetentionInDays: number;
 }
+
+export const DirectConnectGatewayPolicyStatements: PolicyStatementType[] = [
+  {
+    Sid: 'DirectConnectGatewayCRUD',
+    Effect: 'Allow',
+    Action: [
+      'directconnect:CreateDirectConnectGateway',
+      'directconnect:DeleteDirectConnectGateway',
+      'directconnect:UpdateDirectConnectGateway',
+    ],
+    Resource: '*',
+  },
+];
 
 export class DirectConnectGateway extends cdk.Resource implements IDirectConnectGateway {
   public readonly directConnectGatewayId: string;
@@ -57,19 +72,8 @@ export class DirectConnectGateway extends cdk.Resource implements IDirectConnect
 
     const provider = cdk.CustomResourceProvider.getOrCreateProvider(this, RESOURCE_TYPE, {
       codeDirectory: path.join(__dirname, 'direct-connect-gateway/dist'),
-      runtime: cdk.CustomResourceProviderRuntime.NODEJS_16_X,
-      policyStatements: [
-        {
-          Sid: 'DirectConnectGatewayCRUD',
-          Effect: 'Allow',
-          Action: [
-            'directconnect:CreateDirectConnectGateway',
-            'directconnect:DeleteDirectConnectGateway',
-            'directconnect:UpdateDirectConnectGateway',
-          ],
-          Resource: '*',
-        },
-      ],
+      runtime: CUSTOM_RESOURCE_PROVIDER_RUNTIME,
+      policyStatements: DirectConnectGatewayPolicyStatements,
     });
 
     const resource = new cdk.CustomResource(this, 'Resource', {

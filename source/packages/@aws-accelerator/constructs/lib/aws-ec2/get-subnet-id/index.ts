@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,9 +11,10 @@
  *  and limitations under the License.
  */
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
-import * as AWS from 'aws-sdk';
-AWS.config.logger = console;
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
+import { DescribeSubnetsCommand, EC2Client } from '@aws-sdk/client-ec2';
+import { setRetryStrategy } from '@aws-accelerator/utils/lib/common-functions';
 
 /**
  * add-macie-members - lambda handler
@@ -21,7 +22,7 @@ AWS.config.logger = console;
  * @param event
  * @returns
  */
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent): Promise<
+export async function handler(event: CloudFormationCustomResourceEvent): Promise<
   | {
       PhysicalResourceId: string | undefined;
       Status: string;
@@ -38,21 +39,24 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
       const vpcId = event.ResourceProperties['vpcId'];
       const subnetName = event.ResourceProperties['subnetName'];
       const solutionId = process.env['SOLUTION_ID'];
-      const ec2Client = new AWS.EC2({ customUserAgent: solutionId });
+      const ec2Client = new EC2Client({
+        customUserAgent: solutionId,
+        retryStrategy: setRetryStrategy(),
+      });
 
       let nextToken: string | undefined = undefined;
 
       do {
         const page = await throttlingBackOff(() =>
-          ec2Client
-            .describeSubnets({
+          ec2Client.send(
+            new DescribeSubnetsCommand({
               Filters: [
                 { Name: 'vpc-id', Values: [vpcId] },
                 { Name: 'tag:Name', Values: [subnetName] },
               ],
               NextToken: nextToken,
-            })
-            .promise(),
+            }),
+          ),
         );
 
         for (const subnet of page.Subnets ?? []) {

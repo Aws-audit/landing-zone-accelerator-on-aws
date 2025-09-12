@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -24,6 +24,7 @@ import {
   IamConfig,
   NetworkConfig,
   OrganizationConfig,
+  ReplacementsConfig,
   SecurityConfig,
 } from '@aws-accelerator/config';
 
@@ -36,8 +37,9 @@ import { ApplicationsStack } from '../lib/stacks/applications-stack';
 import { BootstrapStack } from '../lib/stacks/bootstrap-stack';
 import { CustomStack, generateCustomStackMappings, isIncluded } from '../lib/stacks/custom-stack';
 import { CustomizationsStack } from '../lib/stacks/customizations-stack';
-import { DependenciesStack } from '../lib/stacks/dependencies-stack';
+import { DependenciesStack } from '../lib/stacks/dependencies-stack/dependencies-stack';
 import { FinalizeStack } from '../lib/stacks/finalize-stack';
+import { IdentityCenterStack } from '../lib/stacks/identity-center-stack';
 import { KeyStack } from '../lib/stacks/key-stack';
 import { LoggingStack } from '../lib/stacks/logging-stack';
 import { NetworkAssociationsGwlbStack } from '../lib/stacks/network-stacks/network-associations-gwlb-stack/network-associations-gwlb-stack';
@@ -52,6 +54,7 @@ import { PrepareStack } from '../lib/stacks/prepare-stack';
 import { SecurityAuditStack } from '../lib/stacks/security-audit-stack';
 import { SecurityResourcesStack } from '../lib/stacks/security-resources-stack';
 import { SecurityStack } from '../lib/stacks/security-stack';
+import { ResourcePolicyEnforcementStack } from '../lib/stacks/resource-policy-enforcement-stack';
 
 export class AcceleratorSynthStacks {
   private readonly configFolderName: string;
@@ -68,8 +71,8 @@ export class AcceleratorSynthStacks {
   private readonly globalRegion: string;
 
   public readonly stacks = new Map<string, AcceleratorStack | CustomStack | Stack>();
-  constructor(stageName: string, configFolderName: string, partition: string, globalRegion: string) {
-    this.configFolderName = configFolderName;
+  constructor(stageName: string, partition: string, globalRegion: string, configFolderName?: string) {
+    this.configFolderName = configFolderName ?? 'snapshot-only';
     this.partition = partition;
     this.stageName = stageName;
     this.globalRegion = globalRegion;
@@ -85,7 +88,6 @@ export class AcceleratorSynthStacks {
     const globalConfig = GlobalConfig.load(this.configDirPath);
 
     let customizationsConfig: CustomizationsConfig;
-    // console.log(`Using config directory ${this.configDirPath}`);
     // Create empty customizationsConfig if optional configuration file does not exist
     if (fs.existsSync(path.join(this.configDirPath, 'customizations-config.yaml'))) {
       customizationsConfig = CustomizationsConfig.load(this.configDirPath);
@@ -93,32 +95,43 @@ export class AcceleratorSynthStacks {
       customizationsConfig = new CustomizationsConfig();
     }
 
+    const accountsConfig = AccountsConfig.load(this.configDirPath);
+    const orgConfig = OrganizationConfig.load(this.configDirPath);
+    const replacementsConfig = ReplacementsConfig.load(this.configDirPath, accountsConfig);
+    replacementsConfig.loadReplacementValues({}, orgConfig.enable);
     this.props = {
       configDirPath: this.configDirPath,
-      accountsConfig: AccountsConfig.load(this.configDirPath),
-      // customizationsConfig: CustomizationsConfig.load(this.configDirPath),
+      accountsConfig: accountsConfig,
       customizationsConfig,
       globalConfig,
       iamConfig: IamConfig.load(this.configDirPath),
       networkConfig: NetworkConfig.load(this.configDirPath),
       organizationConfig: OrganizationConfig.load(this.configDirPath),
       securityConfig: SecurityConfig.load(this.configDirPath),
+      replacementsConfig: replacementsConfig,
       partition: this.partition,
       globalRegion: this.globalRegion,
       centralizedLoggingRegion: globalConfig.logging.centralizedLoggingRegion ?? globalConfig.homeRegion,
       configRepositoryName: 'aws-accelerator-config',
+      configRepositoryLocation: 'codecommit',
       prefixes: {
         accelerator: 'AWSAccelerator',
         kmsAlias: 'alias/accelerator',
         bucketName: 'aws-accelerator',
         ssmParamName: '/accelerator',
+        importResourcesSsmParamName: '/accelerator/imported-resources',
         snsTopicName: 'aws-accelerator',
         repoName: 'aws-accelerator',
         secretName: '/accelerator',
         trailLogName: 'aws-accelerator',
         databaseName: 'aws-accelerator',
+        ssmLogName: 'aws-accelerator',
       },
       enableSingleAccountMode: false,
+      useExistingRoles: false,
+      centralLogsBucketKmsKeyArn: 'arn:aws:kms:us-east-1:111111111111:key/00000000-0000-0000-0000-000000000000',
+      isDiagnosticsPackEnabled: 'Yes',
+      pipelineAccountId: '111111111111',
     };
 
     this.homeRegion = this.props.globalConfig.homeRegion;
@@ -171,6 +184,9 @@ export class AcceleratorSynthStacks {
       case AcceleratorStage.OPERATIONS:
         this.synthOperationsStacks();
         break;
+      case AcceleratorStage.IDENTITY_CENTER:
+        this.synthIdentityCenterStacks();
+        break;
       case AcceleratorStage.ORGANIZATIONS:
         this.synthOrganizationsStacks();
         break;
@@ -182,6 +198,9 @@ export class AcceleratorSynthStacks {
         break;
       case AcceleratorStage.SECURITY_RESOURCES:
         this.synthSecurityResourcesStacks();
+        break;
+      case AcceleratorStage.RESOURCE_POLICY_ENFORCEMENT:
+        this.synthResourcePolicyEnforcementStacks();
         break;
       case AcceleratorStage.SECURITY:
         this.synthSecurityStacks();
@@ -561,6 +580,34 @@ export class AcceleratorSynthStacks {
     }
   }
   /**
+   * synth IdentityCenter stacks
+   */
+  private synthIdentityCenterStacks() {
+    for (const region of this.props.globalConfig.enabledRegions) {
+      for (const account of [
+        ...this.props.accountsConfig.mandatoryAccounts,
+        ...this.props.accountsConfig.workloadAccounts,
+      ]) {
+        const accountId = this.props.accountsConfig.getAccountId(account.name);
+        this.stacks.set(
+          `${account.name}-${region}`,
+          new IdentityCenterStack(
+            this.app,
+            `${AcceleratorStackNames[AcceleratorStage.IDENTITY_CENTER]}-${accountId}-${region}`,
+            {
+              env: {
+                account: accountId,
+                region: region,
+              },
+              ...this.props,
+            },
+          ),
+        );
+      }
+    }
+  }
+
+  /**
    * synth Organizations stacks
    */
   private synthOrganizationsStacks() {
@@ -632,6 +679,33 @@ export class AcceleratorSynthStacks {
           new SecurityResourcesStack(
             this.app,
             `${AcceleratorStackNames[AcceleratorStage.SECURITY_RESOURCES]}-${accountId}-${region}`,
+            {
+              env: {
+                account: accountId,
+                region: region,
+              },
+              ...this.props,
+            },
+          ),
+        );
+      }
+    }
+  }
+  /**
+   * synth ResourcePolicyEnforcementStack
+   */
+  private synthResourcePolicyEnforcementStacks() {
+    for (const region of this.props.globalConfig.enabledRegions) {
+      for (const account of [
+        ...this.props.accountsConfig.mandatoryAccounts,
+        ...this.props.accountsConfig.workloadAccounts,
+      ]) {
+        const accountId = this.props.accountsConfig.getAccountId(account.name);
+        this.stacks.set(
+          `${account.name}-${region}`,
+          new ResourcePolicyEnforcementStack(
+            this.app,
+            `${AcceleratorStackNames[AcceleratorStage.RESOURCE_POLICY_ENFORCEMENT]}-${accountId}-${region}`,
             {
               env: {
                 account: accountId,

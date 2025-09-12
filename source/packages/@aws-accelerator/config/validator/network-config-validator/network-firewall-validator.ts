@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -19,7 +19,6 @@ import {
   NfwStatelessRulesAndCustomActionsConfig,
   NfwRuleSourceStatelessRuleDefinitionConfig,
   NfwRuleSourceStatelessMatchAttributesConfig,
-  NetworkConfigTypes,
   NfwFirewallPolicyConfig,
   NfwRuleSourceCustomActionConfig,
   NfwRuleSourceStatefulRuleConfig,
@@ -29,7 +28,9 @@ import {
   SubnetConfig,
 } from '../../lib/network-config';
 import { NetworkValidatorFunctions } from './network-validator-functions';
-
+import { isNetworkType } from '../../lib/common';
+import { NfwStatelessRuleActionType } from '../../lib/models/network-config';
+import { isArn } from '../../../utils/lib/is-arn';
 /**
  * Class to validate network firewall
  */
@@ -294,7 +295,7 @@ export class NetworkFirewallValidator {
   ) {
     const attributes = definition.matchAttributes;
     // Validate CIDRs
-    const cidrs = [...(attributes.sources ?? []), ...(attributes.destinations ?? [])] ?? [];
+    const cidrs = [...(attributes.sources ?? []), ...(attributes.destinations ?? [])];
     cidrs.forEach(cidr => {
       if (!helpers.isValidIpv4Cidr(cidr)) {
         errors.push(
@@ -345,7 +346,7 @@ export class NetworkFirewallValidator {
       );
     }
     // Validate attributes
-    const portRanges = [...(attributes.destinationPorts ?? []), ...(attributes.sourcePorts ?? [])] ?? [];
+    const portRanges = [...(attributes.destinationPorts ?? []), ...(attributes.sourcePorts ?? [])];
     portRanges.forEach(portRange => {
       const isValidPortRange = portRange.fromPort <= portRange.toPort;
       const portRangeString = `fromPort: ${portRange.fromPort}, toPort: ${portRange.toPort}`;
@@ -405,7 +406,7 @@ export class NetworkFirewallValidator {
 
     for (const ruleItem of statelessRules ?? []) {
       for (const action of ruleItem.ruleDefinition.actions) {
-        if (!NetworkConfigTypes.nfwStatelessRuleActionType.is(action) && !customActions) {
+        if (!isNetworkType<NfwStatelessRuleActionType>('NfwStatelessRuleActionType', action) && !customActions) {
           errors.push(
             `[Network Firewall rule group ${rule.name}]: ruleDefinition custom action "${action}" is invalid. No matching actionName defined under the customActions property`,
           );
@@ -440,7 +441,7 @@ export class NetworkFirewallValidator {
       return item.actionName;
     });
     let allValid = true;
-    const resourceType = NetworkConfigTypes.nfwRuleGroupConfig.is(resource) ? 'rule group' : 'policy';
+    const resourceType = isNetworkType<NfwRuleGroupConfig>('INfwRuleGroupConfig', resource) ? 'rule group' : 'policy';
 
     // Check if duplicate action names are defined
     if (helpers.hasDuplicates(actionNames)) {
@@ -492,7 +493,10 @@ export class NetworkFirewallValidator {
 
     for (const definition of ruleDefinitions ?? []) {
       for (const action of definition.ruleDefinition.actions) {
-        if (!NetworkConfigTypes.nfwStatelessRuleActionType.is(action) && !actionNames.includes(action)) {
+        if (
+          !isNetworkType<NfwStatelessRuleActionType>('NfwStatelessRuleActionType', action) &&
+          !actionNames.includes(action)
+        ) {
           errors.push(
             `[Network Firewall rule group ${rule.name}]: ruleDefinition custom action "${action}" is invalid. Custom actions must be defined under the customActions property`,
           );
@@ -719,7 +723,7 @@ export class NetworkFirewallValidator {
     for (const target of domainList.targets) {
       if (!helpers.matchesRegex(target, '^\\.?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-z]{2,8}$')) {
         errors.push(
-          `[Network Firewall rule group ${rule.name}]: target "${target}" is invalid. Targets must be formatted ".example.com" for wildcard domains and "example.com" for explicit match domains `,
+          `[Network Firewall rule group ${rule.name}]: target "${target}" is invalid. Targets must be formatted ".example.com" for wildcard domains and "example.com" for explicit match domains`,
         );
       }
     }
@@ -1076,7 +1080,7 @@ export class NetworkFirewallValidator {
         policy.firewallPolicy.statefulEngineOptions !== 'STRICT_ORDER'
       ) {
         errors.push(
-          `[Network Firewall policy ${policy.name}]: STRICT_ORDER must be set for statefulEngineOptions property if definin g statefulDefaultActions`,
+          `[Network Firewall policy ${policy.name}]: STRICT_ORDER must be set for statefulEngineOptions property if defining statefulDefaultActions`,
         );
       }
 
@@ -1189,7 +1193,7 @@ export class NetworkFirewallValidator {
         ...policy.firewallPolicy.statelessDefaultActions,
         ...policy.firewallPolicy.statelessFragmentDefaultActions,
       ]) {
-        if (!NetworkConfigTypes.nfwStatelessRuleActionType.is(action) && !customActions) {
+        if (!isNetworkType<NfwStatelessRuleActionType>('NfwStatelessRuleActionType', action) && !customActions) {
           errors.push(
             `[Network Firewall policy ${policy.name}]: stateless custom action "${action}" is invalid. No matching actionName defined under the statelessCustomActions property`,
           );
@@ -1227,7 +1231,10 @@ export class NetworkFirewallValidator {
       ...policy.firewallPolicy.statelessDefaultActions,
       ...policy.firewallPolicy.statelessFragmentDefaultActions,
     ]) {
-      if (!NetworkConfigTypes.nfwStatelessRuleActionType.is(action) && !actionNames.includes(action)) {
+      if (
+        !isNetworkType<NfwStatelessRuleActionType>('NfwStatelessRuleActionType', action) &&
+        !actionNames.includes(action)
+      ) {
         errors.push(
           `[Network Firewall policy ${policy.name}]: stateless custom action "${action}" is invalid. No matching actionName defined under the statelessCustomActions property`,
         );
@@ -1334,7 +1341,7 @@ export class NetworkFirewallValidator {
       });
 
       // Validate there are no duplicate subnet AZs/names
-      const azs: string[] = [];
+      const azs: (string | number)[] = [];
       const subnetNames: string[] = [];
       subnets.forEach(item => {
         azs.push(item.availabilityZone ? item.availabilityZone : '');
@@ -1395,28 +1402,35 @@ export class NetworkFirewallValidator {
   ) {
     // Validate policy exists
     const firewallPolicy = allPolicies.get(firewall.firewallPolicy);
+    // If `firewallPolicy` is an arn, it is not managed by LZA, so we don't need
+    // to check if it exists
+    const shouldValidatePolicy = !isArn(firewall.firewallPolicy);
+    if (!shouldValidatePolicy) {
+      return;
+    }
     if (!firewallPolicy) {
       errors.push(
         `[Network Firewall firewall ${firewall.name}]: firewall policy "${firewall.firewallPolicy}" does not exist`,
       );
-    } else {
-      // Validate RAM shares exist in desired accounts
-      const vpc = helpers.getVpc(firewall.vpc)!;
-      const vpcAccountNames = helpers.getVpcAccountNames(vpc);
-      const policyAccountNames = helpers.getDelegatedAdminShareTargets(firewallPolicy.shareTargets);
-      const targetComparison = helpers.compareTargetAccounts(vpcAccountNames, policyAccountNames);
+      return;
+    }
+    // Only add validations for firewallPolicy if it exists (eg. is managed by LZA)
+    // Validate RAM shares exist in desired accounts
+    const vpc = helpers.getVpc(firewall.vpc)!;
+    const vpcAccountNames = helpers.getVpcAccountNames(vpc);
+    const policyAccountNames = helpers.getDelegatedAdminShareTargets(firewallPolicy.shareTargets);
+    const targetComparison = helpers.compareTargetAccounts(vpcAccountNames, policyAccountNames);
 
-      if (targetComparison.length > 0) {
-        errors.push(
-          `[Network Firewall firewall ${firewall.name}]: firewall policy "${firewall.firewallPolicy}" is not shared with one or more target OU(s)/account(s) for VPC "${vpc.name}." Missing accounts: ${targetComparison}`,
-        );
-      }
-      // Validate regions match
-      if (!firewallPolicy.regions.includes(vpc.region)) {
-        errors.push(
-          `[Network Firewall firewall ${firewall.name}]: firewall policy "${firewall.firewallPolicy}" target region(s) do not match region for VPC "${vpc.name}." Policy regions: ${firewallPolicy.regions}; VPC region: ${vpc.region}`,
-        );
-      }
+    if (targetComparison.length > 0) {
+      errors.push(
+        `[Network Firewall firewall ${firewall.name}]: firewall policy "${firewall.firewallPolicy}" is not shared with one or more target OU(s)/account(s) for VPC "${vpc.name}." Missing accounts: ${targetComparison}`,
+      );
+    }
+    // Validate regions match
+    if (!firewallPolicy.regions.includes(vpc.region)) {
+      errors.push(
+        `[Network Firewall firewall ${firewall.name}]: firewall policy "${firewall.firewallPolicy}" target region(s) do not match region for VPC "${vpc.name}." Policy regions: ${firewallPolicy.regions}; VPC region: ${vpc.region}`,
+      );
     }
   }
 

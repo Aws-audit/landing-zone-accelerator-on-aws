@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -12,19 +12,21 @@
  */
 
 import {
+  isNetworkType,
   NetworkAclConfig,
   NetworkAclSubnetSelection,
-  NetworkConfigTypes,
-  nonEmptyString,
+  NonEmptyString,
   VpcConfig,
   VpcTemplatesConfig,
+  AseaResourceType,
 } from '@aws-accelerator/config';
 import { NetworkAcl, Subnet, Vpc } from '@aws-accelerator/constructs';
-import { SsmResourceType } from '@aws-accelerator/utils';
+import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
 import { NagSuppressions } from 'cdk-nag';
 import { pascalCase } from 'pascal-case';
 import { LogLevel } from '../network-stack';
-import { getSubnet, getVpc } from '../utils/getter-utils';
+import { getSubnet, getSubnetConfig, getVpc, getVpcConfig } from '../utils/getter-utils';
+import { isIpv6Cidr } from '../utils/validation-utils';
 import { NetworkVpcStack } from './network-vpc-stack';
 
 export class NaclResources {
@@ -100,9 +102,13 @@ export class NaclResources {
     subnetMap: Map<string, Subnet>,
   ) {
     for (const subnetItem of naclItem.subnetAssociations) {
+      const naclSubnetAssociation = `${vpcItem.name}/${subnetItem}`;
+      if (this.stack.isManagedByAsea(AseaResourceType.EC2_NACL_SUBNET_ASSOCIATION, naclSubnetAssociation)) {
+        this.stack.addLogs(LogLevel.INFO, `Nacl Subnet Association ${naclSubnetAssociation} is managed by ASEA`);
+        continue;
+      }
       this.stack.addLogs(LogLevel.INFO, `Associate ${naclItem.name} to subnet ${subnetItem}`);
       const subnet = getSubnet(subnetMap, vpcItem.name, subnetItem) as Subnet;
-
       networkAcl.associateSubnet(
         `${pascalCase(vpcItem.name)}Vpc${pascalCase(naclItem.name)}NaclAssociate${pascalCase(subnetItem)}`,
         {
@@ -210,43 +216,36 @@ export class NaclResources {
     //
     // IP target
     //
-    if (nonEmptyString.is(target)) {
+    if (isNetworkType<NonEmptyString>('NonEmptyString', target)) {
       this.stack.addLogs(LogLevel.INFO, `Evaluate IP Target ${target}`);
-      if (target.includes('::')) {
+      if (isIpv6Cidr(target)) {
         return { ipv6CidrBlock: target };
       } else {
         return { cidrBlock: target };
       }
     }
-
     //
     // Subnet Source target
     //
-    if (NetworkConfigTypes.networkAclSubnetSelection.is(target)) {
+    if (isNetworkType<NetworkAclSubnetSelection>('INetworkAclSubnetSelection', target)) {
       this.stack.addLogs(
         LogLevel.INFO,
         `Evaluate Subnet Source account:${target.account} vpc:${target.vpc} subnets:[${target.subnet}]`,
       );
-
+      //
       // Locate the VPC
-      const vpcItem = this.stack.vpcResources.find(item => item.name === target.vpc);
-      if (!vpcItem) {
-        this.stack.addLogs(LogLevel.ERROR, `Specified VPC ${target.vpc} not defined`);
-        throw new Error(`Configuration validation failed at runtime.`);
-      }
-
+      const vpcConfigItem = getVpcConfig(this.stack.vpcResources, target.vpc);
+      //
       // Locate the Subnet
-      const subnetConfigItem = vpcItem.subnets?.find(item => item.name === target.subnet);
-      if (!subnetConfigItem) {
-        this.stack.addLogs(LogLevel.ERROR, `Specified subnet ${target.subnet} not defined`);
-        throw new Error(`Configuration validation failed at runtime.`);
-      }
+      const subnetConfigItem = getSubnetConfig(vpcConfigItem, target.subnet);
 
       if (subnetConfigItem.ipamAllocation) {
-        const subnetItem = getSubnet(subnetMap, vpcItem.name, subnetConfigItem.name) as Subnet;
+        const subnetItem = getSubnet(subnetMap, vpcConfigItem.name, subnetConfigItem.name) as Subnet;
         return { cidrBlock: subnetItem.ipv4CidrBlock };
       } else {
-        return { cidrBlock: subnetConfigItem.ipv4CidrBlock };
+        return target.ipv6
+          ? { ipv6CidrBlock: subnetConfigItem.ipv6CidrBlock }
+          : { cidrBlock: subnetConfigItem.ipv4CidrBlock };
       }
     }
 

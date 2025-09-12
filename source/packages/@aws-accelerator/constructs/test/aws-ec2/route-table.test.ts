@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -16,6 +16,7 @@ import { RouteTable } from '../../lib/aws-ec2/route-table';
 import { NatGateway, Vpc, Subnet } from '../../lib/aws-ec2/vpc';
 import { snapShotTest } from '../snapshot-test';
 import { describe, it, expect } from '@jest/globals';
+import { TransitGatewayAttachment } from '../../lib/aws-ec2/transit-gateway';
 
 const testNamePrefix = 'Construct(RouteTable): ';
 
@@ -33,6 +34,7 @@ const vpc = new Vpc(stack, 'TestVpc', {
     asn: 65000,
   },
 });
+vpc.addEgressOnlyIgw();
 
 const rt = new RouteTable(stack, 'RouteTable', {
   name: 'TestRouteTable',
@@ -45,40 +47,53 @@ const subnet = new Subnet(stack, 'test-subnet', {
   routeTable: rt,
   vpc,
   availabilityZone: 'a',
+  availabilityZoneId: undefined,
   ipv4CidrBlock: '10.0.2.0/24',
 });
 
 const ngw = new NatGateway(stack, 'ngw', { name: 'ngw', subnet });
 
-const tgwAttachment = new cdk.aws_ec2.CfnTransitGatewayAttachment(stack, 'tgwAttachment', {
+const tgwAttachment = new TransitGatewayAttachment(stack, 'tgwAttachment', {
+  name: 'someTgwAttachment',
+  partition: 'partition',
   subnetIds: ['subnet-123'],
   transitGatewayId: 'tgw-12324',
   vpcId: vpc.vpcId,
 });
 
-rt.addTransitGatewayRoute('tg-route', 'tgw-1234', tgwAttachment, undefined, 'pl-1234', key, 10);
-rt.addTransitGatewayRoute('tg', 'tg-1234', tgwAttachment, '10.0.5.0/24', undefined, key, 10);
-rt.addNatGatewayRoute('testNgwRoute', ngw.natGatewayId, '10.0.3.0/24', undefined, key, 10);
-rt.addNatGatewayRoute('test2NgwRoute', ngw.natGatewayId, undefined, 'pl-1234', key, 10);
-rt.addInternetGatewayRoute('testIgwRoute', '0.0.0.0/0', undefined, key, 10);
-rt.addInternetGatewayRoute('testIgwRoute2', undefined, 'pl-1234', key, 10);
-rt.addVirtualPrivateGatewayRoute('testVgwRoute', '10.0.30./24', undefined, key, 10);
-rt.addVirtualPrivateGatewayRoute('testVgw2Route', undefined, 'pl-1234', key, 10);
+rt.addTransitGatewayRoute('tg-route', 'tgw-1234', tgwAttachment, undefined, 'pl-1234', undefined, key, 10);
+rt.addTransitGatewayRoute('tg', 'tg-1234', tgwAttachment, '10.0.5.0/24', undefined, undefined, key, 10);
+rt.addTransitGatewayRoute('tg-ipv6', 'tg-1234', tgwAttachment, undefined, undefined, '::1', key, 10);
+rt.addNatGatewayRoute('testNgwRoute', ngw.natGatewayId, '10.0.3.0/24', undefined, undefined, key, 10);
+rt.addNatGatewayRoute('test2NgwRoute', ngw.natGatewayId, undefined, 'pl-1234', undefined, key, 10);
+rt.addNatGatewayRoute('test3NgwRoute', ngw.natGatewayId, undefined, undefined, '::1', key, 10);
+rt.addInternetGatewayRoute('testIgwRoute', '0.0.0.0/0', undefined, undefined, key, 10);
+rt.addInternetGatewayRoute('testIgwRoute2', undefined, 'pl-1234', undefined, key, 10);
+rt.addInternetGatewayRoute('testIgwRoute3', undefined, undefined, '::1', key, 10);
+rt.addEgressOnlyIgwRoute('testEigwRoute1', undefined, 'pl-1234', undefined, key, 10);
+rt.addEgressOnlyIgwRoute('testEigwRoute2', '0.0.0.0/0', undefined, undefined, key, 10);
+rt.addEgressOnlyIgwRoute('testEigwRoute3', undefined, undefined, '::1', key, 10);
+rt.addVirtualPrivateGatewayRoute('testVgwRoute', '10.0.30./24', undefined, undefined, key, 10);
+rt.addVirtualPrivateGatewayRoute('testVgw2Route', undefined, 'pl-1234', undefined, key, 10);
+rt.addVirtualPrivateGatewayRoute('testVgw3Route', undefined, undefined, '::1', key, 10);
 rt.addGatewayAssociation('internetGateway');
 rt.addGatewayAssociation('virtualPrivateGateway');
 /**
  * RouteTable construct test
  */
 describe('RouteTable', () => {
-  it('addTransitGatewayRoute destinationPrefix list without kms throws error', () => {
-    function noKmsKey() {
-      rt.addTransitGatewayRoute('testRoute1', 'tgw-1234', tgwAttachment, undefined, 'pl-1234', undefined, 10);
-    }
-    expect(noKmsKey).toThrow(new Error('Attempting to add prefix list route without specifying log group KMS key'));
-  });
   it('addTransitGatewayRoute destinationPrefix list without logRetention throws error', () => {
     function noLogRetention() {
-      rt.addTransitGatewayRoute('testRoute2', 'tgw-1234', tgwAttachment, undefined, 'pl-1234', key, undefined);
+      rt.addTransitGatewayRoute(
+        'testRoute2',
+        'tgw-1234',
+        tgwAttachment,
+        undefined,
+        'pl-1234',
+        undefined,
+        key,
+        undefined,
+      );
     }
     expect(noLogRetention).toThrow(
       new Error('Attempting to add prefix list route without specifying log group retention period'),
@@ -86,16 +101,9 @@ describe('RouteTable', () => {
   });
   it('addTransitGatewayRoute no destination throws error', () => {
     function noDest() {
-      rt.addTransitGatewayRoute('testRoute3', 'tgw-1234', tgwAttachment, undefined, undefined, key, 10);
+      rt.addTransitGatewayRoute('testRoute3', 'tgw-1234', tgwAttachment, undefined, undefined, undefined, key, 10);
     }
     expect(noDest).toThrow(new Error('Attempting to add CIDR route without specifying destination'));
-  });
-
-  it('addNatGatewayRoute destinationPrefix list without kms throws error', () => {
-    function noKmsKey() {
-      rt.addNatGatewayRoute('testNgwRoute1', ngw.natGatewayId, '10.0.3.0/24', 'destinationPrefixListId', undefined, 10);
-    }
-    expect(noKmsKey).toThrow(new Error('Attempting to add prefix list route without specifying log group KMS key'));
   });
   it('addNatGatewayRoute destinationPrefix list without logRetention throws error', () => {
     function noLogRetention() {
@@ -104,6 +112,7 @@ describe('RouteTable', () => {
         ngw.natGatewayId,
         '10.0.3.0/24',
         'destinationPrefixListId',
+        undefined,
         key,
         undefined,
       );
@@ -114,20 +123,13 @@ describe('RouteTable', () => {
   });
   it('addNatGatewayRoute no destination throws error', () => {
     function noDest() {
-      rt.addNatGatewayRoute('testNgwRoute3', ngw.natGatewayId, undefined, undefined, key, 10);
+      rt.addNatGatewayRoute('testNgwRoute3', ngw.natGatewayId, undefined, undefined, undefined, key, 10);
     }
     expect(noDest).toThrow(new Error('Attempting to add CIDR route without specifying destination'));
   });
-
-  it('addInternetGatewayRoute destinationPrefix list without kms throws error', () => {
-    function noKmsKey() {
-      rt.addInternetGatewayRoute('testIgwRoute1', '0.0.0.0/0', 'destinationPrefixListId', undefined, 10);
-    }
-    expect(noKmsKey).toThrow(new Error('Attempting to add prefix list route without specifying log group KMS key'));
-  });
   it('addInternetGatewayRoute destinationPrefix list without logRetention throws error', () => {
     function noLogRetention() {
-      rt.addInternetGatewayRoute('testIgwRoute2', '0.0.0.0/0', 'destinationPrefixListId', key, undefined);
+      rt.addInternetGatewayRoute('testIgwRoute2', '0.0.0.0/0', 'destinationPrefixListId', undefined, key, undefined);
     }
     expect(noLogRetention).toThrow(
       new Error('Attempting to add prefix list route without specifying log group retention period'),
@@ -135,20 +137,36 @@ describe('RouteTable', () => {
   });
   it('addInternetGatewayRoute no destination throws error', () => {
     function noDest() {
-      rt.addInternetGatewayRoute('testIgwRoute3', undefined, undefined, key, 10);
+      rt.addInternetGatewayRoute('testIgwRoute3', undefined, undefined, undefined, key, 10);
     }
     expect(noDest).toThrow(new Error('Attempting to add CIDR route without specifying destination'));
   });
 
-  it('addVirtualPrivateGatewayRoute destinationPrefix list without kms throws error', () => {
-    function noKmsKey() {
-      rt.addVirtualPrivateGatewayRoute('testVgwRoute1', '0.0.0.0/0', 'destinationPrefixListId', undefined, 10);
+  it('addEgressOnlyIgwRoute destinationPrefix list without logRetention throws error', () => {
+    function noLogRetention() {
+      rt.addEgressOnlyIgwRoute('testIgwRoute2', '0.0.0.0/0', 'destinationPrefixListId', undefined, key, undefined);
     }
-    expect(noKmsKey).toThrow(new Error('Attempting to add prefix list route without specifying log group KMS key'));
+    expect(noLogRetention).toThrow(
+      new Error('Attempting to add prefix list route without specifying log group retention period'),
+    );
   });
+  it('addEgressOnlyIgwRoute no destination throws error', () => {
+    function noDest() {
+      rt.addEgressOnlyIgwRoute('testIgwRoute3', undefined, undefined, undefined, key, 10);
+    }
+    expect(noDest).toThrow(new Error('Attempting to add CIDR route without specifying destination'));
+  });
+
   it('addVirtualPrivateGatewayRoute destinationPrefix list without logRetention throws error', () => {
     function noLogRetention() {
-      rt.addVirtualPrivateGatewayRoute('testVgwRoute2', '0.0.0.0/0', 'destinationPrefixListId', key, undefined);
+      rt.addVirtualPrivateGatewayRoute(
+        'testVgwRoute2',
+        '0.0.0.0/0',
+        'destinationPrefixListId',
+        undefined,
+        key,
+        undefined,
+      );
     }
     expect(noLogRetention).toThrow(
       new Error('Attempting to add prefix list route without specifying log group retention period'),
@@ -156,7 +174,7 @@ describe('RouteTable', () => {
   });
   it('addVirtualPrivateGatewayRoute no destination throws error', () => {
     function noDest() {
-      rt.addVirtualPrivateGatewayRoute('testVgwRoute3', undefined, undefined, key, 10);
+      rt.addVirtualPrivateGatewayRoute('testVgwRoute3', undefined, undefined, undefined, key, 10);
     }
     expect(noDest).toThrow(new Error('Attempting to add CIDR route without specifying destination'));
   });

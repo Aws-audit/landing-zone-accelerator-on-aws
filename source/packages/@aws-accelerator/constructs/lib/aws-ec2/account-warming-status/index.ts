@@ -1,5 +1,5 @@
 /**
- *  Copyright 2023 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -28,7 +28,7 @@ import {
   TerminateInstancesCommand,
 } from '@aws-sdk/client-ec2';
 import { AdaptiveRetryStrategy } from '@aws-sdk/util-retry';
-import { delay } from '@aws-accelerator/utils';
+import { delay } from '@aws-accelerator/utils/lib/throttle';
 
 const solutionId = process.env['SOLUTION_ID'] ?? '';
 const retryStrategy = new AdaptiveRetryStrategy(() => Promise.resolve(5));
@@ -48,6 +48,7 @@ export async function handler(event: any): Promise<
   | undefined
 > {
   console.log(event);
+  const ssmPrefix: string = event.ResourceProperties['ssmPrefix'];
   const instanceDetails = await getInstanceDetails();
 
   // if no instance was found, it has been deleted return
@@ -59,7 +60,7 @@ export async function handler(event: any): Promise<
     console.log('Account warming time reached');
     await terminateInstance(instanceDetails.instanceId);
     await deleteVpc();
-    await setSSMParameter('true');
+    await setSSMParameter(ssmPrefix, 'true');
     return {
       IsComplete: true,
     };
@@ -120,12 +121,12 @@ async function getVpcId(): Promise<string | undefined> {
   return undefined;
 }
 
-async function setSSMParameter(parameterValue: string) {
+async function setSSMParameter(ssmPrefix: string, parameterValue: string) {
   console.log('Updating SSM Parameter');
   try {
     await ssmClient.send(
       new PutParameterCommand({
-        Name: '/accelerator/account/pre-warmed',
+        Name: `${ssmPrefix}/account/pre-warmed`,
         Value: parameterValue,
         Overwrite: true,
       }),

@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -16,6 +16,7 @@ import { Construct } from 'constructs';
 import { pascalCase } from 'change-case';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 
 export interface TransitGatewayPeeringProps {
   /**
@@ -67,7 +68,15 @@ export interface TransitGatewayPeeringProps {
      */
     readonly accountName: string;
     /**
-     * Requester Transit Gateway name.
+     * List of principals
+     */
+    readonly principals: string[];
+    /**
+     * Requester Transit Gateway ID.
+     */
+    readonly transitGatewayId: string;
+    /**
+     * Requester Transit Gateway Name.
      */
     readonly transitGatewayName: string;
     /**
@@ -80,9 +89,9 @@ export interface TransitGatewayPeeringProps {
     readonly tags?: cdk.CfnTag[];
   };
   /**
-   * Custom resource lambda log group encryption key
+   * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
    */
-  readonly customLambdaLogKmsKey: cdk.aws_kms.IKey;
+  readonly customLambdaLogKmsKey?: cdk.aws_kms.IKey;
   /**
    * Custom resource lambda log retention in days
    */
@@ -96,6 +105,11 @@ export class TransitGatewayPeering extends Construct {
   public readonly peeringAttachmentId: string;
   constructor(scope: Construct, id: string, props: TransitGatewayPeeringProps) {
     super(scope, id);
+    const principalList =
+      props.requester.principals?.map(
+        principal =>
+          `arn:${cdk.Stack.of(this).partition}:iam::${principal}:role/${props.accepter.accountAccessRoleName}`,
+      ) || [];
 
     const cfnTransitGatewayPeeringAttachment = new cdk.aws_ec2.CfnTransitGatewayPeeringAttachment(
       this,
@@ -104,10 +118,7 @@ export class TransitGatewayPeering extends Construct {
         peerAccountId: props.accepter.accountId,
         peerRegion: props.accepter.region,
         peerTransitGatewayId: props.accepter.transitGatewayId,
-        transitGatewayId: cdk.aws_ssm.StringParameter.valueForStringParameter(
-          this,
-          `/accelerator/network/transitGateways/${props.requester.transitGatewayName}/id`,
-        ),
+        transitGatewayId: props.requester.transitGatewayId,
         tags: props.requester.tags,
       },
     );
@@ -118,15 +129,13 @@ export class TransitGatewayPeering extends Construct {
 
     const provider = cdk.CustomResourceProvider.getOrCreateProvider(this, RESOURCE_TYPE, {
       codeDirectory: path.join(__dirname, 'accept-transit-gateway-peering-attachment/dist'),
-      runtime: cdk.CustomResourceProviderRuntime.NODEJS_16_X,
+      runtime: CUSTOM_RESOURCE_PROVIDER_RUNTIME,
       policyStatements: [
         {
           Sid: 'AllowAssumeRole',
           Effect: 'Allow',
           Action: ['sts:AssumeRole'],
-          Resource: `arn:${cdk.Stack.of(this).partition}:iam::${props.accepter.accountId}:role/${
-            props.accepter.accountAccessRoleName
-          }`,
+          Resource: principalList,
         },
         {
           Sid: 'AllowModifyPeeringReferences',
@@ -166,6 +175,7 @@ export class TransitGatewayPeering extends Construct {
         requesterRegion: cdk.Stack.of(this).region,
         requesterTransitGatewayRouteTableId: props.requester.transitGatewayRouteTableId,
         requesterTransitGatewayAttachmentId: this.peeringAttachmentId,
+        requesterTransitGatewayId: props.requester.transitGatewayId,
 
         autoAccept: props.accepter.autoAccept,
         peeringTags: tags.length === 0 ? undefined : tags,

@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -48,7 +48,7 @@ import {
   VpcTemplatesConfig,
 } from '../lib/network-config';
 
-import { VpcFlowLogsConfig } from '../lib/common-types/types';
+import { VpcFlowLogsConfig } from '../lib/common/types';
 
 import { describe, it, expect } from '@jest/globals';
 import * as path from 'path';
@@ -71,7 +71,7 @@ describe('NetworkConfig', () => {
 
     it('loads from string', () => {
       const buffer = fs.readFileSync(
-        path.join('../accelerator/test/configs/all-enabled', NetworkConfig.FILENAME),
+        path.join('../accelerator/test/configs/snapshot-only', NetworkConfig.FILENAME),
         'utf8',
       );
       const networkConfigFromString = NetworkConfig.loadFromString(buffer);

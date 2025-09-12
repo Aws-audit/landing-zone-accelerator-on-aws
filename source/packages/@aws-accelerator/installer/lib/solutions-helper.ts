@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -30,23 +30,22 @@ export class SolutionHelper extends Construct {
     super(scope, id);
     const metricsMapping = new cdk.CfnMapping(this, 'AnonymousData', {
       mapping: {
-        SendAnonymousData: {
+        SendAnonymizedData: {
           Data: 'Yes',
         },
       },
     });
 
     const metricsCondition = new cdk.CfnCondition(this, 'AnonymousDataToAWS', {
-      expression: cdk.Fn.conditionEquals(metricsMapping.findInMap('SendAnonymousData', 'Data'), 'Yes'),
+      expression: cdk.Fn.conditionEquals(metricsMapping.findInMap('SendAnonymizedData', 'Data'), 'Yes'),
     });
 
     const helperFunction = new lambda.Function(this, 'SolutionHelper', {
-      runtime: lambda.Runtime.NODEJS_16_X,
+      runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'index.handler',
       description:
         'This function generates UUID for each deployment and sends anonymous data to the AWS Solutions team',
       code: lambda.Code.fromInline(`
-        const AWS = require('aws-sdk');
         const response = require('cfn-response');
         const https = require('https');
 

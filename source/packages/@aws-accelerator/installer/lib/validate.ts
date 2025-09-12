@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -14,44 +14,38 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { NagSuppressions } from 'cdk-nag';
+import * as fs from 'fs';
+import * as path from 'path';
+import { DEFAULT_LAMBDA_RUNTIME } from '../../utils/lib/lambda';
 
 export interface ValidateProps {
-  readonly useExistingConfigRepo: string;
-  readonly existingConfigRepositoryName?: string;
-  readonly existingConfigRepositoryBranchName?: string;
+  readonly configRepositoryLocation: string;
+  readonly acceleratorPipelineName?: string;
 }
 
 export class Validate extends Construct {
-  public readonly configRepoName: string = '';
-  public readonly configRepoBranchName: string = '';
-
   constructor(scope: Construct, id: string, props: ValidateProps) {
     super(scope, id);
 
+    const readCodePipelinePolicy = new cdk.aws_iam.PolicyStatement({
+      sid: 'ReadCodePipeline',
+      effect: cdk.aws_iam.Effect.ALLOW,
+      actions: ['codepipeline:GetPipeline'],
+      resources: [
+        `arn:${cdk.Stack.of(this).partition}:codepipeline:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${
+          props.acceleratorPipelineName
+        }`,
+      ],
+    });
+
+    const fileContents = fs.readFileSync(path.join(__dirname, '..', 'lib', 'lambdas/validate/index.js'));
+
     const lambdaFunction = new cdk.aws_lambda.Function(this, 'ValidationFunction', {
-      runtime: cdk.aws_lambda.Runtime.NODEJS_16_X,
+      runtime: DEFAULT_LAMBDA_RUNTIME,
       handler: 'index.handler',
       description: 'This function validates installer parameters',
-      code: cdk.aws_lambda.Code.fromInline(`
-          const response = require('cfn-response'); 
-          exports.handler = async function (event, context) { 
-          console.log(JSON.stringify(event, null, 4)); 
-
-          const useExistingConfigRepo=event.ResourceProperties.useExistingConfigRepo;
-          const existingConfigRepositoryName=event.ResourceProperties.existingConfigRepositoryName;
-          const existingConfigRepositoryBranchName=event.ResourceProperties.existingConfigRepositoryBranchName;
-
-          if (useExistingConfigRepo === 'Yes') {
-            if (existingConfigRepositoryName === '' || existingConfigRepositoryBranchName === ''){
-                await response.send(event, context, response.FAILED, {'FailureReason': 'UseExistingConfigRepo parameter set to Yes, but ExistingConfigRepositoryName or ExistingConfigRepositoryBranchName parameter value missing!!!'}, event.PhysicalResourceId);
-                return;
-            }
-          }
-
-          // End of Validation
-          await response.send(event, context, response.SUCCESS, {}, event.PhysicalResourceId);
-          return;
-      }`),
+      initialPolicy: [readCodePipelinePolicy],
+      code: new cdk.aws_lambda.InlineCode(fileContents.toString()),
     });
 
     NagSuppressions.addResourceSuppressions(
@@ -68,9 +62,8 @@ export class Validate extends Construct {
     new cdk.CustomResource(this, 'ValidateResource', {
       serviceToken: lambdaFunction.functionArn,
       properties: {
-        useExistingConfigRepo: props.useExistingConfigRepo,
-        existingConfigRepositoryName: props.existingConfigRepositoryName,
-        existingConfigRepositoryBranchName: props.existingConfigRepositoryBranchName,
+        acceleratorPipelineName: props.acceleratorPipelineName,
+        configRepositoryLocation: props.configRepositoryLocation,
         resourceType: 'Custom::ValidateInstallerStack',
       },
     });

@@ -103,17 +103,7 @@ exports[`KeyStack Construct(KeyStack):  Snapshot Test 1`] = `
               },
               "Effect": "Allow",
               "Principal": {
-                "Service": {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "logs.us-east-1.",
-                      {
-                        "Ref": "AWS::URLSuffix",
-                      },
-                    ],
-                  ],
-                },
+                "Service": "logs.us-east-1.amazonaws.com",
               },
               "Resource": "*",
               "Sid": "Allow Cloudwatch logs to use the encryption key",
@@ -278,6 +268,22 @@ exports[`KeyStack Construct(KeyStack):  Snapshot Test 1`] = `
             {
               "Action": "sts:AssumeRole",
               "Condition": {
+                "ArnLike": {
+                  "aws:PrincipalArn": [
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "arn:",
+                          {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":iam::*:role/AWSAccelerator*",
+                        ],
+                      ],
+                    },
+                  ],
+                },
                 "StringEquals": {
                   "aws:PrincipalOrgID": "o-asdf123456",
                 },
@@ -388,7 +394,7 @@ exports[`KeyStack Construct(KeyStack):  Snapshot Test 1`] = `
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-KeyStack-222222222222-us-east-1/version",
         "Type": "String",
-        "Value": "1.4.3",
+        "Value": "1.12.0",
       },
       "Type": "AWS::SSM::Parameter",
     },

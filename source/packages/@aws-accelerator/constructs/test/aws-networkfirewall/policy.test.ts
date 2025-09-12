@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -17,6 +17,8 @@ import { snapShotTest } from '../snapshot-test';
 import { describe, it } from '@jest/globals';
 
 const testNamePrefix = 'Construct(NetworkFirewallPolicy): ';
+
+const importedFirewallPolicyArn = 'arn:aws:network-firewall:us-east-1:222222222222:firewall-policy/TestImportedPolicy';
 
 //Initialize stack for resource configuration test
 const stack = new cdk.Stack();
@@ -79,6 +81,13 @@ describe('Network Firewall Policy', () => {
       firewallPolicy: testFirewallPolicy,
       name: 'TestFirewallPolicy1',
       tags: [],
+    });
+  });
+
+  it('test import policy', () => {
+    NetworkFirewallPolicy.fromAttributes(stack, 'TestImportPolicy', {
+      policyName: importedFirewallPolicyArn,
+      policyArn: 'importedPolicyArn',
     });
   });
 

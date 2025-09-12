@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -18,6 +18,7 @@ export * from './lib/pipeline';
 export * from './lib/stacks/accelerator-stack';
 export * from './lib/stacks/accounts-stack';
 export * from './lib/stacks/bootstrap-stack';
+export * from './lib/stacks/diagnostics-pack-stack';
 export * from './lib/stacks/network-stacks/network-associations-stack/network-associations-stack';
 export * from './lib/stacks/network-stacks/network-prep-stack/network-prep-stack';
 export * from './lib/stacks/network-stacks/network-vpc-stack/network-vpc-stack';

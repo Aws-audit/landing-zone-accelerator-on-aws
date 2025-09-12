@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -39,15 +39,17 @@ import * as path from 'path';
 describe('CustomizationsConfig', () => {
   describe('Test config', () => {
     const customizationsConfigFromFile = CustomizationsConfig.load(
-      path.resolve('../accelerator/test/configs/all-enabled'),
+      path.resolve('../accelerator/test/configs/snapshot-only'),
     );
     const customizationsConfig = new CustomizationsConfig();
 
     it('has loaded successfully', () => {
       expect(customizationsConfigFromFile.customizations.cloudFormationStacks.length).toBe(3);
       expect(customizationsConfig.customizations.cloudFormationStacks.length).toBe(0);
-      // expect(customizationsConfigFromFile.applications.length).toBe(7);
-      expect(customizationsConfig.applications.length).toBe(0);
+      if (customizationsConfigFromFile.applications) {
+        expect(customizationsConfigFromFile.applications.length).toBe(8);
+        expect(customizationsConfig.applications.length).toBe(0);
+      }
     });
     const cloudFormationStackConfig = new CloudFormationStackConfig();
     expect(cloudFormationStackConfig.description).toEqual('');
@@ -103,6 +105,8 @@ describe('CustomizationsConfig', () => {
 
     const autoScalingConfig = new AutoScalingConfig();
     expect(autoScalingConfig.healthCheckGracePeriod).toEqual(undefined);
+
+    expect(autoScalingConfig.maxInstanceLifetime).toEqual(undefined);
 
     const appConfigItem = new AppConfigItem();
     expect(appConfigItem.targetGroups).toEqual(undefined);

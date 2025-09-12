@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -35,6 +35,7 @@ new AutoscalingGroup(stack, 'Test', {
   lambdaKey: new cdk.aws_kms.Key(stack, 'CustomKey', {}),
   cloudWatchLogKmsKey: new cdk.aws_kms.Key(stack, 'CustomKeyCloudWatch', {}),
   cloudWatchLogRetentionInDays: 3653,
+  maxInstanceLifetime: 86400,
   tags: [{ key: 'key', value: 'value' }],
 });
 

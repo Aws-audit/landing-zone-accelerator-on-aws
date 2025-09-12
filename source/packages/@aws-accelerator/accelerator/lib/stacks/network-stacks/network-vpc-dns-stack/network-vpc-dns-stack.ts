@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -17,6 +17,7 @@ import { Construct } from 'constructs';
 import { NagSuppressions } from 'cdk-nag';
 
 import {
+  AseaResourceType,
   InterfaceEndpointServiceConfig,
   Region,
   ResolverEndpointConfig,
@@ -25,7 +26,7 @@ import {
   VpcTemplatesConfig,
 } from '@aws-accelerator/config';
 import { HostedZone, RecordSet, ResolverRule } from '@aws-accelerator/constructs';
-import { SsmResourceType } from '@aws-accelerator/utils';
+import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
 
 import { AcceleratorStackProps } from '../../accelerator-stack';
 import { NetworkStack } from '../network-stack';
@@ -41,11 +42,61 @@ export class NetworkVpcDnsStack extends NetworkStack {
     const resolverMap = this.setResolverEndpointMap(this.vpcsInScope);
 
     //
-    // Create private hosted zones
+    // Create Private Hosted Zones
     //
+    this.createPrivateHostedZones({ vpc: vpcMap, endpoint: endpointMap, zone: zoneMap, resolver: resolverMap }, props);
 
+    //
+    // configure SYSTEM rules
+    //
+    this.configureSystemRules(props);
+
+    //
+    // Create SSM Parameters
+    //
+    this.createSsmParameters();
+
+    this.logger.info('Completed stack synthesis');
+  }
+
+  /**
+   * Function to configure system rules
+   * @param props
+   */
+  private configureSystemRules(props: AcceleratorStackProps) {
+    if (props.networkConfig.centralNetworkServices?.route53Resolver?.rules) {
+      const delegatedAdminAccountId = this.props.accountsConfig.getAccountId(
+        props.networkConfig.centralNetworkServices.delegatedAdminAccount,
+      );
+
+      // Only deploy in the delegated admin account
+      if (delegatedAdminAccountId === cdk.Stack.of(this).account) {
+        this.createSystemRules(props.networkConfig.centralNetworkServices?.route53Resolver?.rules);
+      }
+    }
+  }
+
+  /**
+   * Function to create private hosted zones
+   * @param maps {
+      vpc: Map<string, string>;
+      endpoint: Map<string, string>;
+      zone: Map<string, string>;
+      resolver: Map<string, string>;
+    }
+   * @param props {@link AcceleratorStackProps}
+   */
+  private createPrivateHostedZones(
+    maps: {
+      vpc: Map<string, string>;
+      endpoint: Map<string, string>;
+      zone: Map<string, string>;
+      resolver: Map<string, string>;
+    },
+    props: AcceleratorStackProps,
+  ) {
     for (const vpcItem of this.vpcsInScope) {
-      const vpcId = vpcMap.get(vpcItem.name);
+      const vpcId = maps.vpc.get(vpcItem.name);
 
       if (!vpcId) {
         this.logger.error(`Unable to locate VPC ${vpcItem.name}`);
@@ -53,7 +104,7 @@ export class NetworkVpcDnsStack extends NetworkStack {
       }
       // Create private hosted zones
       if (vpcItem.interfaceEndpoints?.central) {
-        this.createHostedZones(vpcItem, vpcId, endpointMap, zoneMap);
+        this.createHostedZones(vpcItem, vpcId, maps.endpoint, maps.zone);
       }
 
       //
@@ -66,30 +117,11 @@ export class NetworkVpcDnsStack extends NetworkStack {
 
         for (const endpointItem of endpoints) {
           if (endpointItem.vpc === vpcItem.name && endpointItem.type === 'OUTBOUND') {
-            this.createForwardRules(vpcItem, endpointItem, resolverMap);
+            this.createForwardRules(vpcItem, endpointItem, maps.resolver);
           }
         }
       }
     }
-
-    // SYSTEM rules
-    if (props.networkConfig.centralNetworkServices?.route53Resolver?.rules) {
-      const delegatedAdminAccountId = this.props.accountsConfig.getAccountId(
-        props.networkConfig.centralNetworkServices.delegatedAdminAccount,
-      );
-
-      // Only deploy in the delegated admin account
-      if (delegatedAdminAccountId === cdk.Stack.of(this).account) {
-        this.createSystemRules(props.networkConfig.centralNetworkServices?.route53Resolver?.rules);
-      }
-    }
-
-    //
-    // Create SSM Parameters
-    //
-    this.createSsmParameters();
-
-    this.logger.info('Completed stack synthesis');
   }
 
   /**
@@ -107,25 +139,36 @@ export class NetworkVpcDnsStack extends NetworkStack {
     zoneMap: Map<string, string>,
   ): void {
     for (const endpointItem of vpcItem.interfaceEndpoints?.endpoints ?? []) {
-      // Create the private hosted zone
-      this.logger.info(`Creating private hosted zone for VPC:${vpcItem.name} endpoint:${endpointItem.service}`);
-      const hostedZoneName = HostedZone.getHostedZoneNameForService(endpointItem.service, cdk.Stack.of(this).region);
-      const hostedZone = new HostedZone(
-        this,
-        `${pascalCase(vpcItem.name)}Vpc${pascalCase(endpointItem.service)}EpHostedZone`,
-        {
-          hostedZoneName,
-          vpcId,
-        },
-      );
-      this.ssmParameters.push({
-        logicalId: `SsmParam${pascalCase(vpcItem.name)}Vpc${pascalCase(endpointItem.service)}EpHostedZone`,
-        parameterName: this.getSsmPath(SsmResourceType.PHZ_ID, [vpcItem.name, endpointItem.service]),
-        stringValue: hostedZone.hostedZoneId,
-      });
-
-      // Create record sets
-      this.createRecordSets(vpcItem, endpointItem, endpointMap, zoneMap, hostedZoneName, hostedZone);
+      if (this.isManagedByAsea(AseaResourceType.ROUTE_53_PHZ_ID, `${vpcItem.name}/${endpointItem.service}`)) {
+        this.logger.info(
+          `PHZ for Interface Endpoint "${endpointItem.service}", VPC "${vpcItem.name}" is managed externally`,
+        );
+        continue;
+      } else {
+        // Create the private hosted zone
+        this.logger.info(`Creating private hosted zone for VPC:${vpcItem.name} endpoint:${endpointItem.service}`);
+        const hostedZoneName = HostedZone.getHostedZoneNameForService(endpointItem.service, cdk.Stack.of(this).region);
+        const tags = vpcItem.interfaceEndpoints?.tags;
+        const hostedZone = new HostedZone(
+          this,
+          `${pascalCase(vpcItem.name)}Vpc${pascalCase(endpointItem.service)}EpHostedZone`,
+          {
+            hostedZoneName,
+            vpcId,
+            tags,
+          },
+        );
+        this.ssmParameters.push({
+          logicalId: `SsmParam${pascalCase(vpcItem.name)}Vpc${pascalCase(endpointItem.service)}EpHostedZone`,
+          parameterName: this.getSsmPath(SsmResourceType.PHZ_ID, [vpcItem.name, endpointItem.service]),
+          stringValue: hostedZone.hostedZoneId,
+        });
+        // Create additional S3 record sets
+        this.createRecordSets(vpcItem, endpointItem, endpointMap, zoneMap, hostedZoneName, hostedZone);
+        if (endpointItem.service === 's3') {
+          this.createAdditionalS3Records(vpcItem, vpcId, endpointMap, zoneMap, endpointItem);
+        }
+      }
     }
   }
 
@@ -148,7 +191,21 @@ export class NetworkVpcDnsStack extends NetworkStack {
   ) {
     // Create the record set
     let recordSetName = hostedZoneName;
-    const wildcardServices = ['ecr.dkr', 's3'];
+    const wildcardServices = [
+      'appsync-api',
+      'codeartifact.repositories',
+      'deviceadvisor.iot',
+      'ecr.dkr',
+      'execute-api',
+      'grafana-workspace',
+      'lorawan.cups',
+      'lorawan.lns',
+      'notebook',
+      'studio',
+      's3',
+      's3-global.accesspoint',
+      'transfer.server',
+    ];
     if (wildcardServices.includes(endpointItem.service)) {
       recordSetName = `*.${hostedZoneName}`;
     }
@@ -176,8 +233,8 @@ export class NetworkVpcDnsStack extends NetworkStack {
       hostedZoneId: zoneId,
     });
 
-    // Create additional record for S3 endpoints
-    if (endpointItem.service === 's3') {
+    // Create additional record for wildcard services endpoints
+    if (wildcardServices.includes(endpointItem.service)) {
       this.logger.info(`Creating additional record for VPC:${vpcItem.name} endpoint:${endpointItem.service}`);
       new RecordSet(this, `${pascalCase(vpcItem.name)}Vpc${pascalCase(endpointItem.service)}EpRecordSetNonWildcard`, {
         type: 'A',
@@ -187,6 +244,58 @@ export class NetworkVpcDnsStack extends NetworkStack {
         hostedZoneId: zoneId,
       });
     }
+  }
+
+  /**
+   * Create record sets for centralized interface endpoints
+   * @param vpcItem
+   * @param endpointItem
+   * @param endpointMap
+   * @param zoneMap
+   * @param hostedZoneName
+   * @param hostedZone
+   */
+
+  private createAdditionalS3Records(
+    vpcItem: VpcConfig | VpcTemplatesConfig,
+    vpcId: string,
+    endpointMap: Map<string, string>,
+    zoneMap: Map<string, string>,
+    endpointItem: InterfaceEndpointServiceConfig,
+  ) {
+    const endpointKey = `${vpcItem.name}_${endpointItem.service}`;
+    const dnsName = endpointMap.get(endpointKey);
+    const zoneId = zoneMap.get(endpointKey);
+    const s3EndpointsArray = ['s3-control', 's3-accesspoint'];
+
+    s3EndpointsArray.forEach(endpoint => {
+      this.logger.info(`Creating private hosted zone for VPC:${vpcItem.name} endpoint:${endpoint}`);
+      const hostedZone = new HostedZone(this, `${pascalCase(vpcItem.name)}Vpc${pascalCase(endpoint)}EpHostedZone`, {
+        hostedZoneName: `${endpoint}.${cdk.Stack.of(this).region}.amazonaws.com`,
+        vpcId,
+      });
+      this.ssmParameters.push({
+        logicalId: `SsmParam${pascalCase(vpcItem.name)}Vpc${pascalCase(endpoint)}EpHostedZone`,
+        parameterName: this.getSsmPath(SsmResourceType.PHZ_ID, [vpcItem.name, endpoint]),
+        stringValue: hostedZone.hostedZoneId,
+      });
+      this.logger.info(`Creating additional record for VPC:${vpcItem.name} endpoint:${endpoint}`);
+      new RecordSet(this, `${pascalCase(vpcItem.name)}Vpc${pascalCase(endpoint)}EpRecordWildcard`, {
+        type: 'A',
+        name: `*.${hostedZone.hostedZoneName}`,
+        hostedZone: hostedZone,
+        dnsName: dnsName,
+        hostedZoneId: zoneId,
+      });
+
+      new RecordSet(this, `${pascalCase(vpcItem.name)}Vpc${pascalCase(endpoint)}EpRecordSetNonWildcard`, {
+        type: 'A',
+        name: hostedZone.hostedZoneName,
+        hostedZone: hostedZone,
+        dnsName: dnsName,
+        hostedZoneId: zoneId,
+      });
+    });
   }
 
   /**

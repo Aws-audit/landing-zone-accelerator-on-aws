@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -55,7 +55,7 @@ import { AcceleratorToolkit } from './lib/toolkit';
   const caBundlePath = args['ca-bundle-path'];
   const ec2Creds = args['ec2Creds'];
   const proxyAddress = args['proxy'];
-
+  const useExistingRoles = args['use-existing-roles'] ?? false;
   //
   // Validate args: must specify a command
   //
@@ -74,7 +74,11 @@ import { AcceleratorToolkit } from './lib/toolkit';
   //
   // Validate args: verify config directory
   //
-  if (stage !== AcceleratorStage.PIPELINE && stage !== AcceleratorStage.TESTER_PIPELINE) {
+  if (
+    stage !== AcceleratorStage.PIPELINE &&
+    stage !== AcceleratorStage.TESTER_PIPELINE &&
+    stage !== AcceleratorStage.DIAGNOSTICS_PACK
+  ) {
     if (config === undefined || !fs.existsSync(configDirPath)) {
       console.log(`Invalid --config-dir ${configDirPath}`);
       throw new Error(usage);
@@ -110,6 +114,7 @@ import { AcceleratorToolkit } from './lib/toolkit';
     ec2Creds,
     proxyAddress,
     enableSingleAccountMode: enableSingleAccountMode,
+    useExistingRoles,
   }).catch(function (err) {
     console.log(err.message);
     process.exit(1);

@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -11,9 +11,10 @@
  *  and limitations under the License.
  */
 
-import { throttlingBackOff } from '@aws-accelerator/utils';
-import * as AWS from 'aws-sdk';
-AWS.config.logger = console;
+import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
+import { setRetryStrategy } from '@aws-accelerator/utils/lib/common-functions';
+import { CloudFormationCustomResourceEvent } from '@aws-accelerator/utils/lib/common-types';
+import { SSMClient, DescribeDocumentPermissionCommand, ModifyDocumentPermissionCommand } from '@aws-sdk/client-ssm';
 
 /**
  * share-document - lambda handler
@@ -21,7 +22,7 @@ AWS.config.logger = console;
  * @param event
  * @returns
  */
-export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent): Promise<
+export async function handler(event: CloudFormationCustomResourceEvent): Promise<
   | {
       PhysicalResourceId: string | undefined;
       Status: string;
@@ -32,14 +33,15 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
   const accountIds: string[] = event.ResourceProperties['accountIds'];
   const solutionId = process.env['SOLUTION_ID'];
 
-  const ssmClient = new AWS.SSM({ customUserAgent: solutionId });
+  const ssmClient = new SSMClient({ customUserAgent: solutionId, retryStrategy: setRetryStrategy() });
 
   console.log('DescribeDocumentPermissionCommand:');
   const documentPermission: string[] = [];
   let nextToken: string | undefined = undefined;
+  // there is no paginator for DescribeDocumentPermissionCommand, so we need to loop through all pages.
   do {
     const page = await throttlingBackOff(() =>
-      ssmClient.describeDocumentPermission({ Name: name, PermissionType: 'Share' }).promise(),
+      ssmClient.send(new DescribeDocumentPermissionCommand({ Name: name, PermissionType: 'Share' })),
     );
 
     for (const accountId of page.AccountIds ?? []) {
@@ -88,14 +90,14 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
 
         console.log('ModifyDocumentPermissionCommand:');
         const response = await throttlingBackOff(() =>
-          ssmClient
-            .modifyDocumentPermission({
+          ssmClient.send(
+            new ModifyDocumentPermissionCommand({
               Name: name,
               PermissionType: 'Share',
               AccountIdsToAdd: itemsToAdd,
               AccountIdsToRemove: itemsToRemove,
-            })
-            .promise(),
+            }),
+          ),
         );
         console.log(JSON.stringify(response));
         counter = counter + 20;
@@ -117,13 +119,13 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
 
         // Remove sharing
         await throttlingBackOff(() =>
-          ssmClient
-            .modifyDocumentPermission({
+          ssmClient.send(
+            new ModifyDocumentPermissionCommand({
               Name: name,
               PermissionType: 'Share',
               AccountIdsToRemove: itemsToDelete,
-            })
-            .promise(),
+            }),
+          ),
         );
         deleteCounter = deleteCounter + 20;
       }

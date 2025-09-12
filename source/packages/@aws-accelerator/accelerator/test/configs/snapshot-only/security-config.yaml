@@ -15,13 +15,27 @@ keyManagementService:
         organizationalUnits:
           - Root
           - Infrastructure
+    - name: appEbsKey
+      alias: accelerator/test-key/app-ebs-key
+      policy: kms/kms-policy-01.json
+      description: Test KMS Key 2
+      enableKeyRotation: true
+      enabled: true
+      removalPolicy: destroy
+      deploymentTargets:
+        organizationalUnits:
+          - Root
+          - Infrastructure
 centralSecurityServices:
   delegatedAdminAccount: Audit
   ebsDefaultVolumeEncryption:
     enable: true
     #kmsKey: key1
-    excludeRegions:
-      - us-west-2
+    deploymentTargets:
+      organizationalUnits:
+        - Root
+      excludedRegions:
+        - us-west-2
   s3PublicAccessBlock:
     enable: true
     excludeAccounts:
@@ -37,8 +51,13 @@ centralSecurityServices:
     publishSensitiveDataFindings: true
   guardduty:
     enable: true
-    excludeRegions:
-      - us-west-2
+    deploymentTargets:
+      accounts:
+        - Management
+        - Network
+      excludedRegions:
+        - us-west-2
+    autoEnableOrgMembers: false
     s3Protection:
       enable: true
       excludeRegions:
@@ -69,8 +88,10 @@ centralSecurityServices:
     logging:
       cloudWatch:
         enable: true
-    excludeRegions:
-      - us-west-2
+        logLevel: MEDIUM
+    deploymentTargets:
+      organizationalUnits:
+        - Root
     standards:
       - name: AWS Foundational Security Best Practices v1.0.0
         enable: true
@@ -91,6 +112,13 @@ centralSecurityServices:
           - CIS.1.20
           - CIS.1.22
           - CIS.2.6
+      - name: CIS AWS Foundations Benchmark v1.4.0
+        enable: true
+        controlsToDisable:
+          - '1.17'
+          - '1.16'
+      - name: CIS AWS Foundations Benchmark v3.0.0
+        enable: true
   ssmAutomation:
     documentSets:
       - shareTargets:
@@ -106,6 +134,7 @@ centralSecurityServices:
           # Attaches instance profiles to an EC2 instance
           - name: Attach-IAM-Instance-Profile
             template: ssm-documents/attach-iam-instance-profile.yaml
+            targetType: /AWS::EC2::Instance
           # Attaches Aws IAM Managed Policy to IAM Role
           - name: Attach-IAM-Role-Policy
             template: ssm-documents/attach-iam-role-policy.yaml
@@ -135,6 +164,9 @@ iamPasswordPolicy:
 awsConfig:
   enableConfigurationRecorder: true
   enableDeliveryChannel: true
+  deploymentTargets:
+    organizationalUnits:
+      - Root
   ruleSets:
     - deploymentTargets:
         organizationalUnits:
@@ -148,7 +180,7 @@ awsConfig:
             lambda:
               sourceFilePath: custom-config-rules/waf-logging-enabled.zip
               handler: index.handler
-              runtime: python3.7
+              runtime: python3.12
               rolePolicyFile: custom-config-rules/waf-logging-enabled-detection-role.json
             periodic: true
             maximumExecutionFrequency: Six_Hours
@@ -178,7 +210,7 @@ awsConfig:
             lambda:
               sourceFilePath: custom-config-rules/attach-ec2-instance-profile.zip
               handler: index.handler
-              runtime: nodejs14.x
+              runtime: nodejs18.x
               rolePolicyFile: custom-config-rules/attach-ec2-instance-profile-detection-role.json
             periodic: true
             maximumExecutionFrequency: Six_Hours
@@ -195,7 +227,7 @@ awsConfig:
             targetDocumentLambda:
               sourceFilePath: custom-config-rules/targetDocumentLambda.zip
               handler: index.handler
-              runtime: nodejs14.x
+              runtime: nodejs18.x
               rolePolicyFile: custom-config-rules/attach-ec2-instance-profile-remediation-role.json
             retryAttemptSeconds: 60
             maximumAutomaticAttempts: 5
@@ -217,7 +249,7 @@ awsConfig:
             lambda:
               sourceFilePath: custom-config-rules/attach-ec2-instance-profile.zip
               handler: index.handler
-              runtime: nodejs14.x
+              runtime: nodejs18.x
               rolePolicyFile: custom-config-rules/attach-ec2-instance-profile-detection-role.json
             periodic: true
             maximumExecutionFrequency: Six_Hours
@@ -251,7 +283,7 @@ awsConfig:
             lambda:
               sourceFilePath: custom-config-rules/ec2-instance-profile-permissions.zip
               handler: index.handler
-              runtime: nodejs14.x
+              runtime: nodejs18.x
               rolePolicyFile: custom-config-rules/ec2-instance-profile-permissions-detection-role.json
             periodic: true
             maximumExecutionFrequency: Six_Hours
@@ -472,6 +504,21 @@ awsConfig:
           complianceResourceTypes:
             - AWS::S3::Bucket
           identifier: S3_BUCKET_DEFAULT_LOCK_ENABLED
+        - name: accelerator-duplicate-s3-rule
+          identifier: S3_BUCKET_SERVER_SIDE_ENCRYPTION_ENABLED
+          remediation:
+            automatic: true
+            targetId: AWS-EnableS3BucketEncryption
+            rolePolicyFile: custom-config-rules/enable-s3-encryption.json
+            retryAttemptSeconds: 60
+            maximumAutomaticAttempts: 5
+            parameters:
+              - name: BucketName
+                value: RESOURCE_ID
+                type: String
+              - name: SSEAlgorithm
+                value: AES256
+                type: String
 cloudWatch:
   logGroups:
     - logGroupName: /App/Test1
@@ -945,3 +992,44 @@ cloudWatch:
           statistic: Sum
           threshold: 1
           treatMissingData: notBreaching
+resourcePolicyEnforcement:
+  enable: true
+  remediation:
+    automatic: false
+    retryAttemptSeconds: 60
+    maximumAutomaticAttempts: 5
+  policySets:
+    - resourcePolicies:
+      - resourceType: IAM_ROLE
+        document: resource-policies/iam.json
+      - resourceType: S3_BUCKET
+        document: resource-policies/s3.json
+      - resourceType: KMS_KEY
+        document: resource-policies/kms.json
+      - resourceType: SECRETS_MANAGER_SECRET
+        document: resource-policies/secrets-manager.json
+      - resourceType: ECR_REPOSITORY
+        document: resource-policies/ecr.json
+      - resourceType: OPENSEARCH_DOMAIN
+        document: resource-policies/opensearch.json
+      - resourceType: SNS_TOPIC
+        document: resource-policies/sns.json
+      - resourceType: SQS_QUEUE
+        document: resource-policies/sqs.json
+      - resourceType: APIGATEWAY_REST_API
+        document: resource-policies/apigateway.json
+      - resourceType: LEX_BOT
+        document: resource-policies/lex-bot.json
+      - resourceType: EFS_FILE_SYSTEM
+        document: resource-policies/efs-file-system.json
+      - resourceType: EVENTBRIDGE_EVENTBUS
+        document: resource-policies/eventbridge-eventbus.json
+      - resourceType: BACKUP_VAULT
+        document: resource-policies/backup-vault.json
+      - resourceType: CODEARTIFACT_REPOSITORY
+        document: resource-policies/codeartifact-repository.json
+      inputParameters:
+        SourceAccount: '{{ ALLOWED_EXTERNAL_ACCOUNTS }}'
+      deploymentTargets:
+        organizationalUnits:
+          - Root

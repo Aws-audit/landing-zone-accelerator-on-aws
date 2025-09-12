@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -21,6 +21,9 @@ const testNamePrefix = 'Construct(MacieExportConfigClassification): ';
 const stack = new cdk.Stack();
 
 new MacieExportConfigClassification(stack, 'AwsMacieUpdateExportConfigClassification', {
+  publishPolicyFindings: true,
+  findingPublishingFrequency: 'ONE_HOUR',
+  publishClassificationFindings: true,
   bucketName: 'bucketName',
   keyPrefix: `111111111111-aws-macie-export-config`,
   logRetentionInDays: 3653,

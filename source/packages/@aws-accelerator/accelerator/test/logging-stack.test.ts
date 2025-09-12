@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -12,27 +12,43 @@
  */
 
 import { AcceleratorStage } from '../lib/accelerator-stage';
-import { AcceleratorSynthStacks } from './accelerator-synth-stacks';
 import { describe } from '@jest/globals';
 import { snapShotTest } from './snapshot-test';
+import { Create } from './accelerator-test-helpers';
 
 const testNamePrefix = 'Construct(LoggingStack): ';
 
-const acceleratorTestStacks = new AcceleratorSynthStacks(AcceleratorStage.LOGGING, 'all-enabled', 'aws', 'us-east-1');
-const stack = acceleratorTestStacks.stacks.get(`LogArchive-us-east-1`)!;
-
 describe('LoggingStack', () => {
-  snapShotTest(testNamePrefix, stack);
+  snapShotTest(testNamePrefix, Create.stackProvider(`LogArchive-us-east-1`, AcceleratorStage.LOGGING));
 });
 
-const acceleratorTestStacksOuTargets = new AcceleratorSynthStacks(
-  AcceleratorStage.LOGGING,
-  'all-enabled-ou-targets',
-  'aws',
-  'us-east-1',
-);
-const stackOuTargets = acceleratorTestStacksOuTargets.stacks.get(`LogArchive-us-east-1`)!;
-
 describe('LoggingStackOuTargets', () => {
-  snapShotTest('Construct(LoggingStackOuTargets): ', stackOuTargets);
+  snapShotTest(
+    'Construct(LoggingStackOuTargets): ',
+    Create.stackProvider(`LogArchive-us-east-1`, [
+      AcceleratorStage.LOGGING,
+      'aws',
+      'us-east-1',
+      'all-enabled-ou-targets',
+    ]),
+  );
+});
+
+describe('LoggingStack', () => {
+  snapShotTest(
+    testNamePrefix,
+    Create.stackProvider(`LogArchive-us-west-2`, [AcceleratorStage.LOGGING, 'aws', 'us-west-2']),
+  );
+});
+
+describe('LoggingStackDelegatedAdmin', () => {
+  snapShotTest(
+    'Construct(LoggingStacKDelegatedAdmin): ',
+    Create.stackProvider(`LogArchive-us-west-2`, [
+      AcceleratorStage.LOGGING,
+      'aws',
+      'us-west-2',
+      'all-enabled-delegated-admin',
+    ]),
+  );
 });

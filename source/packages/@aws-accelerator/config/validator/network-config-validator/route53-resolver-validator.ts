@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -15,7 +15,6 @@ import path from 'path';
 import * as fs from 'fs';
 import {
   NetworkConfig,
-  NetworkConfigTypes,
   DnsQueryLogsConfig,
   DnsFirewallRuleGroupConfig,
   DnsFirewallRulesConfig,
@@ -23,8 +22,10 @@ import {
   VpcConfig,
   SubnetConfig,
   ResolverRuleConfig,
+  VpcTemplatesConfig,
 } from '../../lib/network-config';
 import { NetworkValidatorFunctions } from './network-validator-functions';
+import { isNetworkType } from '../../lib/common';
 
 /**
  * Class to validate Route53Resolver
@@ -56,6 +57,10 @@ export class Route53ResolverValidator {
     // Validate resolver rules
     //
     this.validateResolverRules(values, helpers, errors);
+    //
+    // Validate VPC Query Log configuration
+    //
+    this.validateLocalQueryLogConfig(values, errors);
   }
 
   /**
@@ -513,13 +518,13 @@ export class Route53ResolverValidator {
       errors.push(`[Resolver endpoint ${endpoint.name}]: VPC "${endpoint.vpc}" does not exist`);
     } else {
       // Validate the target is not a VPC template
-      if (NetworkConfigTypes.vpcTemplatesConfig.is(vpc)) {
+      if (isNetworkType<VpcTemplatesConfig>('IVpcTemplatesConfig', vpc)) {
         errors.push(
           `[Resolver endpoint ${endpoint.name}]: VPC templates are not a supported target VPC type for Resolver endpoints`,
         );
       }
 
-      if (NetworkConfigTypes.vpcConfig.is(vpc)) {
+      if (isNetworkType<VpcConfig>('IVpcConfig', vpc)) {
         // Validate we are targeting delegated admin account
         if (vpc.account !== delegatedAdmin) {
           errors.push(
@@ -551,7 +556,7 @@ export class Route53ResolverValidator {
 
     // Validate there are no duplicate subnets or AZs
     const subnetNames: string[] = [];
-    const subnetAzs: string[] = [];
+    const subnetAzs: (string | number)[] = [];
     subnets.forEach(subnetItem => {
       subnetNames.push(subnetItem.name);
       subnetAzs.push(subnetItem.availabilityZone ? subnetItem.availabilityZone : '');
@@ -886,6 +891,30 @@ export class Route53ResolverValidator {
           `[Resolver endpoint ${endpoint.name} rule ${rule.name}]: target endpoint "${rule.inboundEndpointTarget}" is not an INBOUND endpoint`,
         );
       }
+    }
+  }
+
+  /**
+   * Validate Multiple Query Logging Config Associations for a VPC.
+   * @param values
+   * @param errors
+   */
+  private validateLocalQueryLogConfig(values: NetworkConfig, errors: string[]) {
+    // Validate that centralized query logs and local query logs aren't referenced in the same VPC
+    const invalidConfig: string[] = [];
+    for (const vpcItem of values.vpcs ?? []) {
+      if (vpcItem.queryLogs && vpcItem.vpcRoute53Resolver?.queryLogs) {
+        if (!invalidConfig.includes(vpcItem.name)) {
+          invalidConfig.push(vpcItem.name);
+        }
+      }
+    }
+    if (invalidConfig.length > 0) {
+      errors.push(
+        `These VPCS: [${invalidConfig.join(
+          ', ',
+        )}]  have multiple Route53 query logs associated in the config. Please only specify a queryLog from the central network services or from the local vpcResolver config. `,
+      );
     }
   }
 }

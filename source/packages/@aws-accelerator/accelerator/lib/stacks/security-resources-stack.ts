@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -17,19 +17,31 @@ import { pascalCase } from 'change-case';
 import { Construct } from 'constructs';
 import path from 'path';
 import { Tag as ConfigRuleTag } from '@aws-sdk/client-config-service';
-import { AwsConfigRuleSet, ConfigRule, Tag } from '@aws-accelerator/config';
+import {
+  AccountCloudTrailConfig,
+  AwsConfigRuleSet,
+  ConfigRule,
+  Region,
+  Tag,
+  IsPublicSsmDoc,
+  AseaResourceType,
+} from '@aws-accelerator/config';
 
 import {
   ConfigServiceRecorder,
   CloudWatchLogGroups,
   ConfigServiceTags,
-  KeyLookup,
   SsmSessionManagerSettings,
   SecurityHubEventsLog,
 } from '@aws-accelerator/constructs';
 import * as cdk_extensions from '@aws-cdk-extensions/cdk-extensions';
 
-import { AcceleratorStack, AcceleratorStackProps } from './accelerator-stack';
+import {
+  AcceleratorKeyType,
+  AcceleratorStack,
+  AcceleratorStackProps,
+  NagSuppressionRuleIds,
+} from './accelerator-stack';
 
 enum ACCEL_LOOKUP_TYPE {
   KMS = 'KMS',
@@ -58,15 +70,17 @@ type CustomConfigRuleType = cdk.aws_config.ManagedRule | cdk.aws_config.CustomRu
  * Security Stack, configures local account security services
  */
 export class SecurityResourcesStack extends AcceleratorStack {
-  readonly centralLogS3Key: cdk.aws_kms.IKey;
-  readonly cloudwatchKey: cdk.aws_kms.IKey;
-  readonly snsKey: cdk.aws_kms.IKey | undefined;
-  readonly lambdaKey: cdk.aws_kms.IKey;
+  readonly centralLogsBucketKey: cdk.aws_kms.IKey;
+  readonly cloudwatchKey: cdk.aws_kms.IKey | undefined;
+  readonly lambdaKey: cdk.aws_kms.IKey | undefined;
   readonly auditAccountId: string;
   readonly logArchiveAccountId: string;
   readonly stackProperties: AcceleratorStackProps;
 
+  private snsKey: cdk.aws_kms.IKey | undefined;
+
   configRecorder: cdk.aws_config.CfnConfigurationRecorder | undefined;
+  configServiceUpdater: ConfigServiceRecorder | undefined;
   deliveryChannel: cdk.aws_config.CfnDeliveryChannel | undefined;
   accountTrailCloudWatchLogGroups: Map<string, cdk.aws_logs.LogGroup>;
 
@@ -79,46 +93,14 @@ export class SecurityResourcesStack extends AcceleratorStack {
     this.auditAccountId = props.accountsConfig.getAuditAccountId();
     this.logArchiveAccountId = props.accountsConfig.getLogArchiveAccountId();
 
-    this.centralLogS3Key = new KeyLookup(this, 'AcceleratorCentralLogS3Key', {
-      accountId: this.props.accountsConfig.getLogArchiveAccountId(),
-      keyRegion: this.props.centralizedLoggingRegion,
-      roleName: this.acceleratorResourceNames.roles.crossAccountCentralLogBucketCmkArnSsmParameterAccess,
-      keyArnParameterName: this.acceleratorResourceNames.parameters.centralLogBucketCmkArn,
-      logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
-      acceleratorPrefix: this.props.prefixes.accelerator,
-    }).getKey();
+    this.cloudwatchKey = this.getAcceleratorKey(AcceleratorKeyType.CLOUDWATCH_KEY);
+    this.lambdaKey = this.getAcceleratorKey(AcceleratorKeyType.LAMBDA_KEY);
+    this.centralLogsBucketKey = this.getCentralLogsBucketKey(this.cloudwatchKey);
 
-    this.cloudwatchKey = cdk.aws_kms.Key.fromKeyArn(
-      this,
-      'AcceleratorGetCloudWatchKey',
-      cdk.aws_ssm.StringParameter.valueForStringParameter(
-        this,
-        this.acceleratorResourceNames.parameters.cloudWatchLogCmkArn,
-      ),
-    );
-
-    this.lambdaKey = cdk.aws_kms.Key.fromKeyArn(
-      this,
-      'AcceleratorGetLambdaKey',
-      cdk.aws_ssm.StringParameter.valueForStringParameter(this, this.acceleratorResourceNames.parameters.lambdaCmkArn),
-    );
-
-    // if sns topics defined and this is the log archive account or
-    // sns topics defined and this is a deployment target for sns topics
-    // get sns key
-    if (
-      (props.globalConfig.snsTopics && cdk.Stack.of(this).account === props.accountsConfig.getLogArchiveAccountId()) ||
-      (props.globalConfig.snsTopics && this.isIncluded(props.globalConfig.snsTopics.deploymentTargets))
-    ) {
-      this.snsKey = cdk.aws_kms.Key.fromKeyArn(
-        this,
-        'AcceleratorGetSnsKey',
-        cdk.aws_ssm.StringParameter.valueForStringParameter(
-          this,
-          this.acceleratorResourceNames.parameters.snsTopicCmkArn,
-        ),
-      );
-    }
+    //
+    // Initialize SNS key
+    //
+    this.initializeSnsKey();
 
     // AWS Config - Set up recorder and delivery channel, only if Control Tower
     // is not being used. Else the Control Tower SCP will block these calls from
@@ -146,33 +128,7 @@ export class SecurityResourcesStack extends AcceleratorStack {
     //
     // CloudWatch Metrics
     //
-    for (const metricSetItem of props.securityConfig.cloudWatch.metricSets ?? []) {
-      if (!metricSetItem.regions?.includes(cdk.Stack.of(this).region)) {
-        continue;
-      }
-
-      if (!this.isIncluded(metricSetItem.deploymentTargets)) {
-        continue;
-      }
-
-      for (const metricItem of metricSetItem.metrics ?? []) {
-        const metricFilter = new cdk.aws_logs.MetricFilter(this, pascalCase(metricItem.filterName), {
-          logGroup: cdk.aws_logs.LogGroup.fromLogGroupName(
-            this,
-            `${pascalCase(metricItem.filterName)}_${pascalCase(metricItem.logGroupName)}`,
-            metricItem.logGroupName,
-          ),
-          metricNamespace: metricItem.metricNamespace,
-          metricName: metricItem.metricName,
-          filterPattern: cdk.aws_logs.FilterPattern.literal(metricItem.filterPattern),
-          metricValue: metricItem.metricValue,
-        });
-
-        if (this.accountTrailCloudWatchLogGroups.get(metricItem.logGroupName)) {
-          metricFilter.node.addDependency(this.accountTrailCloudWatchLogGroups.get(metricItem.logGroupName)!);
-        }
-      }
-    }
+    this.configureCloudWatchMetrics();
 
     //
     // CloudWatch Alarms
@@ -187,23 +143,7 @@ export class SecurityResourcesStack extends AcceleratorStack {
     //
     // SessionManager Configuration
     //
-    if (
-      !this.isAccountExcluded(props.globalConfig.logging.sessionManager.excludeAccounts) &&
-      !this.isRegionExcluded(props.globalConfig.logging.sessionManager.excludeRegions)
-    ) {
-      this.setupSessionManager();
-    }
-
-    NagSuppressions.addResourceSuppressionsByPath(
-      this,
-      `/${this.stackName}/SsmSessionManagerSettings/SessionPolicy${cdk.Stack.of(this).region}/Resource`,
-      [
-        {
-          id: 'AwsSolutions-IAM5',
-          reason: 'Allows only specific log group',
-        },
-      ],
-    );
+    this.setupSessionManager();
 
     // SecurityHub Log event to CloudWatch
     this.securityHubEventForwardToLogs();
@@ -213,7 +153,35 @@ export class SecurityResourcesStack extends AcceleratorStack {
     //
     this.createManagedActiveDirectorySecrets();
 
+    //
+    // Create NagSuppressions
+    //
+    this.addResourceSuppressionsByPath();
+
     this.logger.info('End stack synthesis');
+  }
+
+  /**
+   * Function to initialize SNS key
+   */
+  private initializeSnsKey() {
+    // if sns topics defined and this is the log archive account or
+    // sns topics defined and this is a deployment target for sns topics
+    // get sns key
+    if (
+      (this.props.globalConfig.snsTopics &&
+        cdk.Stack.of(this).account === this.props.accountsConfig.getLogArchiveAccountId()) ||
+      (this.props.globalConfig.snsTopics && this.isIncluded(this.props.globalConfig.snsTopics.deploymentTargets))
+    ) {
+      this.snsKey = cdk.aws_kms.Key.fromKeyArn(
+        this,
+        'AcceleratorGetSnsKey',
+        cdk.aws_ssm.StringParameter.valueForStringParameter(
+          this,
+          this.acceleratorResourceNames.parameters.snsTopicCmkArn,
+        ),
+      );
+    }
   }
 
   /**
@@ -221,6 +189,10 @@ export class SecurityResourcesStack extends AcceleratorStack {
    */
   private createManagedActiveDirectorySecrets() {
     for (const managedActiveDirectory of this.props.iamConfig.managedActiveDirectories ?? []) {
+      if (this.isManagedByAseaGlobal(AseaResourceType.MANAGED_AD, managedActiveDirectory.name)) {
+        this.logger.info(`${managedActiveDirectory.name} is managed by ASEA, skipping creation of resources.`);
+        return;
+      }
       const madAccountId = this.props.accountsConfig.getAccountId(managedActiveDirectory.account);
       const madRegion = managedActiveDirectory.region;
 
@@ -258,16 +230,15 @@ export class SecurityResourcesStack extends AcceleratorStack {
         );
 
         // AwsSolutions-SMG4: The secret does not have automatic rotation scheduled
-        NagSuppressions.addResourceSuppressionsByPath(
-          this,
-          `${this.stackName}/${pascalCase(managedActiveDirectory.name)}AdminSecret/Resource`,
-          [
+        this.nagSuppressionInputs.push({
+          id: NagSuppressionRuleIds.SMG4,
+          details: [
             {
-              id: 'AwsSolutions-SMG4',
+              path: `${this.stackName}/${pascalCase(managedActiveDirectory.name)}AdminSecret/Resource`,
               reason: 'Managed AD secret.',
             },
           ],
-        );
+        });
 
         new cdk.aws_ssm.StringParameter(this, pascalCase(`${managedActiveDirectory.name}AdminSecretArnParameter`), {
           parameterName: `${this.props.prefixes.ssmParamName}/secrets-manager/${managedActiveDirectory.name}/admin-secret/secret-arn`,
@@ -275,9 +246,13 @@ export class SecurityResourcesStack extends AcceleratorStack {
         });
 
         let madAccessRoleArn: string;
-        if (this.props.globalConfig.cdkOptions.useManagementAccessRole) {
+        if (this.props.globalConfig.cdkOptions?.useManagementAccessRole) {
           madAccessRoleArn = `arn:${cdk.Stack.of(this).partition}:iam::${madAccountId}:role/${
             this.props.globalConfig.managementAccountAccessRole
+          }`;
+        } else if (this.props.globalConfig.cdkOptions?.customDeploymentRole) {
+          madAccessRoleArn = `arn:${cdk.Stack.of(this).partition}:iam::${madAccountId}:role/${
+            this.props.globalConfig.cdkOptions.customDeploymentRole
           }`;
         } else {
           madAccessRoleArn = `arn:${
@@ -328,16 +303,15 @@ export class SecurityResourcesStack extends AcceleratorStack {
             });
 
             // AwsSolutions-SMG4: The secret does not have automatic rotation scheduled
-            NagSuppressions.addResourceSuppressionsByPath(
-              this,
-              `${this.stackName}/${pascalCase(adUser.name)}Secret/Resource`,
-              [
+            this.nagSuppressionInputs.push({
+              id: NagSuppressionRuleIds.SMG4,
+              details: [
                 {
-                  id: 'AwsSolutions-SMG4',
+                  path: `${this.stackName}/${pascalCase(adUser.name)}Secret/Resource`,
                   reason: 'Managed AD secret.',
                 },
               ],
-            );
+            });
 
             new cdk.aws_ssm.StringParameter(
               this,
@@ -366,11 +340,44 @@ export class SecurityResourcesStack extends AcceleratorStack {
   }
 
   /**
+   * Function to configure cloudwatch metrics
+   */
+  private configureCloudWatchMetrics() {
+    for (const metricSetItem of this.props.securityConfig.cloudWatch.metricSets ?? []) {
+      if (!metricSetItem.regions?.includes(cdk.Stack.of(this).region as Region)) {
+        continue;
+      }
+
+      if (!this.isIncluded(metricSetItem.deploymentTargets)) {
+        continue;
+      }
+
+      for (const metricItem of metricSetItem.metrics ?? []) {
+        const metricFilter = new cdk.aws_logs.MetricFilter(this, pascalCase(metricItem.filterName), {
+          logGroup: cdk.aws_logs.LogGroup.fromLogGroupName(
+            this,
+            `${pascalCase(metricItem.filterName)}_${pascalCase(metricItem.logGroupName)}`,
+            metricItem.logGroupName,
+          ),
+          metricNamespace: metricItem.metricNamespace,
+          metricName: metricItem.metricName,
+          filterPattern: cdk.aws_logs.FilterPattern.literal(metricItem.filterPattern),
+          metricValue: metricItem.metricValue,
+        });
+
+        if (this.accountTrailCloudWatchLogGroups.get(metricItem.logGroupName)) {
+          metricFilter.node.addDependency(this.accountTrailCloudWatchLogGroups.get(metricItem.logGroupName)!);
+        }
+      }
+    }
+  }
+
+  /**
    * Function to configure CW alarms
    */
   private configureCloudwatchAlarm() {
     for (const alarmSetItem of this.props.securityConfig.cloudWatch.alarmSets ?? []) {
-      if (!alarmSetItem.regions?.includes(cdk.Stack.of(this).region)) {
+      if (!alarmSetItem.regions?.includes(cdk.Stack.of(this).region as Region)) {
         continue;
       }
 
@@ -433,17 +440,14 @@ export class SecurityResourcesStack extends AcceleratorStack {
 
   private configureCloudwatchLogGroups() {
     for (const logGroupItem of this.props.securityConfig.cloudWatch.logGroups ?? []) {
-      if (
-        this.isAccountIncluded(logGroupItem.deploymentTargets.accounts) &&
-        !this.isRegionExcluded(logGroupItem.deploymentTargets.excludedRegions)
-      ) {
+      if (this.isIncluded(logGroupItem.deploymentTargets)) {
         let keyArn: string | undefined = undefined;
         if (logGroupItem.encryption?.kmsKeyName) {
           keyArn = cdk.aws_ssm.StringParameter.valueForStringParameter(
             this,
             `${this.props.prefixes.ssmParamName}/kms/${logGroupItem.encryption?.kmsKeyName}/key-arn`,
           ).toString();
-        } else if (logGroupItem.encryption?.useLzaManagedKey) {
+        } else if (logGroupItem.encryption?.useLzaManagedKey && this.cloudwatchKey) {
           keyArn = this.cloudwatchKey.keyArn;
         } else if (logGroupItem.encryption?.kmsKeyArn) {
           keyArn = logGroupItem.encryption?.kmsKeyArn;
@@ -467,73 +471,13 @@ export class SecurityResourcesStack extends AcceleratorStack {
     if (
       (!this.props.globalConfig.controlTower.enable ||
         this.props.accountsConfig.getManagementAccountId() === cdk.Stack.of(this).account) &&
-      this.props.securityConfig.awsConfig.enableConfigurationRecorder
+      this.props.securityConfig.awsConfig.enableConfigurationRecorder &&
+      (this.props.securityConfig.awsConfig.deploymentTargets
+        ? this.isIncluded(this.props.securityConfig.awsConfig.deploymentTargets)
+        : true)
     ) {
-      const configRecorderRole = new cdk.aws_iam.Role(this, 'ConfigRecorderRole', {
-        assumedBy: new cdk.aws_iam.ServicePrincipal('config.amazonaws.com'),
-        managedPolicies: [cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWS_ConfigRole')],
-      });
-
-      // AwsSolutions-IAM4: The IAM user, role, or group uses AWS managed policies
-      // rule suppression with evidence for this permission.
-      NagSuppressions.addResourceSuppressions(
-        configRecorderRole,
-        [
-          {
-            id: 'AwsSolutions-IAM4',
-            reason: 'ConfigRecorderRole needs managed policy service-role/AWS_ConfigRole to administer config rules',
-          },
-          {
-            id: 'AwsSolutions-IAM5',
-            reason: 'ConfigRecorderRole DefaultPolicy is built by cdk.',
-          },
-        ],
-        true,
-      );
-
-      /**
-       * As per the documentation, the config role should have
-       * the s3:PutObject permission to avoid access denied issues
-       * while AWS config tries to check the s3 bucket (in another account) write permissions
-       * https://docs.aws.amazon.com/config/latest/developerguide/s3-bucket-policy.html
-       *
-       */
-      configRecorderRole.addToPrincipalPolicy(
-        new cdk.aws_iam.PolicyStatement({
-          sid: 'S3WriteAccess',
-          actions: ['s3:PutObject', 's3:PutObjectAcl'],
-          resources: [
-            `arn:${this.props.partition}:s3:::${this.acceleratorResourceNames.bucketPrefixes.centralLogs}-${this.logArchiveAccountId}-${this.props.centralizedLoggingRegion}/*`,
-          ],
-          conditions: {
-            StringLike: {
-              's3:x-amz-acl': 'bucket-owner-full-control',
-            },
-          },
-        }),
-      );
-      configRecorderRole.addToPrincipalPolicy(
-        new cdk.aws_iam.PolicyStatement({
-          sid: 'S3GetAclAccess',
-          actions: ['s3:GetBucketAcl'],
-          resources: [
-            `arn:${this.props.partition}:s3:::${this.acceleratorResourceNames.bucketPrefixes.centralLogs}-${this.logArchiveAccountId}-${this.props.centralizedLoggingRegion}`,
-          ],
-        }),
-      );
-
-      // AwsSolutions-IAM5
-      NagSuppressions.addResourceSuppressionsByPath(
-        this,
-        `${this.stackName}/ConfigRecorderRole/DefaultPolicy/Resource`,
-        [
-          {
-            id: 'AwsSolutions-IAM5',
-            reason: 'Single bucket',
-          },
-        ],
-      );
-
+      // declaring variable here as this value is called twice and synth can run into duplicate construct name error
+      const configRecorderRoleArn = this.createConfigRecorderRole();
       /**
        * These resources are deprecated
        * They eventually will be removed and only
@@ -541,16 +485,20 @@ export class SecurityResourcesStack extends AcceleratorStack {
        * 3/30/2023
        */
       if (!this.props.securityConfig.awsConfig.overrideExisting) {
+        let includeGlobalResourceTypes = false;
+        if (cdk.Stack.of(this).region === this.props.globalConfig.homeRegion) {
+          includeGlobalResourceTypes = true;
+        }
         this.configRecorder = new cdk.aws_config.CfnConfigurationRecorder(this, 'ConfigRecorder', {
-          roleArn: configRecorderRole.roleArn,
+          roleArn: configRecorderRoleArn,
           recordingGroup: {
             allSupported: true,
-            includeGlobalResourceTypes: true,
+            includeGlobalResourceTypes: includeGlobalResourceTypes,
           },
         });
 
         this.deliveryChannel = new cdk.aws_config.CfnDeliveryChannel(this, 'ConfigDeliveryChannel', {
-          s3BucketName: `${this.acceleratorResourceNames.bucketPrefixes.centralLogs}-${this.logArchiveAccountId}-${this.props.centralizedLoggingRegion}`,
+          s3BucketName: `${this.centralLogsBucketName}`,
           configSnapshotDeliveryProperties: {
             deliveryFrequency: 'One_Hour',
           },
@@ -558,78 +506,177 @@ export class SecurityResourcesStack extends AcceleratorStack {
       }
 
       if (this.props.securityConfig.awsConfig.overrideExisting) {
-        const configServiceUpdater = new ConfigServiceRecorder(this, 'ConfigRecorderDeliveryChannel', {
-          s3BucketName: `${this.acceleratorResourceNames.bucketPrefixes.centralLogs}-${this.logArchiveAccountId}-${this.props.centralizedLoggingRegion}`,
-          s3BucketKmsKey: this.centralLogS3Key,
+        this.configServiceUpdater = new ConfigServiceRecorder(this, 'ConfigRecorderDeliveryChannel', {
+          s3BucketName: `${this.centralLogsBucketName}`,
+          s3BucketKmsKey: this.centralLogsBucketKey,
           logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
-          configRecorderRoleArn: configRecorderRole.roleArn,
+          configRecorderRoleArn: configRecorderRoleArn,
           cloudwatchKmsKey: this.cloudwatchKey,
           lambdaKmsKey: this.lambdaKey,
           partition: this.partition,
           acceleratorPrefix: this.props.prefixes.accelerator,
+          homeRegion: this.props.globalConfig.homeRegion,
         });
 
         if (this.configRecorder && this.deliveryChannel) {
-          configServiceUpdater.node.addDependency(this.configRecorder);
-          configServiceUpdater.node.addDependency(this.deliveryChannel);
+          this.configServiceUpdater.node.addDependency(this.configRecorder);
+          this.configServiceUpdater.node.addDependency(this.deliveryChannel);
         }
       }
       // AwsSolutions-IAM4
-      NagSuppressions.addResourceSuppressionsByPath(
-        this,
-        `${this.stackName}/ConfigRecorderDeliveryChannel/ConfigServiceRecorderFunction/ServiceRole/Resource`,
-        [
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
           {
-            id: 'AwsSolutions-IAM4',
+            path: `${this.stackName}/ConfigRecorderDeliveryChannel/ConfigServiceRecorderFunction/ServiceRole/Resource`,
             reason: 'Lambda managed policy',
           },
         ],
-      );
+      });
+
       // AwsSolutions-IAM5
-      NagSuppressions.addResourceSuppressionsByPath(
-        this,
-        `${this.stackName}/ConfigRecorderDeliveryChannel/ConfigRecorderRole/DefaultPolicy/Resource`,
-        [
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
           {
-            id: 'AwsSolutions-IAM5',
+            path: `${this.stackName}/ConfigRecorderDeliveryChannel/ConfigRecorderRole/DefaultPolicy/Resource`,
             reason: 'Lambda managed policy',
           },
         ],
-      );
+      });
+
       // AwsSolutions-IAM4
-      NagSuppressions.addResourceSuppressionsByPath(
-        this,
-        `${this.stackName}/ConfigRecorderDeliveryChannel/ConfigServiceRecorderProvider/framework-onEvent/ServiceRole/Resource`,
-        [
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
           {
-            id: 'AwsSolutions-IAM4',
+            path: `${this.stackName}/ConfigRecorderDeliveryChannel/ConfigServiceRecorderProvider/framework-onEvent/ServiceRole/Resource`,
             reason: 'Lambda managed policy',
           },
         ],
-      );
+      });
+
       // AwsSolutions-IAM5
-      NagSuppressions.addResourceSuppressionsByPath(
-        this,
-        `${this.stackName}/ConfigRecorderDeliveryChannel/ConfigServiceRecorderProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource`,
-        [
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
           {
-            id: 'AwsSolutions-IAM5',
+            path: `${this.stackName}/ConfigRecorderDeliveryChannel/ConfigServiceRecorderProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource`,
             reason: 'Lambda managed policy',
           },
         ],
-      );
+      });
+
       // AwsSolutions-IAM5
-      NagSuppressions.addResourceSuppressionsByPath(
-        this,
-        `${this.stackName}/ConfigRecorderDeliveryChannel/ConfigServiceRecorderFunction/ServiceRole/DefaultPolicy/Resource`,
-        [
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
           {
-            id: 'AwsSolutions-IAM5',
+            path: `${this.stackName}/ConfigRecorderDeliveryChannel/ConfigServiceRecorderFunction/ServiceRole/DefaultPolicy/Resource`,
             reason: 'Lambda managed policy',
           },
         ],
-      );
+      });
+
+      // AwsSolutions-IAM4
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
+          {
+            path: `${this.stackName}/ConfigRecorderDeliveryChannel/ConfigServiceRecorderFunctionRole/Resource`,
+            reason: 'Lambda managed policy',
+          },
+        ],
+      });
+
+      // AwsSolutions-IAM5
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
+          {
+            path: `${this.stackName}/ConfigRecorderDeliveryChannel/ConfigServiceRecorderFunctionRole/Resource`,
+            reason: 'Lambda managed policy',
+          },
+        ],
+      });
     }
+  }
+
+  private createConfigRecorderRole() {
+    if (this.props.useExistingRoles === true) {
+      return `arn:${cdk.Stack.of(this).partition}:iam::${cdk.Stack.of(this).account}:role/${
+        this.props.prefixes.accelerator
+      }ConfigRecorderRole`;
+    } else if (this.props.securityConfig.awsConfig.useServiceLinkedRole === true) {
+      return `arn:${cdk.Stack.of(this).partition}:iam::${
+        cdk.Stack.of(this).account
+      }:role/aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig`;
+    }
+    const configRecorderRole = new cdk.aws_iam.Role(this, 'ConfigRecorderRole', {
+      assumedBy: new cdk.aws_iam.ServicePrincipal('config.amazonaws.com'),
+      managedPolicies: [cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWS_ConfigRole')],
+    });
+
+    // AwsSolutions-IAM4: The IAM user, role, or group uses AWS managed policies
+    // rule suppression with evidence for this permission.
+    NagSuppressions.addResourceSuppressions(
+      configRecorderRole,
+      [
+        {
+          id: 'AwsSolutions-IAM4',
+          reason: 'ConfigRecorderRole needs managed policy service-role/AWS_ConfigRole to administer config rules',
+        },
+        {
+          id: 'AwsSolutions-IAM5',
+          reason: 'ConfigRecorderRole DefaultPolicy is built by cdk.',
+        },
+      ],
+      true,
+    );
+
+    /**
+     * As per the documentation, the config role should have
+     * the s3:PutObject permission to avoid access denied issues
+     * while AWS config tries to check the s3 bucket (in another account) write permissions
+     * https://docs.aws.amazon.com/config/latest/developerguide/s3-bucket-policy.html
+     *
+     */
+    configRecorderRole.addToPrincipalPolicy(
+      new cdk.aws_iam.PolicyStatement({
+        sid: 'S3WriteAccess',
+        actions: ['s3:PutObject', 's3:PutObjectAcl'],
+        resources: [
+          `arn:${this.props.partition}:s3:::${this.acceleratorResourceNames.bucketPrefixes.centralLogs}-${this.logArchiveAccountId}-${this.props.centralizedLoggingRegion}/*`,
+        ],
+        conditions: {
+          StringLike: {
+            's3:x-amz-acl': 'bucket-owner-full-control',
+          },
+        },
+      }),
+    );
+    configRecorderRole.addToPrincipalPolicy(
+      new cdk.aws_iam.PolicyStatement({
+        sid: 'S3GetAclAccess',
+        actions: ['s3:GetBucketAcl'],
+        resources: [
+          `arn:${this.props.partition}:s3:::${this.acceleratorResourceNames.bucketPrefixes.centralLogs}-${this.logArchiveAccountId}-${this.props.centralizedLoggingRegion}`,
+        ],
+      }),
+    );
+
+    // AwsSolutions-IAM5
+    this.nagSuppressionInputs.push({
+      id: NagSuppressionRuleIds.IAM5,
+      details: [
+        {
+          path: `${this.stackName}/ConfigRecorderRole/DefaultPolicy/Resource`,
+          reason: 'Single bucket',
+        },
+      ],
+    });
+
+    return configRecorderRole.roleArn;
   }
 
   /**
@@ -639,8 +686,13 @@ export class SecurityResourcesStack extends AcceleratorStack {
    */
   private createManagedConfigRule(rule: ConfigRule): CustomConfigRuleType {
     const resourceTypes: cdk.aws_config.ResourceType[] = [];
+    let ruleScope: cdk.aws_config.RuleScope | undefined = undefined;
     for (const resourceType of rule.complianceResourceTypes ?? []) {
       resourceTypes.push(cdk.aws_config.ResourceType.of(resourceType));
+    }
+
+    if (resourceTypes.length > 0) {
+      ruleScope = { resourceTypes };
     }
 
     const managedConfigRule = new cdk.aws_config.ManagedRule(this, pascalCase(rule.name), {
@@ -648,9 +700,7 @@ export class SecurityResourcesStack extends AcceleratorStack {
       description: rule.description,
       identifier: rule.identifier ?? rule.name,
       inputParameters: this.getRuleParameters(rule.name, rule.inputParameters),
-      ruleScope: {
-        resourceTypes,
-      },
+      ruleScope,
     });
 
     return managedConfigRule;
@@ -665,9 +715,11 @@ export class SecurityResourcesStack extends AcceleratorStack {
     let ruleScope: cdk.aws_config.RuleScope | undefined;
 
     if (rule.customRule.triggeringResources.lookupType == 'ResourceTypes') {
+      const ruleScopeResources: cdk.aws_config.ResourceType[] = [];
       for (const item of rule.customRule.triggeringResources.lookupValue) {
-        ruleScope = cdk.aws_config.RuleScope.fromResources([cdk.aws_config.ResourceType.of(item)]);
+        ruleScopeResources.push(cdk.aws_config.ResourceType.of(item));
       }
+      ruleScope = cdk.aws_config.RuleScope.fromResources(ruleScopeResources);
     }
 
     if (rule.customRule.triggeringResources.lookupType == 'ResourceId') {
@@ -721,29 +773,27 @@ export class SecurityResourcesStack extends AcceleratorStack {
     );
 
     // AwsSolutions-IAM5: The IAM entity contains wildcard permissions and does not have a cdk_nag rule suppression with evidence for those permission.
-    NagSuppressions.addResourceSuppressionsByPath(
-      this,
-      `${this.stackName}/${pascalCase(rule.name)}-LambdaRolePolicy/Resource`,
-      [
+    this.nagSuppressionInputs.push({
+      id: NagSuppressionRuleIds.IAM5,
+      details: [
         {
-          id: 'AwsSolutions-IAM5',
+          path: `${this.stackName}/${pascalCase(rule.name)}-LambdaRolePolicy/Resource`,
           reason: 'AWS Config rule custom lambda role, created by the permission provided in config repository',
         },
       ],
-    );
+    });
 
     // AwsSolutions-IAM4: The IAM user, role, or group uses AWS managed policies.
     // rule suppression with evidence for this permission.
-    NagSuppressions.addResourceSuppressionsByPath(
-      this,
-      `${this.stackName}/${pascalCase(rule.name)}-Function/ServiceRole/Resource`,
-      [
+    this.nagSuppressionInputs.push({
+      id: NagSuppressionRuleIds.IAM4,
+      details: [
         {
-          id: 'AwsSolutions-IAM4',
+          path: `${this.stackName}/${pascalCase(rule.name)}-Function/ServiceRole/Resource`,
           reason: 'AWS Config custom rule needs managed readonly access policy',
         },
       ],
-    );
+    });
 
     const managedConfigRule = new cdk.aws_config.CustomRule(this, pascalCase(rule.name), {
       configRuleName: rule.name,
@@ -798,16 +848,15 @@ export class SecurityResourcesStack extends AcceleratorStack {
 
       // AwsSolutions-IAM4: The IAM user, role, or group uses AWS managed policies.
       // rule suppression with evidence for this permission.
-      NagSuppressions.addResourceSuppressionsByPath(
-        this,
-        `${this.stackName}/${pascalCase(rule.name)}-RemediationFunction/ServiceRole/Resource`,
-        [
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
           {
-            id: 'AwsSolutions-IAM4',
+            path: `${this.stackName}/${pascalCase(rule.name)}-RemediationFunction/ServiceRole/Resource`,
             reason: 'AWS Config custom rule needs managed readonly access policy',
           },
         ],
-      );
+      });
 
       // Configure lambda log file with encryption and log retention
       new cdk.aws_logs.LogGroup(this, pascalCase(rule.name) + '-RemediationLogGroup', {
@@ -818,16 +867,21 @@ export class SecurityResourcesStack extends AcceleratorStack {
       });
     }
 
+    let remediationTargetId = `arn:${cdk.Stack.of(this).partition}:ssm:${cdk.Stack.of(this).region}:${
+      rule.remediation.targetAccountName
+        ? this.props.accountsConfig.getAccountId(rule.remediation.targetAccountName)
+        : this.props.accountsConfig.getAuditAccountId()
+    }:document/${rule.remediation.targetId}`;
+
+    if (IsPublicSsmDoc(rule.remediation.targetId)) {
+      remediationTargetId = rule.remediation.targetId;
+    }
+
     new cdk.aws_config.CfnRemediationConfiguration(this, pascalCase(rule.name) + '-Remediation', {
       configRuleName: rule.name,
-      targetId: `arn:${cdk.Stack.of(this).partition}:ssm:${cdk.Stack.of(this).region}:${
-        rule.remediation.targetAccountName
-          ? this.props.accountsConfig.getAccountId(rule.remediation.targetAccountName)
-          : this.props.accountsConfig.getAuditAccountId()
-      }:document/${rule.remediation.targetId}`,
+      targetId: remediationTargetId,
       targetVersion: rule.remediation.targetVersion,
       targetType: 'SSM_DOCUMENT',
-
       automatic: rule.remediation.automatic,
       maximumAutomaticAttempts: rule.remediation.maximumAutomaticAttempts,
       retryAttemptSeconds: rule.remediation.retryAttemptSeconds,
@@ -879,14 +933,19 @@ export class SecurityResourcesStack extends AcceleratorStack {
       if (configRule) {
         // Tag rule
         this.setupConfigServicesTagging(rule, configRule);
-
         // Create remediation for config rule
-        if (rule.remediation) {
+        if (
+          rule.remediation &&
+          (rule.remediation.excludeRegions ?? []).indexOf(cdk.Stack.of(this).region as Region) === -1
+        ) {
           this.setupConfigRuleRemediation(rule, configRule);
         }
 
         if (this.configRecorder) {
           configRule.node.addDependency(this.configRecorder);
+        }
+        if (this.configServiceUpdater) {
+          configRule.node.addDependency(this.configServiceUpdater);
         }
       }
     }
@@ -1083,6 +1142,123 @@ export class SecurityResourcesStack extends AcceleratorStack {
   }
 
   /**
+   * Function to get replacement function name
+   * @param ruleName string
+   * @param replacementArray string[]
+   * @param remediationFunctionName string
+   * @returns remediationFunctionName string
+   */
+  private getReplacementFunctionName(
+    ruleName: string,
+    replacementArray: string[],
+    remediationFunctionName?: string,
+  ): string {
+    if (remediationFunctionName) {
+      return remediationFunctionName;
+    } else {
+      this.logger.error(
+        `Remediation function for ${ruleName} rule is undefined. Invalid lookup value ${replacementArray[1]}`,
+      );
+      throw new Error(`Configuration validation failed at runtime.`);
+    }
+  }
+
+  /**
+   * Function to get organization id replacement value
+   * @param lookupType string
+   * @param replacementArray string[]
+   * @param ruleName string
+   * @returns organizationId string
+   */
+  private getOrganizationIdReplacementValue(ruleName: string): string {
+    if (this.organizationId) {
+      return this.organizationId;
+    } else {
+      this.logger.error(`${ruleName} parameter error !! Organization not enabled can not retrieve organization id`);
+      throw new Error(`Configuration validation failed at runtime.`);
+    }
+  }
+
+  /**
+   * Function to get kms key arn replacement value
+   * @param ruleName string
+   * @param replacementArray string[]
+   * @returns KeyArn string
+   */
+  private getKmsArnReplacementValue(ruleName: string, replacementArray: string[]): string | undefined {
+    if (replacementArray.length === 1) {
+      if (!this.isS3CMKEnabled) {
+        return undefined;
+      }
+      return cdk.aws_kms.Key.fromKeyArn(
+        this,
+        pascalCase(ruleName) + '-AcceleratorGetS3Key',
+        cdk.aws_ssm.StringParameter.valueForStringParameter(this, this.acceleratorResourceNames.parameters.s3CmkArn),
+      ).keyArn;
+    } else {
+      // When specific Key ID is given
+      return cdk.aws_kms.Key.fromKeyArn(
+        this,
+        pascalCase(ruleName) + '-AcceleratorGetS3Key',
+        `arn:${cdk.Stack.of(this).partition}:kms:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:key/${
+          replacementArray[1]
+        }`,
+      ).keyArn;
+    }
+  }
+
+  /**
+   * Function to get bucket name replacement value
+   * @param ruleName string
+   * @param replacementArray string[]
+   * @param replacementType string
+   * @returns bucketName string
+   */
+  private getBucketNameReplacementValue(ruleName: string, replacementArray: string[], replacementType: string): string {
+    if (replacementArray[1].toLowerCase() === 'elbLogs'.toLowerCase()) {
+      return this.getElbLogsBucketName();
+    } else {
+      return cdk.aws_s3.Bucket.fromBucketName(
+        this,
+        `${pascalCase(ruleName)}-${pascalCase(replacementType)}-InputBucket`,
+        replacementArray[1].toLowerCase(),
+      ).bucketName;
+    }
+  }
+
+  /**
+   * Validate lookup data
+   * @param lookupType string
+   * @param replacementArray string[]
+   */
+  private validateLookupData(lookupType: string, replacementArray: string[]) {
+    let isError = false;
+    if (lookupType === ACCEL_LOOKUP_TYPE.REMEDIATION_FUNCTION_NAME && replacementArray.length !== 1) {
+      isError = true;
+    }
+    if (lookupType === ACCEL_LOOKUP_TYPE.ORGANIZATION_ID && replacementArray.length !== 1) {
+      isError = true;
+    }
+    if (lookupType === ACCEL_LOOKUP_TYPE.INSTANCE_PROFILE && replacementArray.length !== 2) {
+      isError = true;
+    }
+    if (lookupType === ACCEL_LOOKUP_TYPE.CUSTOMER_MANAGED_POLICY && replacementArray.length !== 2) {
+      isError = true;
+    }
+    if (lookupType === ACCEL_LOOKUP_TYPE.KMS && replacementArray.length > 1) {
+      isError = true;
+    }
+    if (lookupType === ACCEL_LOOKUP_TYPE.Bucket && replacementArray.length !== 2) {
+      isError = true;
+    }
+
+    if (isError) {
+      this.logger.error(`Invalid replacement options ${replacementArray}`);
+      throw new Error(`Invalid replacement options ${replacementArray}`);
+    }
+  }
+
+  /**
    * Function to get Config rule remediation parameter replacement value
    * @param ruleName
    * @param replacement
@@ -1099,77 +1275,45 @@ export class SecurityResourcesStack extends AcceleratorStack {
     const replacementArray = replacement[1].split(':');
     const lookupType = replacementArray[0];
 
-    if (lookupType === ACCEL_LOOKUP_TYPE.REMEDIATION_FUNCTION_NAME && replacementArray.length === 1) {
-      if (remediationFunctionName) {
-        return remediationFunctionName;
-      } else {
-        this.logger.error(
-          `Remediation function for ${ruleName} rule is undefined. Invalid lookup value ${replacementArray[1]}`,
-        );
+    let returnValue: string | undefined;
+
+    // Validate lookup data
+    this.validateLookupData(lookupType, replacementArray);
+
+    switch (lookupType) {
+      case ACCEL_LOOKUP_TYPE.REMEDIATION_FUNCTION_NAME:
+        returnValue = this.getReplacementFunctionName(ruleName, replacementArray, remediationFunctionName);
+        break;
+      case ACCEL_LOOKUP_TYPE.ORGANIZATION_ID:
+        returnValue = this.getOrganizationIdReplacementValue(lookupType);
+        break;
+      case ACCEL_LOOKUP_TYPE.ACCOUNT_ID:
+        returnValue = this.getOrganizationIdReplacementValue(lookupType);
+        break;
+      case ACCEL_LOOKUP_TYPE.INSTANCE_PROFILE:
+        returnValue = replacementArray[1];
+        break;
+      case ACCEL_LOOKUP_TYPE.CUSTOMER_MANAGED_POLICY:
+        returnValue = cdk.aws_iam.ManagedPolicy.fromManagedPolicyName(
+          this,
+          `${pascalCase(ruleName)} + ${pascalCase(replacementArray[1])}-${pascalCase(replacementType)}`,
+          replacementArray[1],
+        ).managedPolicyArn;
+        break;
+      case ACCEL_LOOKUP_TYPE.KMS:
+        returnValue = this.getKmsArnReplacementValue(ruleName, replacementArray);
+        break;
+      case ACCEL_LOOKUP_TYPE.Bucket:
+        returnValue = this.getBucketNameReplacementValue(ruleName, replacementArray, replacementType);
+        break;
+      default:
+        this.logger.error(`Config rule replacement key ${replacement.input} not found`);
         throw new Error(`Configuration validation failed at runtime.`);
-      }
     }
 
-    if (lookupType === ACCEL_LOOKUP_TYPE.ORGANIZATION_ID && replacementArray.length === 1) {
-      if (this.organizationId) {
-        return this.organizationId;
-      } else {
-        this.logger.error(`${ruleName} parameter error !! Organization not enabled can not retrieve organization id`);
-        throw new Error(`Configuration validation failed at runtime.`);
-      }
-    }
-
-    if (lookupType === ACCEL_LOOKUP_TYPE.ACCOUNT_ID) {
-      return this.stackProperties.accountsConfig.getAccountId(replacementArray[1]);
-    }
-
-    if (lookupType === ACCEL_LOOKUP_TYPE.INSTANCE_PROFILE && replacementArray.length === 2) {
-      return replacementArray[1];
-    }
-
-    if (lookupType === ACCEL_LOOKUP_TYPE.CUSTOMER_MANAGED_POLICY && replacementArray.length === 2) {
-      return cdk.aws_iam.ManagedPolicy.fromManagedPolicyName(
-        this,
-        `${pascalCase(ruleName)} + ${pascalCase(replacementArray[1])}-${pascalCase(replacementType)}`,
-        replacementArray[1],
-      ).managedPolicyArn;
-    }
-
-    if (lookupType === ACCEL_LOOKUP_TYPE.KMS) {
-      if (replacementArray.length === 1) {
-        return cdk.aws_kms.Key.fromKeyArn(
-          this,
-          pascalCase(ruleName) + '-AcceleratorGetS3Key',
-          cdk.aws_ssm.StringParameter.valueForStringParameter(this, this.acceleratorResourceNames.parameters.s3CmkArn),
-        ).keyArn;
-      } else {
-        // When specific Key ID is given
-        return cdk.aws_kms.Key.fromKeyArn(
-          this,
-          pascalCase(ruleName) + '-AcceleratorGetS3Key',
-          `arn:${cdk.Stack.of(this).partition}:kms:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:key/${
-            replacementArray[1]
-          }`,
-        ).keyArn;
-      }
-    }
-
-    if (lookupType === ACCEL_LOOKUP_TYPE.Bucket && replacementArray.length === 2) {
-      if (replacementArray[1].toLowerCase() === 'elbLogs'.toLowerCase()) {
-        return `${
-          this.acceleratorResourceNames.bucketPrefixes.elbLogs
-        }-${this.props.accountsConfig.getLogArchiveAccountId()}-${this.props.centralizedLoggingRegion}`;
-      } else {
-        return cdk.aws_s3.Bucket.fromBucketName(
-          this,
-          `${pascalCase(ruleName)}-${pascalCase(replacementType)}-InputBucket`,
-          replacementArray[1].toLowerCase(),
-        ).bucketName;
-      }
-    }
-    this.logger.error(`Config rule replacement key ${replacement.input} not found`);
-    throw new Error(`Configuration validation failed at runtime.`);
+    return returnValue;
   }
+
   /**
    * Function to create remediation role
    * @param ruleName
@@ -1221,16 +1365,16 @@ export class SecurityResourcesStack extends AcceleratorStack {
 
     // AwsSolutions-IAM5: The IAM entity contains wildcard permissions and does not have a cdk_nag rule suppression with evidence for those permission.
     // rule suppression with evidence for this permission.
-    NagSuppressions.addResourceSuppressionsByPath(
-      this,
-      `${this.stackName}/${pascalCase(ruleName)}-RemediationRole/DefaultPolicy/Resource`,
-      [
+    this.nagSuppressionInputs.push({
+      id: NagSuppressionRuleIds.IAM5,
+      details: [
         {
-          id: 'AwsSolutions-IAM5',
+          path: `${this.stackName}/${pascalCase(ruleName)}-RemediationRole/DefaultPolicy/Resource`,
           reason: 'AWS Config rule remediation role, created by the permission provided in config repository',
         },
       ],
-    );
+    });
+
     return role;
   }
 
@@ -1247,101 +1391,141 @@ export class SecurityResourcesStack extends AcceleratorStack {
    */
   private setupSessionManager() {
     if (
-      this.props.globalConfig.logging.sessionManager.sendToCloudWatchLogs ||
-      this.props.globalConfig.logging.sessionManager.sendToS3
+      !this.isAccountExcluded(this.props.globalConfig.logging.sessionManager.excludeAccounts) &&
+      !this.isRegionExcluded(this.props.globalConfig.logging.sessionManager.excludeRegions)
+      // remove region exclude, set to home region
     ) {
-      // Set up Session Manager Logging
-      new SsmSessionManagerSettings(this, 'SsmSessionManagerSettings', {
-        s3BucketName: `${
-          this.acceleratorResourceNames.bucketPrefixes.centralLogs
-        }-${this.props.accountsConfig.getLogArchiveAccountId()}-${this.props.centralizedLoggingRegion}`,
-        s3KeyPrefix: `session/${cdk.Aws.ACCOUNT_ID}/${cdk.Stack.of(this).region}`,
-        s3BucketKeyArn: this.centralLogS3Key.keyArn,
-        sendToCloudWatchLogs: this.props.globalConfig.logging.sessionManager.sendToCloudWatchLogs,
-        sendToS3: this.props.globalConfig.logging.sessionManager.sendToS3,
-        cloudWatchEncryptionEnabled:
-          this.props.partition !== 'aws-us-gov' && this.props.globalConfig.logging.sessionManager.sendToCloudWatchLogs,
-        attachPolicyToIamRoles: this.props.globalConfig.logging.sessionManager.attachPolicyToIamRoles,
-        cloudWatchEncryptionKey: this.cloudwatchKey,
-        constructLoggingKmsKey: this.cloudwatchKey,
-        logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
-        region: cdk.Stack.of(this).region,
-        acceleratorPrefix: this.props.prefixes.accelerator,
-      });
-
-      // AwsSolutions-IAM5: The IAM entity contains wildcard permissions and does not have a cdk_nag rule suppression with evidence for those permission.
-      // rule suppression with evidence for this permission.
-      NagSuppressions.addResourceSuppressionsByPath(
-        this,
-        `${this.stackName}/SsmSessionManagerSettings/SessionManagerEC2Policy/Resource`,
-        [
-          {
-            id: 'AwsSolutions-IAM5',
-            reason: 'Policy needed access to all S3 objects for the account to put objects into the access log bucket',
+      if (
+        this.props.globalConfig.logging.sessionManager.sendToCloudWatchLogs ||
+        this.props.globalConfig.logging.sessionManager.sendToS3
+      ) {
+        // Set up Session Manager Logging
+        new SsmSessionManagerSettings(this, 'SsmSessionManagerSettings', {
+          s3BucketName: this.centralLogsBucketName,
+          s3KeyPrefix: `session/${cdk.Aws.ACCOUNT_ID}/${cdk.Stack.of(this).region}`,
+          s3BucketKeyArn: this.centralLogsBucketKey.keyArn,
+          sendToCloudWatchLogs: this.props.globalConfig.logging.sessionManager.sendToCloudWatchLogs,
+          sendToS3: this.props.globalConfig.logging.sessionManager.sendToS3,
+          cloudWatchEncryptionEnabled:
+            this.props.partition !== 'aws-us-gov' &&
+            this.props.globalConfig.logging.sessionManager.sendToCloudWatchLogs,
+          cloudWatchEncryptionKey: this.cloudwatchKey,
+          logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+          region: cdk.Stack.of(this).region,
+          rolesInAccounts: this.props.globalConfig.iamRoleSsmParameters,
+          prefixes: {
+            accelerator: this.props.prefixes.accelerator,
+            ssmLog: this.props.prefixes.ssmLogName,
           },
-        ],
-      );
-
-      // AwsSolutions-IAM4: The IAM user, role, or group uses AWS managed policies.
-      // rule suppression with evidence for this permission.
-      NagSuppressions.addResourceSuppressionsByPath(
-        this,
-        `${this.stackName}/SsmSessionManagerSettings/SessionManagerEC2Role/Resource`,
-        [
-          {
-            id: 'AwsSolutions-IAM4',
-            reason: 'Create an IAM managed Policy for users to be able to use Session Manager with KMS encryption',
+          ssmKeyDetails: {
+            alias: this.acceleratorResourceNames.customerManagedKeys.ssmKey.alias,
+            description: this.acceleratorResourceNames.customerManagedKeys.ssmKey.description,
           },
-        ],
-      );
+        });
+      }
     }
   }
 
   private securityHubEventForwardToLogs() {
-    if (this.props.securityConfig.centralSecurityServices.securityHub.enable) {
-      new SecurityHubEventsLog(this, 'SecurityHubEventsLog', {
-        acceleratorPrefix: this.props.prefixes.accelerator,
-        snsTopicArn: `arn:${cdk.Stack.of(this).partition}:sns:${cdk.Stack.of(this).region}:${
-          cdk.Stack.of(this).account
-        }:${this.props.prefixes.snsTopicName}-${
-          this.props.securityConfig.centralSecurityServices.securityHub.snsTopicName
-        }`,
-        snsKmsKey: this.snsKey,
-        notificationLevel: this.props.securityConfig.centralSecurityServices.securityHub.notificationLevel,
-        lambdaKey: this.lambdaKey,
-      });
-      NagSuppressions.addResourceSuppressionsByPath(
-        this,
-        `/${this.stackName}/SecurityHubEventsLog/SecurityHubEventsFunction/ServiceRole/Resource`,
-        [
+    const securityHubConfig = this.props.securityConfig.centralSecurityServices.securityHub;
+    // only forward events if Security Hub is enabled and logging is enabled. If logging is undefined, its assumed to be true.
+    if (securityHubConfig.enable && (securityHubConfig.logging?.cloudWatch?.enable ?? true)) {
+      if (!securityHubConfig.deploymentTargets || this.isIncluded(securityHubConfig.deploymentTargets)) {
+        new SecurityHubEventsLog(this, 'SecurityHubEventsLog', {
+          acceleratorPrefix: this.props.prefixes.accelerator,
+          snsTopicArn: `arn:${cdk.Stack.of(this).partition}:sns:${cdk.Stack.of(this).region}:${
+            cdk.Stack.of(this).account
+          }:${this.props.prefixes.snsTopicName}-${securityHubConfig.snsTopicName}`,
+          snsKmsKey: this.snsKey,
+          notificationLevel: securityHubConfig.notificationLevel,
+          lambdaKey: this.lambdaKey,
+          cloudWatchLogRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
+          logLevel: securityHubConfig.logging?.cloudWatch?.logLevel,
+          logGroupName: securityHubConfig.logging?.cloudWatch?.logGroupName,
+        });
+      }
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM4,
+        details: [
           {
-            id: 'AwsSolutions-IAM4',
+            path: `/${this.stackName}/SecurityHubEventsLog/SecurityHubEventsFunction/ServiceRole/Resource`,
             reason: 'Managed policy for lambda to write logs to cloudwatch.',
           },
         ],
-      );
+      });
 
-      NagSuppressions.addResourceSuppressionsByPath(
-        this,
-        `/${this.stackName}/SecurityHubEventsFunction/ServiceRole/DefaultPolicy/Resource`,
-        [
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
           {
-            id: 'AwsSolutions-IAM5',
+            path: `/${this.stackName}/SecurityHubEventsFunction/ServiceRole/DefaultPolicy/Resource`,
             reason: `Allows only access to /${this.props.prefixes.accelerator}-SecurityHub log group.`,
           },
         ],
-      );
+      });
 
-      NagSuppressions.addResourceSuppressionsByPath(
-        this,
-        `/${this.stackName}/SecurityHubEventsLog/SecurityHubEventsFunction/ServiceRole/DefaultPolicy/Resource`,
-        [
+      this.nagSuppressionInputs.push({
+        id: NagSuppressionRuleIds.IAM5,
+        details: [
           {
-            id: 'AwsSolutions-IAM5',
+            path: `/${this.stackName}/SecurityHubEventsLog/SecurityHubEventsFunction/ServiceRole/DefaultPolicy/Resource`,
             reason: `Allows only access to /${this.props.prefixes.accelerator}-SecurityHub log group.`,
           },
         ],
-      );
+      });
+    }
+  }
+
+  /**
+   * Function to configure Account CloudTrail
+   * @param accountTrail {@link AccountCloudTrailConfig}
+   */
+  private configureAccountCloudTrail(accountTrail: AccountCloudTrailConfig) {
+    const trailName = `${this.props.prefixes.accelerator}-CloudTrail-${accountTrail.name}`;
+
+    let accountTrailCloudWatchLogGroup: cdk.aws_logs.LogGroup | undefined = undefined;
+    if (accountTrail.settings.sendToCloudWatchLogs) {
+      const logGroupName = `${this.props.prefixes.trailLogName}-cloudtrail-${accountTrail.name}`;
+      accountTrailCloudWatchLogGroup = new cdk.aws_logs.LogGroup(this, `CloudTrailLogGroup-${accountTrail.name}`, {
+        retention: this.stackProperties.globalConfig.cloudwatchLogRetentionInDays,
+        encryptionKey: this.cloudwatchKey,
+        logGroupName,
+      });
+      this.accountTrailCloudWatchLogGroups.set(logGroupName, accountTrailCloudWatchLogGroup);
+    }
+
+    let managementEventType = cdk.aws_cloudtrail.ReadWriteType.NONE;
+    if (accountTrail.settings.managementEvents) {
+      managementEventType = cdk.aws_cloudtrail.ReadWriteType.ALL;
+    }
+
+    const accountCloudTrailLog = new cdk_extensions.Trail(this, `AcceleratorCloudTrail-${accountTrail.name}`, {
+      bucket: cdk.aws_s3.Bucket.fromBucketName(this, 'CloudTrailLogBucket', this.centralLogsBucketName),
+      s3KeyPrefix: `cloudtrail-${accountTrail.name}`,
+      cloudWatchLogGroup: accountTrailCloudWatchLogGroup,
+      cloudWatchLogsRetention: this.stackProperties.globalConfig.cloudwatchLogRetentionInDays,
+      enableFileValidation: true,
+      encryptionKey: this.centralLogsBucketKey,
+      includeGlobalServiceEvents: accountTrail.settings.globalServiceEvents ?? false,
+      isMultiRegionTrail: accountTrail.settings.multiRegionTrail ?? false,
+      isOrganizationTrail: false,
+      apiCallRateInsight: accountTrail.settings.apiCallRateInsight ?? false,
+      apiErrorRateInsight: accountTrail.settings.apiErrorRateInsight ?? false,
+      managementEvents: managementEventType,
+      sendToCloudWatchLogs: accountTrail.settings.sendToCloudWatchLogs ?? false,
+      trailName: trailName,
+    });
+
+    if (accountTrail.settings.s3DataEvents) {
+      accountCloudTrailLog.addEventSelector(cdk.aws_cloudtrail.DataResourceType.S3_OBJECT, [
+        `arn:${cdk.Stack.of(this).partition}:s3:::`,
+      ]);
+    }
+
+    if (accountTrail.settings.lambdaDataEvents) {
+      accountCloudTrailLog.addEventSelector(cdk.aws_cloudtrail.DataResourceType.LAMBDA_FUNCTION, [
+        `arn:${cdk.Stack.of(this).partition}:lambda`,
+      ]);
     }
   }
 
@@ -1359,56 +1543,8 @@ export class SecurityResourcesStack extends AcceleratorStack {
         continue;
       }
 
-      const trailName = `${this.props.prefixes.accelerator}-CloudTrail-${accountTrail.name}`;
-
-      let accountTrailCloudWatchLogGroup: cdk.aws_logs.LogGroup | undefined = undefined;
-      if (accountTrail.settings.sendToCloudWatchLogs) {
-        const logGroupName = `${this.props.prefixes.trailLogName}-cloudtrail-${accountTrail.name}`;
-        accountTrailCloudWatchLogGroup = new cdk.aws_logs.LogGroup(this, `CloudTrailLogGroup-${accountTrail.name}`, {
-          retention: this.stackProperties.globalConfig.cloudwatchLogRetentionInDays,
-          encryptionKey: this.cloudwatchKey,
-          logGroupName,
-        });
-        this.accountTrailCloudWatchLogGroups.set(logGroupName, accountTrailCloudWatchLogGroup);
-      }
-
-      let managementEventType = cdk.aws_cloudtrail.ReadWriteType.NONE;
-      if (accountTrail.settings.managementEvents) {
-        managementEventType = cdk.aws_cloudtrail.ReadWriteType.ALL;
-      }
-
-      const accountCloudTrailLog = new cdk_extensions.Trail(this, `AcceleratorCloudTrail-${accountTrail.name}`, {
-        bucket: cdk.aws_s3.Bucket.fromBucketName(
-          this,
-          'CloudTrailLogBucket',
-          `${this.acceleratorResourceNames.bucketPrefixes.centralLogs}-${this.logArchiveAccountId}-${this.props.centralizedLoggingRegion}`,
-        ),
-        s3KeyPrefix: `cloudtrail-${accountTrail.name}`,
-        cloudWatchLogGroup: accountTrailCloudWatchLogGroup,
-        cloudWatchLogsRetention: this.stackProperties.globalConfig.cloudwatchLogRetentionInDays,
-        enableFileValidation: true,
-        encryptionKey: this.centralLogS3Key,
-        includeGlobalServiceEvents: accountTrail.settings.globalServiceEvents ?? false,
-        isMultiRegionTrail: accountTrail.settings.multiRegionTrail ?? false,
-        isOrganizationTrail: false,
-        apiCallRateInsight: accountTrail.settings.apiCallRateInsight ?? false,
-        apiErrorRateInsight: accountTrail.settings.apiErrorRateInsight ?? false,
-        managementEvents: managementEventType,
-        sendToCloudWatchLogs: accountTrail.settings.sendToCloudWatchLogs ?? false,
-        trailName: trailName,
-      });
-
-      if (accountTrail.settings.s3DataEvents) {
-        accountCloudTrailLog.addEventSelector(cdk.aws_cloudtrail.DataResourceType.S3_OBJECT, [
-          `arn:${cdk.Stack.of(this).partition}:s3:::`,
-        ]);
-      }
-
-      if (accountTrail.settings.lambdaDataEvents) {
-        accountCloudTrailLog.addEventSelector(cdk.aws_cloudtrail.DataResourceType.LAMBDA_FUNCTION, [
-          `arn:${cdk.Stack.of(this).partition}:lambda`,
-        ]);
-      }
+      // Configure Account CloudTrail
+      this.configureAccountCloudTrail(accountTrail);
     }
   }
 }

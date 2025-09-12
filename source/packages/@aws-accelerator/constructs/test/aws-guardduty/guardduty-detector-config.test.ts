@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -24,6 +24,11 @@ new GuardDutyDetectorConfig(stack, 'GuardDutyDetectorConfig', {
   exportFrequency: 'FIFTEEN_MINUTES',
   enableS3Protection: true,
   enableEksProtection: true,
+  enableEc2MalwareProtection: true,
+  enableEksAgent: true,
+  enableLambdaProtection: true,
+  enableRdsProtection: true,
+  keepMalwareProtectionSnapshosts: true,
   kmsKey: new cdk.aws_kms.Key(stack, 'CustomKey', {}),
   logRetentionInDays: 3653,
 });

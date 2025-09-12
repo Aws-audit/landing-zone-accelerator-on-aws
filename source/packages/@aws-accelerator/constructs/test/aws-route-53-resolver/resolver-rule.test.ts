@@ -1,5 +1,5 @@
 /**
- *  Copyright 2022 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance
  *  with the License. A copy of the License is located at
@@ -57,23 +57,6 @@ new ResolverRuleAssociation(systemRuleStack, 'TestResolverRuleAssoc', {
 describe('ResolverRule', () => {
   snapShotTest(testNamePrefix, forwardRuleStack);
   snapShotTest(testNamePrefix, systemRuleStack);
-  it('throw error when targetInbound is specified without kmsKey', () => {
-    function targetInboundKmsKeyError() {
-      new ResolverRule(systemRuleStack, 'TargetInboundKmsKeyError', {
-        domainName: 'test.com',
-        name: 'TestResolverRule',
-        resolverEndpointId: 'TestEndpoint',
-        targetIps: ipAddresses,
-        tags: [],
-        targetInbound: 'targetInbound',
-        logRetentionInDays: 3653,
-        ruleType: 'SYSTEM',
-      });
-    }
-    expect(targetInboundKmsKeyError).toThrow(
-      new Error('kmsKey property must be included if targetInbound property is defined.'),
-    );
-  });
   it('throw error when targetInbound is specified without logRetention', () => {
     function targetInboundLogRetentionError() {
       new ResolverRule(systemRuleStack, 'TargetInboundLogRetentionError', {

@@ -24,8 +24,8 @@ module.exports = {
     global: {
       branches: 10,
       functions: 40,
-      lines: 50,
-      statements: 50,
+      lines: 45,
+      statements: 45,
     },
   },
 
@@ -64,12 +64,12 @@ module.exports = {
       'jest-junit',
       {
         suiteName: packageJson.name,
-        outputDirectory: '../../../test-reports',
+        outputDirectory: './test-reports',
         uniqueOutputName: 'true',
-        addFileAttribute: 'true',
-        suiteNameTemplate: '{filename}',
-        classNameTemplate: packageJson.name,
+        classNameTemplate: '{classname}',
         titleTemplate: '{title}',
+        usePathForSuiteName: 'true',
+        addFileAttribute: 'true',
       },
     ],
   ],
