@@ -1,7 +1,7 @@
 import { ImportAseaResourcesStack, LogLevel } from '../stacks/import-asea-resources-stack';
 import { AseaResource, AseaResourceProps } from './resource';
 import { pascalCase } from 'pascal-case';
-import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
+import { SsmResourceType, getAseaConfigVpcName } from '@aws-accelerator/utils';
 import { ASEAMappings, AseaResourceType, NestedStack } from '@aws-accelerator/config';
 import { CfnHostedZone } from 'aws-cdk-lib/aws-route53';
 const ASEA_PHASE_NUMBER = '2';
@@ -43,8 +43,18 @@ export class VpcEndpoints extends AseaResource {
     }
 
     for (const vpcItem of this.scope.vpcResources) {
+      if (vpcItem.region != this.props.stackInfo.region) {
+        this.scope.addLogs(
+          LogLevel.INFO,
+          `VPC ${vpcItem.name} is not in the current region ${this.props.stackInfo.region}. Skipping processing.`,
+        );
+        continue;
+      }
+
+      const vpcName = getAseaConfigVpcName(vpcItem.name);
+
       // Set interface endpoint DNS names
-      const vpcId = this.getVPCId(vpcItem.name, this.props.globalConfig.externalLandingZoneResources.templateMap);
+      const vpcId = this.getVPCId(vpcName, this.props.globalConfig.externalLandingZoneResources.templateMap);
       if (!this.findResourceByName(existingVpcEndpointResources, 'VpcId', vpcId!)) {
         continue;
       }
@@ -101,9 +111,47 @@ export class VpcEndpoints extends AseaResource {
           }
           const hostedZoneCfnName = this.getCfnHostedZoneName(hostedZoneName);
 
-          const hostedZoneCfn = this.findResourceByName(existingHostedZoneResources, 'Name', hostedZoneCfnName);
+          const hostedZoneCfn = this.findResourceByNameAndDependency(
+            existingHostedZoneResources,
+            'Name',
+            hostedZoneCfnName,
+            endpoint.logicalResourceId,
+          );
           if (!hostedZoneCfn) {
             continue;
+          }
+
+          // remove output for R53 hosted zone FIRST (before deleting the hosted zone it references)
+          const outputPrefix = `HostedZoneOutput${pascalCase(vpcItem.name)}${pascalCase(configEndpointName)}Output`;
+          const backupVpcName = vpcItem.name.split('_vpc')[0];
+          const backupOutputPrefix = `HostedZoneOutput${pascalCase(backupVpcName)}${pascalCase(configEndpointName)}Output`;
+
+          // Find the output by searching through stack children for matching prefix
+          let outputFound = false;
+          for (const child of this.scope.includedStack.node.children) {
+            if (child.node.id.startsWith(outputPrefix)) {
+              this.scope.includedStack.node.tryRemoveChild(child.node.id);
+              this.scope.addLogs(
+                LogLevel.INFO,
+                `Removed output ${child.node.id} for endpoint ${vpcItem.name}/${configEndpointName}`,
+              );
+              outputFound = true;
+              break;
+            }
+          }
+
+          // If not found, try with backup prefix (vpc name without "_vpc" suffix)
+          if (!outputFound) {
+            for (const child of this.scope.includedStack.node.children) {
+              if (child.node.id.startsWith(backupOutputPrefix)) {
+                this.scope.includedStack.node.tryRemoveChild(child.node.id);
+                this.scope.addLogs(
+                  LogLevel.INFO,
+                  `Removed output ${child.node.id} for endpoint ${vpcItem.name}/${configEndpointName} (using backup prefix)`,
+                );
+                break;
+              }
+            }
           }
 
           // route53 hosted zone
@@ -122,7 +170,12 @@ export class VpcEndpoints extends AseaResource {
 
           // route53 recordset
           const recordSetName = this.getRecordSetName(hostedZoneName);
-          const recordSetCfn = this.findResourceByName(existingRecordSetResources, 'Name', recordSetName);
+          const recordSetCfn = this.findResourceByNameAndDependency(
+            existingRecordSetResources,
+            'Name',
+            recordSetName,
+            hostedZoneCfn.logicalResourceId,
+          );
           if (recordSetCfn) {
             this.scope.addDeleteFlagForAseaResource({
               type: RESOURCE_TYPE.RECORD_SET,
@@ -151,11 +204,13 @@ export class VpcEndpoints extends AseaResource {
 
       // updating existing configured endpoints
       for (const endpointItem of vpcItem.interfaceEndpoints?.endpoints ?? []) {
-        const endpointCfn = this.findResourceByName(
+        const endpointCfn = this.findResourceByNameAndVpcId(
           existingVpcEndpointResources,
           'ServiceName',
           this.interfaceVpcEndpointForRegionAndEndpointName(endpointItem.service),
+          vpcId!,
         );
+
         if (!endpointCfn || !endpointCfn.physicalResourceId) {
           continue;
         }
@@ -172,7 +227,12 @@ export class VpcEndpoints extends AseaResource {
 
         const hostedZoneCfnName = this.getCfnHostedZoneName(hostedZoneName);
 
-        const hostedZoneCfn = this.findResourceByName(existingHostedZoneResources, 'Name', hostedZoneCfnName);
+        const hostedZoneCfn = this.findResourceByNameAndDependency(
+          existingHostedZoneResources,
+          'Name',
+          hostedZoneCfnName,
+          endpointCfn.logicalResourceId,
+        );
         if (!hostedZoneCfn) {
           continue;
         }
@@ -184,7 +244,13 @@ export class VpcEndpoints extends AseaResource {
         });
         this.scope.addAseaResource(AseaResourceType.ROUTE_53_PHZ_ID, `${vpcItem.name}/${endpointItem.service}`);
         const recordSetName = this.getRecordSetName(hostedZoneName);
-        const recordSetCfn = this.findResourceByName(existingRecordSetResources, 'Name', recordSetName);
+
+        const recordSetCfn = this.findResourceByNameAndDependency(
+          existingRecordSetResources,
+          'Name',
+          recordSetName,
+          hostedZoneCfn.logicalResourceId,
+        );
         if (!recordSetCfn) {
           this.scope.addLogs(
             LogLevel.WARN,

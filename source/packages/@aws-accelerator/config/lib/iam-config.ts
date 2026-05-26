@@ -15,7 +15,7 @@ import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
 
-import { createLogger } from '@aws-accelerator/utils/lib/logger';
+import { createLogger } from '@aws-accelerator/utils';
 
 import { AccountsConfig } from './accounts-config';
 import * as t from './common';
@@ -32,7 +32,7 @@ export class ManagedActiveDirectorySharedOuConfig implements i.IManagedActiveDir
 export class ManagedActiveDirectorySecretConfig implements i.IManagedActiveDirectorySecretConfig {
   readonly adminSecretName: string | undefined = undefined;
   readonly account: string | undefined = undefined;
-  readonly region: t.Region = 'us-east-1';
+  readonly region: string = 'us-east-1';
 }
 
 export class ActiveDirectoryConfigurationInstanceUserDataConfig
@@ -89,7 +89,7 @@ export class ManagedActiveDirectoryVpcSettingsConfig implements i.IManagedActive
 export class ManagedActiveDirectoryConfig implements i.IManagedActiveDirectoryConfig {
   readonly name = '';
   readonly account = '';
-  readonly region: t.Region = 'us-east-1';
+  readonly region: string = 'us-east-1';
   readonly dnsName = '';
   readonly netBiosDomainName = '';
   readonly description: string | undefined = undefined;
@@ -243,20 +243,29 @@ export class IamConfig implements i.IIamConfig {
    * @returns
    */
 
-  static load(dir: string, replacementsConfig?: ReplacementsConfig): IamConfig {
+  static load(dir: string, replacementsConfig: ReplacementsConfig): IamConfig {
     const initialBuffer = fs.readFileSync(path.join(dir, IamConfig.FILENAME), 'utf8');
     const buffer = replacementsConfig ? replacementsConfig.preProcessBuffer(initialBuffer) : initialBuffer;
-    const values = t.parseIamConfig(yaml.load(buffer));
-    return new IamConfig(values);
+    // Create schema with custom !include tag that supports replacement tokens
+    const schema = t.createSchema(dir, replacementsConfig);
+    // Load YAML with custom schema
+    try {
+      const values = t.parseIamConfig(yaml.load(buffer, { schema }));
+      return new IamConfig(values);
+    } catch (e) {
+      logger.error('parsing iam-config failed', e);
+      throw new Error('Could not parse iam configuration');
+    }
   }
 
   /**
    * Load from string content
    * @param content
    */
-  static loadFromString(content: string): IamConfig | undefined {
+  static loadFromString(content: string, replacementsConfig: ReplacementsConfig): IamConfig | undefined {
+    const buffer = replacementsConfig ? replacementsConfig.preProcessBuffer(content) : content;
     try {
-      const values = t.parseIamConfig(yaml.load(content));
+      const values = t.parseIamConfig(yaml.load(buffer));
       return new IamConfig(values);
     } catch (e) {
       logger.error('Error parsing input, iam config undefined');
@@ -295,6 +304,7 @@ export class IamConfig implements i.IIamConfig {
           if (managedActiveDirectory.secretConfig.account) {
             return managedActiveDirectory.secretConfig.account;
           } else {
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
             managedActiveDirectory.account;
           }
         }

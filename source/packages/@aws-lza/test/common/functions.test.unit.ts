@@ -10,16 +10,18 @@
  *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions
  *  and limitations under the License.
  */
-import { describe, beforeEach, expect, test } from '@jest/globals';
+import { describe, beforeEach, expect, test, vi, afterAll, afterEach } from 'vitest';
 import { ConfiguredRetryStrategy } from '@aws-sdk/util-retry';
 import {
   ControlTowerClient,
   GetLandingZoneCommand,
   ListLandingZonesCommand,
+  paginateListEnabledBaselines,
   ResourceNotFoundException,
 } from '@aws-sdk/client-controltower';
 import {
   Account,
+  AWSOrganizationsNotInUseException,
   DescribeOrganizationCommand,
   InvalidInputException,
   ListRootsCommand,
@@ -33,10 +35,12 @@ import { AssumeRoleCommand, GetCallerIdentityCommand, STSClient } from '@aws-sdk
 import {
   delay,
   generateDryRunResponse,
-  getAccountDetailsFromOrganizations,
+  getAccountDetailsFromOrganizationsByEmail,
   getAccountId,
   getCredentials,
+  getCurrentAccountDetails,
   getCurrentAccountId,
+  getEnabledBaselines,
   getLandingZoneDetails,
   getLandingZoneIdentifier,
   getModuleDefaultParameters,
@@ -47,54 +51,60 @@ import {
   getOrganizationId,
   getOrganizationRootId,
   getParentOuId,
+  isOrganizationsConfigured,
+  processModulePromises,
   setRetryStrategy,
+  waitUntil,
 } from '../../common/functions';
 import { MOCK_CONSTANTS } from '../mocked-resources';
 import { MODULE_EXCEPTIONS } from '../../common/enums';
 import { AcceleratorModuleName, IModuleCommonParameter } from '../../common/resources';
+import { fail } from 'assert';
 
-jest.mock('@aws-sdk/util-retry');
-jest.mock('@aws-sdk/client-controltower', () => {
+vi.mock('@aws-sdk/util-retry');
+vi.mock('@aws-sdk/client-controltower', () => {
   return {
-    ControlTowerClient: jest.fn(),
-    GetLandingZoneCommand: jest.fn(),
-    ResourceNotFoundException: jest.fn(),
-    ListLandingZonesCommand: jest.fn(),
+    ControlTowerClient: vi.fn(),
+    GetLandingZoneCommand: vi.fn(),
+    ResourceNotFoundException: vi.fn(),
+    ListLandingZonesCommand: vi.fn(),
+    paginateListEnabledBaselines: vi.fn(),
   };
 });
-jest.mock('@aws-sdk/client-organizations', () => ({
-  DescribeOrganizationCommand: jest.fn(),
-  OrganizationsClient: jest.fn(),
-  paginateListOrganizationalUnitsForParent: jest.fn(),
-  paginateListAccounts: jest.fn(),
+vi.mock('@aws-sdk/client-organizations', () => ({
+  DescribeOrganizationCommand: vi.fn(),
+  OrganizationsClient: vi.fn(),
+  paginateListOrganizationalUnitsForParent: vi.fn(),
+  paginateListAccounts: vi.fn(),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  InvalidInputException: jest.fn().mockImplementation(function (this: any, params) {
+  InvalidInputException: vi.fn().mockImplementation(function (this: any, params) {
     const error = new Error(params.message);
     error.name = 'InvalidInputException';
     Object.setPrototypeOf(error, InvalidInputException.prototype);
     return error;
   }),
-  ListRootsCommand: jest.fn(),
+  ListRootsCommand: vi.fn(),
+  AWSOrganizationsNotInUseException: vi.fn(),
 }));
-jest.mock('@aws-sdk/client-sts', () => {
+vi.mock('@aws-sdk/client-sts', () => {
   return {
-    STSClient: jest.fn(),
-    GetCallerIdentityCommand: jest.fn(),
-    AssumeRoleCommand: jest.fn(),
+    STSClient: vi.fn(),
+    GetCallerIdentityCommand: vi.fn(),
+    AssumeRoleCommand: vi.fn(),
   };
 });
 
-jest.mock('../../common/throttle', () => ({
-  throttlingBackOff: jest.fn(fn => fn()),
+vi.mock('../../common/throttle', () => ({
+  throttlingBackOff: vi.fn(fn => fn()),
 }));
 
 describe('functions', () => {
-  const mockSend = jest.fn();
+  const mockSend = vi.fn();
   describe('setRetryStrategy', () => {
     const originalEnv = process.env;
 
     beforeEach(() => {
-      jest.resetModules();
+      vi.resetModules();
       process.env = { ...originalEnv };
     });
 
@@ -121,7 +131,7 @@ describe('functions', () => {
     test('should pass a correct retry delay function', () => {
       setRetryStrategy();
 
-      const mockConstructor = ConfiguredRetryStrategy as jest.MockedClass<typeof ConfiguredRetryStrategy>;
+      const mockConstructor = ConfiguredRetryStrategy as vi.MockedClass<typeof ConfiguredRetryStrategy>;
       const constructorArgs = mockConstructor.mock.calls[0];
       const delayArgument = constructorArgs[1];
 
@@ -139,13 +149,13 @@ describe('functions', () => {
     const originalSetTimeout = global.setTimeout;
 
     beforeEach(() => {
-      jest.useFakeTimers();
-      jest.spyOn(global, 'setTimeout');
+      vi.useFakeTimers();
+      vi.spyOn(global, 'setTimeout');
     });
 
     afterEach(() => {
-      jest.clearAllTimers();
-      jest.useRealTimers();
+      vi.clearAllTimers();
+      vi.useRealTimers();
       global.setTimeout = originalSetTimeout;
     });
 
@@ -157,7 +167,7 @@ describe('functions', () => {
       const delayPromise = delay(minutes);
 
       // Verify
-      jest.advanceTimersByTime(minutes * 60000);
+      vi.advanceTimersByTime(minutes * 60000);
       await expect(delayPromise).resolves.toBeUndefined();
     });
 
@@ -169,7 +179,7 @@ describe('functions', () => {
       const delayPromise = delay(minutes);
 
       // Verify
-      jest.advanceTimersByTime(minutes * 60000 - 1);
+      vi.advanceTimersByTime(minutes * 60000 - 1);
       const immediatePromise = Promise.resolve();
       await expect(Promise.race([delayPromise, immediatePromise])).resolves.toBeUndefined();
     });
@@ -191,9 +201,9 @@ describe('functions', () => {
     const mockRegion = 'mockRegion';
 
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
-      (ControlTowerClient as jest.Mock).mockImplementation(() => ({
+      (ControlTowerClient as vi.Mock).mockImplementation(() => ({
         send: mockSend,
       }));
     });
@@ -206,7 +216,81 @@ describe('functions', () => {
       expect(result).toBeUndefined();
     });
 
-    test('should return landing zone details when valid response is received', async () => {
+    test('should return landing zone details when valid V4 response is received', async () => {
+      // Setup
+      const mockResponse = {
+        landingZone: {
+          arn: 'mockArn',
+          status: 'mockStatus',
+          version: 'mockVersionV4',
+          latestAvailableVersion: 'mockLatestAvailableVersion',
+          driftStatus: { status: 'mockDriftStatus' },
+          manifest: {
+            governedRegions: ['mockRegion1', 'mockRegion1'],
+            accessManagement: { enabled: true },
+            centralizedLogging: {
+              accountId: 'mockAccountId',
+              configurations: {
+                loggingBucket: { retentionDays: 365 },
+                accessLoggingBucket: { retentionDays: 365 },
+                kmsKeyArn: 'mockKmsKeyArn',
+              },
+            },
+            config: {
+              accountId: 'mockAccountId',
+              configurations: {
+                loggingBucket: { retentionDays: 365 },
+                accessLoggingBucket: { retentionDays: 365 },
+                kmsKeyArn: 'mockKmsKeyArn2',
+              },
+            },
+          },
+        },
+      };
+
+      mockSend.mockImplementation(command => {
+        if (command instanceof GetLandingZoneCommand) {
+          return Promise.resolve(mockResponse);
+        }
+        return Promise.reject(new Error('Unexpected command'));
+      });
+
+      // Execute
+      const result = await getLandingZoneDetails(new ControlTowerClient({}), mockRegion, mockLandingZoneIdentifier);
+
+      // Verify
+      expect(result).toEqual({
+        landingZoneIdentifier: mockResponse.landingZone.arn,
+        governedRegions: mockResponse.landingZone.manifest.governedRegions,
+        enableIdentityCenterAccess: mockResponse.landingZone.manifest.accessManagement.enabled,
+        centralizedLoggingConfig: {
+          loggingBucketRetentionDays:
+            mockResponse.landingZone.manifest.centralizedLogging.configurations.loggingBucket.retentionDays,
+          accessLoggingBucketRetentionDays:
+            mockResponse.landingZone.manifest.centralizedLogging.configurations.accessLoggingBucket.retentionDays,
+          kmsKeyArn: mockResponse.landingZone.manifest.centralizedLogging.configurations.kmsKeyArn,
+          accountId: mockResponse.landingZone.manifest.centralizedLogging.accountId,
+          enabled: undefined,
+        },
+        configHubConfig: {
+          loggingBucketRetentionDays:
+            mockResponse.landingZone.manifest.config.configurations.loggingBucket.retentionDays,
+          accessLoggingBucketRetentionDays:
+            mockResponse.landingZone.manifest.config.configurations.accessLoggingBucket.retentionDays,
+          kmsKeyArn: mockResponse.landingZone.manifest.config.configurations.kmsKeyArn,
+          accountId: mockResponse.landingZone.manifest.config.accountId,
+          enabled: undefined,
+        },
+        status: mockResponse.landingZone.status,
+        version: mockResponse.landingZone.version,
+        latestAvailableVersion: mockResponse.landingZone.latestAvailableVersion,
+        driftStatus: mockResponse.landingZone.driftStatus.status,
+        manifest: mockResponse.landingZone.manifest,
+      });
+      expect(GetLandingZoneCommand).toHaveBeenCalledTimes(1);
+    });
+
+    test('should return landing zone details when valid V3 response is received', async () => {
       // Setup
       const mockResponse = {
         landingZone: {
@@ -250,15 +334,19 @@ describe('functions', () => {
         enableIdentityCenterAccess: mockResponse.landingZone.manifest.accessManagement.enabled,
         securityOuName: mockResponse.landingZone.manifest.organizationStructure.security.name,
         sandboxOuName: mockResponse.landingZone.manifest.organizationStructure.sandbox.name,
-        loggingBucketRetentionDays:
-          mockResponse.landingZone.manifest.centralizedLogging.configurations.loggingBucket.retentionDays,
-        accessLoggingBucketRetentionDays:
-          mockResponse.landingZone.manifest.centralizedLogging.configurations.accessLoggingBucket.retentionDays,
-        kmsKeyArn: mockResponse.landingZone.manifest.centralizedLogging.configurations.kmsKeyArn,
+        centralizedLoggingConfig: {
+          loggingBucketRetentionDays:
+            mockResponse.landingZone.manifest.centralizedLogging.configurations.loggingBucket.retentionDays,
+          accessLoggingBucketRetentionDays:
+            mockResponse.landingZone.manifest.centralizedLogging.configurations.accessLoggingBucket.retentionDays,
+          kmsKeyArn: mockResponse.landingZone.manifest.centralizedLogging.configurations.kmsKeyArn,
+          enabled: undefined,
+        },
         status: mockResponse.landingZone.status,
         version: mockResponse.landingZone.version,
         latestAvailableVersion: mockResponse.landingZone.latestAvailableVersion,
         driftStatus: mockResponse.landingZone.driftStatus.status,
+        manifest: mockResponse.landingZone.manifest,
       });
       expect(GetLandingZoneCommand).toHaveBeenCalledTimes(1);
     });
@@ -296,22 +384,86 @@ describe('functions', () => {
         await getLandingZoneDetails(new ControlTowerClient({}), mockRegion, mockLandingZoneIdentifier);
       }).rejects.toThrowError(errorMessage);
     });
+
+    test('should handle undefined nested values in V3 response', async () => {
+      // Setup
+      const mockResponse = {
+        landingZone: {
+          arn: 'mockArn',
+          status: 'mockStatus',
+          version: 'mockVersion',
+          latestAvailableVersion: 'mockLatestAvailableVersion',
+          driftStatus: { status: 'mockDriftStatus' },
+          manifest: {
+            governedRegions: ['mockRegion1'],
+            accessManagement: { enabled: true },
+            organizationStructure: {
+              security: undefined,
+              sandbox: undefined,
+            },
+            centralizedLogging: {
+              configurations: undefined,
+            },
+            config: {
+              configurations: undefined,
+            },
+          },
+        },
+      };
+
+      mockSend.mockImplementation(command => {
+        if (command instanceof GetLandingZoneCommand) {
+          return Promise.resolve(mockResponse);
+        }
+        return Promise.reject(new Error('Unexpected command'));
+      });
+
+      // Execute
+      const result = await getLandingZoneDetails(new ControlTowerClient({}), mockRegion, mockLandingZoneIdentifier);
+
+      // Verify
+      expect(result).toEqual({
+        landingZoneIdentifier: mockResponse.landingZone.arn,
+        governedRegions: mockResponse.landingZone.manifest.governedRegions,
+        enableIdentityCenterAccess: mockResponse.landingZone.manifest.accessManagement.enabled,
+        securityOuName: undefined,
+        sandboxOuName: undefined,
+        centralizedLoggingConfig: {
+          loggingBucketRetentionDays: undefined,
+          accessLoggingBucketRetentionDays: undefined,
+          kmsKeyArn: undefined,
+          enabled: undefined,
+        },
+        configHubConfig: {
+          loggingBucketRetentionDays: undefined,
+          accessLoggingBucketRetentionDays: undefined,
+          kmsKeyArn: undefined,
+          enabled: undefined,
+        },
+        status: mockResponse.landingZone.status,
+        version: mockResponse.landingZone.version,
+        latestAvailableVersion: mockResponse.landingZone.latestAvailableVersion,
+        driftStatus: mockResponse.landingZone.driftStatus.status,
+        manifest: mockResponse.landingZone.manifest,
+      });
+      expect(GetLandingZoneCommand).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('getOrganizationalUnitsForParent', () => {
     const parentId = 'mockParentId';
 
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
-      (OrganizationsClient as jest.Mock).mockImplementation(() => ({
+      (OrganizationsClient as vi.Mock).mockImplementation(() => ({
         send: mockSend,
       }));
     });
 
     test('should return an empty array when no organizational units are found', async () => {
       // Setup
-      (paginateListOrganizationalUnitsForParent as jest.Mock).mockImplementation(() => ({
+      (paginateListOrganizationalUnitsForParent as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             OrganizationalUnits: [],
@@ -332,7 +484,7 @@ describe('functions', () => {
         { Id: 'mockId1', Name: 'mockName1', Arn: 'mockArn1' },
         { Id: 'mockId2', Name: 'mockName2', Arn: 'mockArn2' },
       ];
-      (paginateListOrganizationalUnitsForParent as jest.Mock).mockImplementation(() => ({
+      (paginateListOrganizationalUnitsForParent as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             OrganizationalUnits: mockOUs,
@@ -355,7 +507,7 @@ describe('functions', () => {
       ];
       const mockOUs2: OrganizationalUnit[] = [{ Id: 'mockId3', Name: 'mockName3', Arn: 'mockArn3' }];
 
-      (paginateListOrganizationalUnitsForParent as jest.Mock).mockImplementation(() => ({
+      (paginateListOrganizationalUnitsForParent as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield { OrganizationalUnits: mockOUs1 };
           yield { OrganizationalUnits: mockOUs2 };
@@ -374,7 +526,7 @@ describe('functions', () => {
       const invalidParentId = 'invalidParentId';
       const errorMessage = 'Invalid input';
 
-      (paginateListOrganizationalUnitsForParent as jest.Mock).mockImplementation(() => {
+      (paginateListOrganizationalUnitsForParent as vi.Mock).mockImplementation(() => {
         throw new InvalidInputException({ message: errorMessage, $metadata: {} });
       });
 
@@ -390,7 +542,7 @@ describe('functions', () => {
       const parentId = 'mockParentId';
       const errorMessage = 'Unknown error';
 
-      (paginateListOrganizationalUnitsForParent as jest.Mock).mockImplementation(() => {
+      (paginateListOrganizationalUnitsForParent as vi.Mock).mockImplementation(() => {
         const error = new Error(errorMessage);
         error.name = 'UnknownError';
         throw error;
@@ -409,7 +561,7 @@ describe('functions', () => {
         { Id: 'mockId2', Name: 'mockName2', Arn: 'mockArn2' },
       ];
 
-      (paginateListOrganizationalUnitsForParent as jest.Mock).mockImplementation(() => ({
+      (paginateListOrganizationalUnitsForParent as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield { OrganizationalUnits: undefined };
           yield { OrganizationalUnits: mockOUs };
@@ -426,9 +578,9 @@ describe('functions', () => {
 
   describe('getLandingZoneIdentifier', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
-      (ControlTowerClient as jest.Mock).mockImplementation(() => ({
+      (ControlTowerClient as vi.Mock).mockImplementation(() => ({
         send: mockSend,
       }));
     });
@@ -497,7 +649,9 @@ describe('functions', () => {
       // Execute && Verify
       expect(async () => {
         await getLandingZoneIdentifier(new ControlTowerClient({}));
-      }).rejects.toThrowError(`Internal error: ListLandingZonesCommand returned multiple landing zones`);
+      }).rejects.toThrowError(
+        `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: ListLandingZonesCommand returned multiple landing zones`,
+      );
       expect(ListLandingZonesCommand).toHaveBeenCalledTimes(1);
     });
 
@@ -513,16 +667,18 @@ describe('functions', () => {
       // Execute && Verify
       expect(async () => {
         await getLandingZoneIdentifier(new ControlTowerClient({}));
-      }).rejects.toThrowError(`Internal error: ListLandingZonesCommand did not return landingZones object`);
+      }).rejects.toThrowError(
+        `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: ListLandingZonesCommand did not return landingZones object`,
+      );
       expect(ListLandingZonesCommand).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('getCredentials', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
-      (STSClient as jest.Mock).mockImplementation(() => ({
+      (STSClient as vi.Mock).mockImplementation(() => ({
         send: mockSend,
       }));
     });
@@ -650,7 +806,7 @@ describe('functions', () => {
           partition: MOCK_CONSTANTS.partition,
           assumeRoleArn: MOCK_CONSTANTS.assumeRoleArn,
         }),
-      ).rejects.toThrow('Internal error: AssumeRoleCommand did not return AccessKeyId');
+      ).rejects.toThrow(`${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: AssumeRoleCommand did not return AccessKeyId`);
       expect(GetCallerIdentityCommand).toHaveBeenCalledTimes(1);
       expect(AssumeRoleCommand).toHaveBeenCalledTimes(1);
       expect(AssumeRoleCommand).toHaveBeenCalledWith({
@@ -681,7 +837,7 @@ describe('functions', () => {
           assumeRoleArn: MOCK_CONSTANTS.assumeRoleArn,
           sessionName: MOCK_CONSTANTS.sessionName,
         }),
-      ).rejects.toThrow('Internal error: AssumeRoleCommand did not return SecretAccessKey');
+      ).rejects.toThrow(`${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: AssumeRoleCommand did not return SecretAccessKey`);
       expect(GetCallerIdentityCommand).toHaveBeenCalledTimes(1);
       expect(AssumeRoleCommand).toHaveBeenCalledTimes(1);
       expect(AssumeRoleCommand).toHaveBeenCalledWith({
@@ -716,7 +872,7 @@ describe('functions', () => {
           partition: MOCK_CONSTANTS.partition,
           assumeRoleName: MOCK_CONSTANTS.assumeRoleName,
         }),
-      ).rejects.toThrow('Internal error: AssumeRoleCommand did not return SessionToken');
+      ).rejects.toThrow(`${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: AssumeRoleCommand did not return SessionToken`);
       expect(GetCallerIdentityCommand).toHaveBeenCalledTimes(1);
       expect(AssumeRoleCommand).toHaveBeenCalledTimes(1);
       expect(AssumeRoleCommand).toHaveBeenCalledWith({
@@ -746,7 +902,7 @@ describe('functions', () => {
           partition: MOCK_CONSTANTS.partition,
           assumeRoleName: MOCK_CONSTANTS.assumeRoleName,
         }),
-      ).rejects.toThrow(`Internal error: AssumeRoleCommand did not return Credentials`);
+      ).rejects.toThrow(`${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: AssumeRoleCommand did not return Credentials`);
       expect(GetCallerIdentityCommand).toHaveBeenCalledTimes(1);
       expect(AssumeRoleCommand).toHaveBeenCalledTimes(1);
       expect(AssumeRoleCommand).toHaveBeenCalledWith({
@@ -758,9 +914,9 @@ describe('functions', () => {
 
   describe('getOrganizationRootId', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
-      (OrganizationsClient as jest.Mock).mockImplementation(() => ({
+      (OrganizationsClient as vi.Mock).mockImplementation(() => ({
         send: mockSend,
       }));
     });
@@ -841,11 +997,40 @@ describe('functions', () => {
 
   describe('getOrganizationalUnitIdByPath', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
-      (OrganizationsClient as jest.Mock).mockImplementation(() => ({
+      (OrganizationsClient as vi.Mock).mockImplementation(() => ({
         send: mockSend,
       }));
+    });
+
+    test('should return OU id for valid path with root id provided', async () => {
+      // Setup
+      (paginateListOrganizationalUnitsForParent as vi.Mock)
+        .mockImplementationOnce(() => ({
+          [Symbol.asyncIterator]: async function* () {
+            yield {
+              OrganizationalUnits: [MOCK_CONSTANTS.existingOrganizationalUnits[0]],
+            };
+          },
+        }))
+        .mockImplementationOnce(() => ({
+          [Symbol.asyncIterator]: async function* () {
+            yield {
+              OrganizationalUnits: [MOCK_CONSTANTS.existingOrganizationalUnits[1]],
+            };
+          },
+        }));
+
+      // Execute
+      const result = await getOrganizationalUnitIdByPath(
+        new OrganizationsClient({}),
+        `${MOCK_CONSTANTS.existingOrganizationalUnits[0].Name}/${MOCK_CONSTANTS.existingOrganizationalUnits[1].Name}`,
+        MOCK_CONSTANTS.organizationRoot.Id,
+      );
+
+      // Verify
+      expect(result).toEqual(MOCK_CONSTANTS.existingOrganizationalUnits[1].Id);
     });
 
     test('should return OU id for valid path', async () => {
@@ -859,7 +1044,7 @@ describe('functions', () => {
         return Promise.reject(MOCK_CONSTANTS.unknownError);
       });
 
-      (paginateListOrganizationalUnitsForParent as jest.Mock)
+      (paginateListOrganizationalUnitsForParent as vi.Mock)
         .mockImplementationOnce(() => ({
           [Symbol.asyncIterator]: async function* () {
             yield {
@@ -896,7 +1081,7 @@ describe('functions', () => {
         return Promise.reject(MOCK_CONSTANTS.unknownError);
       });
 
-      (paginateListOrganizationalUnitsForParent as jest.Mock).mockImplementation(() => ({
+      (paginateListOrganizationalUnitsForParent as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             OrganizationalUnits: [],
@@ -922,7 +1107,7 @@ describe('functions', () => {
         return Promise.reject(MOCK_CONSTANTS.unknownError);
       });
 
-      (paginateListOrganizationalUnitsForParent as jest.Mock).mockImplementation(() => ({
+      (paginateListOrganizationalUnitsForParent as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             OrganizationalUnits: [],
@@ -951,7 +1136,7 @@ describe('functions', () => {
         return Promise.reject(MOCK_CONSTANTS.unknownError);
       });
 
-      (paginateListOrganizationalUnitsForParent as jest.Mock).mockImplementation(() => ({
+      (paginateListOrganizationalUnitsForParent as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             OrganizationalUnits: [MOCK_CONSTANTS.organizationRoot],
@@ -1065,7 +1250,7 @@ describe('functions', () => {
     test('returns non root id', async () => {
       // Setup
 
-      (paginateListOrganizationalUnitsForParent as jest.Mock).mockImplementation(() => ({
+      (paginateListOrganizationalUnitsForParent as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             OrganizationalUnits: [MOCK_CONSTANTS.existingOrganizationalUnits[0]],
@@ -1086,7 +1271,7 @@ describe('functions', () => {
 
   describe('getOrganizationAccounts', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
     test('returns organizations accounts', async () => {
       // Setup
@@ -1094,7 +1279,7 @@ describe('functions', () => {
         { Id: 'mockId1', Name: 'mockName1', Arn: 'mockArn1', Email: 'mockEmail1@example.com' },
         { Id: 'mockId2', Name: 'mockName2', Arn: 'mockArn2', Email: 'mockEmail2@example.com' },
       ];
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1111,7 +1296,7 @@ describe('functions', () => {
 
     test('returns organizations accounts when Accounts object undefined', async () => {
       // Setup
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: undefined,
@@ -1127,16 +1312,16 @@ describe('functions', () => {
     });
   });
 
-  describe('getAccountDetailsFromOrganizations', () => {
+  describe('getAccountDetailsFromOrganizationsByEmail', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
     test('returns undefined when account with email not found accounts', async () => {
       const mockAccounts: Account[] = [
         { Id: 'mockId1', Name: 'mockName1', Arn: 'mockArn1', Email: 'mockEmail1@example.com' },
         { Id: 'mockId2', Name: 'mockName2', Arn: 'mockArn2', Email: 'mockEmail2@example.com' },
       ];
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1144,7 +1329,7 @@ describe('functions', () => {
         },
       }));
       const email = 'mock-email@example.com';
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1153,7 +1338,21 @@ describe('functions', () => {
       }));
 
       // Execute
-      const result = await getAccountDetailsFromOrganizations(new OrganizationsClient({}), email);
+      const result = await getAccountDetailsFromOrganizationsByEmail(new OrganizationsClient({}), email);
+
+      // Verify
+      expect(result).toBeUndefined();
+    });
+
+    test('returns undefined when Account object does not have email property with organizationAccounts provided', async () => {
+      const mockAccounts: Account[] = [
+        { Id: 'mockId1', Name: 'mockName1', Arn: 'mockArn1' },
+        { Id: 'mockId2', Name: 'mockName2', Arn: 'mockArn2' },
+      ];
+      const email = 'mock-email@example.com';
+
+      // Execute
+      const result = await getAccountDetailsFromOrganizationsByEmail(new OrganizationsClient({}), email, mockAccounts);
 
       // Verify
       expect(result).toBeUndefined();
@@ -1164,7 +1363,7 @@ describe('functions', () => {
         { Id: 'mockId1', Name: 'mockName1', Arn: 'mockArn1' },
         { Id: 'mockId2', Name: 'mockName2', Arn: 'mockArn2' },
       ];
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1172,7 +1371,7 @@ describe('functions', () => {
         },
       }));
       const email = 'mock-email@example.com';
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1181,7 +1380,7 @@ describe('functions', () => {
       }));
 
       // Execute
-      const result = await getAccountDetailsFromOrganizations(new OrganizationsClient({}), email);
+      const result = await getAccountDetailsFromOrganizationsByEmail(new OrganizationsClient({}), email, mockAccounts);
 
       // Verify
       expect(result).toBeUndefined();
@@ -1192,7 +1391,7 @@ describe('functions', () => {
         { Id: 'mockId1', Name: 'mockName1', Arn: 'mockArn1', Email: 'mockEmail1@example.com' },
         { Id: 'mockId2', Name: 'mockName2', Arn: 'mockArn2', Email: 'mockEmail2@example.com' },
       ];
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1200,7 +1399,7 @@ describe('functions', () => {
         },
       }));
 
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1209,7 +1408,10 @@ describe('functions', () => {
       }));
 
       // Execute
-      const result = await getAccountDetailsFromOrganizations(new OrganizationsClient({}), 'MOCKEMAIL1@example.COM');
+      const result = await getAccountDetailsFromOrganizationsByEmail(
+        new OrganizationsClient({}),
+        'MOCKEMAIL1@example.COM',
+      );
 
       // Verify
       expect(result).toBe(mockAccounts[0]);
@@ -1220,7 +1422,7 @@ describe('functions', () => {
         { Id: 'mockId1', Name: 'mockName1', Arn: 'mockArn1', Email: 'mockEmail1@example.com' },
         { Id: 'mockId2', Name: 'mockName2', Arn: 'mockArn2', Email: 'mockEmail2@example.com' },
       ];
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1228,7 +1430,7 @@ describe('functions', () => {
         },
       }));
 
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1237,7 +1439,10 @@ describe('functions', () => {
       }));
 
       // Execute
-      const result = await getAccountDetailsFromOrganizations(new OrganizationsClient({}), mockAccounts[1].Email!);
+      const result = await getAccountDetailsFromOrganizationsByEmail(
+        new OrganizationsClient({}),
+        mockAccounts[1].Email!,
+      );
 
       // Verify
       expect(result).toBe(mockAccounts[1]);
@@ -1246,14 +1451,14 @@ describe('functions', () => {
 
   describe('getAccountId', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
     test('returns error when account not found', async () => {
       const mockAccounts: Account[] = [
         { Id: 'mockId1', Name: 'mockName1', Arn: 'mockArn1', Email: 'mockEmail1@example.com' },
         { Id: 'mockId2', Name: 'mockName2', Arn: 'mockArn2', Email: 'mockEmail2@example.com' },
       ];
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1261,7 +1466,7 @@ describe('functions', () => {
         },
       }));
       const email = 'mock-email@example.com';
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1282,14 +1487,14 @@ describe('functions', () => {
         { Name: 'mockName1', Arn: 'mockArn1', Email: 'mockEmail1@example.com' },
         { Id: 'mockId2', Name: 'mockName2', Arn: 'mockArn2', Email: 'mockEmail2@example.com' },
       ];
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
           };
         },
       }));
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1310,14 +1515,14 @@ describe('functions', () => {
         { Name: 'mockName1', Arn: 'mockArn1', Email: 'mockEmail1@example.com' },
         { Id: 'mockId2', Name: 'mockName2', Arn: 'mockArn2', Email: 'mockEmail2@example.com' },
       ];
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
           };
         },
       }));
-      (paginateListAccounts as jest.Mock).mockImplementation(() => ({
+      (paginateListAccounts as vi.Mock).mockImplementation(() => ({
         [Symbol.asyncIterator]: async function* () {
           yield {
             Accounts: mockAccounts,
@@ -1333,9 +1538,9 @@ describe('functions', () => {
 
   describe('getOrganizationId', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
-      (OrganizationsClient as jest.Mock).mockImplementation(() => ({
+      (OrganizationsClient as vi.Mock).mockImplementation(() => ({
         send: mockSend,
       }));
     });
@@ -1396,9 +1601,9 @@ describe('functions', () => {
 
   describe('getCurrentAccountId', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
-      (STSClient as jest.Mock).mockImplementation(() => ({
+      (STSClient as vi.Mock).mockImplementation(() => ({
         send: mockSend,
       }));
     });
@@ -1440,17 +1645,17 @@ describe('functions', () => {
   });
 
   describe('getOrganizationalUnitArn', () => {
-    const mockOrgSend = jest.fn();
-    const mockStsSend = jest.fn();
+    const mockOrgSend = vi.fn();
+    const mockStsSend = vi.fn();
 
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
-      (OrganizationsClient as jest.Mock).mockImplementation(() => ({
+      (OrganizationsClient as vi.Mock).mockImplementation(() => ({
         send: mockOrgSend,
       }));
 
-      (STSClient as jest.Mock).mockImplementation(() => ({
+      (STSClient as vi.Mock).mockImplementation(() => ({
         send: mockStsSend,
       }));
     });
@@ -1481,9 +1686,7 @@ describe('functions', () => {
 
       // Verify
       expect(response).toBe(
-        `arn:${MOCK_CONSTANTS.runnerParameters.partition}:organizations::${MOCK_CONSTANTS.accountId}:ou/${
-          MOCK_CONSTANTS.organization.Id
-        }/${MOCK_CONSTANTS.organization.Id.toLowerCase()}`,
+        `arn:${MOCK_CONSTANTS.runnerParameters.partition}:organizations::${MOCK_CONSTANTS.accountId}:ou/${MOCK_CONSTANTS.organization.Id}/${MOCK_CONSTANTS.organization.Id}`,
       );
       expect(GetCallerIdentityCommand).toHaveBeenCalledTimes(1);
       expect(DescribeOrganizationCommand).toHaveBeenCalledTimes(1);
@@ -1509,12 +1712,370 @@ describe('functions', () => {
 
       // Verify
       expect(response).toBe(
-        `arn:${MOCK_CONSTANTS.runnerParameters.partition}:organizations::${MOCK_CONSTANTS.accountId}:ou/${
-          MOCK_CONSTANTS.organization.Id
-        }/${MOCK_CONSTANTS.organization.Id.toLowerCase()}`,
+        `arn:${MOCK_CONSTANTS.runnerParameters.partition}:organizations::${MOCK_CONSTANTS.accountId}:ou/${MOCK_CONSTANTS.organization.Id}/${MOCK_CONSTANTS.organization.Id}`,
       );
       expect(GetCallerIdentityCommand).toHaveBeenCalledTimes(1);
       expect(DescribeOrganizationCommand).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  describe('processModulePromises', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      process.env = { ...originalEnv };
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
+    test('should process promises in batches with default batch size', async () => {
+      // Setup
+      const promises = [
+        Promise.resolve('result1'),
+        Promise.resolve('result2'),
+        Promise.resolve('result3'),
+        Promise.resolve('result4'),
+        Promise.resolve('result5'),
+      ];
+      const statuses: string[] = [];
+
+      // Execute
+      await processModulePromises(MOCK_CONSTANTS.testModuleName, promises, statuses);
+
+      // Verify
+      expect(statuses).toEqual(['result1', 'result2', 'result3', 'result4', 'result5']);
+    });
+
+    test('should process promises in multiple batches when batch size is smaller than promises length', async () => {
+      // Setup
+      process.env['MAX_CONCURRENT_MODULES'] = '2';
+      const promises = [
+        Promise.resolve('result1'),
+        Promise.resolve('result2'),
+        Promise.resolve('result3'),
+        Promise.resolve('result4'),
+        Promise.resolve('result5'),
+      ];
+      const statuses: string[] = [];
+
+      // Execute
+      await processModulePromises(MOCK_CONSTANTS.testModuleName, promises, statuses);
+
+      // Verify
+      expect(statuses).toEqual(['result1', 'result2', 'result3', 'result4', 'result5']);
+    });
+
+    test('should handle empty promises array', async () => {
+      // Setup
+      const promises: Promise<string>[] = [];
+      const statuses: string[] = [];
+
+      // Execute
+      await processModulePromises(MOCK_CONSTANTS.testModuleName, promises, statuses);
+
+      // Verify
+      expect(statuses).toEqual([]);
+    });
+
+    test('should handle rejected promises', async () => {
+      // Setup
+      const error = new Error('Test error');
+      const promises = [Promise.resolve('result1'), Promise.reject(error), Promise.resolve('result3')];
+      const statuses: string[] = [];
+
+      // Execute & Verify
+      await expect(processModulePromises(MOCK_CONSTANTS.testModuleName, promises, statuses, 10)).rejects.toThrow(error);
+    });
+  });
+
+  describe('isOrganizationsConfigured', () => {
+    const mockSend = vi.fn();
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+
+      (OrganizationsClient as vi.Mock).mockImplementation(() => ({
+        send: mockSend,
+      }));
+    });
+
+    test('should return true when organization configured', async () => {
+      // Setup
+      mockSend.mockImplementation(command => {
+        if (command instanceof DescribeOrganizationCommand) {
+          return Promise.resolve({ Organization: MOCK_CONSTANTS.organization });
+        }
+        return Promise.reject(new Error('Unexpected command'));
+      });
+
+      // Execute
+      const response = await isOrganizationsConfigured(new OrganizationsClient({}));
+
+      // Verify
+      expect(response).toBeTruthy();
+      expect(DescribeOrganizationCommand).toHaveBeenCalledTimes(1);
+    });
+
+    test('should return false when organization not configured', async () => {
+      // Setup
+      mockSend.mockImplementation(command => {
+        if (command instanceof DescribeOrganizationCommand) {
+          return Promise.resolve({ Organization: undefined });
+        }
+        return Promise.reject(new Error('Unexpected command'));
+      });
+
+      // Execute
+      const response = await isOrganizationsConfigured(new OrganizationsClient({}));
+
+      // Verify
+      expect(response).toBeFalsy();
+      expect(DescribeOrganizationCommand).toHaveBeenCalledTimes(1);
+    });
+
+    test('should return false when DescribeOrganizationCommand api did return AWSOrganizationsNotInUseException error', async () => {
+      // Setup
+      mockSend.mockImplementation(command => {
+        if (command instanceof DescribeOrganizationCommand) {
+          return Promise.reject(
+            new AWSOrganizationsNotInUseException({ message: 'Organization not in use', $metadata: {} }),
+          );
+        }
+        return Promise.reject(new Error('Unexpected command'));
+      });
+
+      // Execute
+      const response = await isOrganizationsConfigured(new OrganizationsClient({}));
+
+      // Verify
+      expect(response).toBeFalsy();
+      expect(DescribeOrganizationCommand).toHaveBeenCalledTimes(1);
+    });
+
+    test('should handle unknown error for DescribeOrganizationCommand api', async () => {
+      // Setup
+      mockSend.mockImplementation(command => {
+        if (command instanceof DescribeOrganizationCommand) {
+          return Promise.reject(MOCK_CONSTANTS.unknownError);
+        }
+        return Promise.reject(new Error('Unexpected command'));
+      });
+
+      // Execute && verify
+      await expect(async () => {
+        await isOrganizationsConfigured(new OrganizationsClient({}));
+      }).rejects.toThrowError(MOCK_CONSTANTS.unknownError);
+      expect(DescribeOrganizationCommand).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getEnabledBaselines', () => {
+    const mockSend = vi.fn();
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+
+      (ControlTowerClient as vi.Mock).mockImplementation(() => ({
+        send: mockSend,
+      }));
+    });
+
+    test('should return list of enabled baselines', async () => {
+      // Setup
+      (paginateListEnabledBaselines as vi.Mock).mockImplementation(() => ({
+        [Symbol.asyncIterator]: async function* () {
+          yield {
+            enabledBaselines: MOCK_CONSTANTS.controlTowerEnabledBaselines,
+          };
+        },
+      }));
+
+      // Execute
+      const response = await getEnabledBaselines(new ControlTowerClient({}));
+
+      // Verify
+      expect(response.length).toEqual(MOCK_CONSTANTS.controlTowerEnabledBaselines.length);
+      expect(response).toEqual(MOCK_CONSTANTS.controlTowerEnabledBaselines);
+    });
+
+    test('should return empty list of enabled baselines when enabledBaselines object is undefined', async () => {
+      // Setup
+      (paginateListEnabledBaselines as vi.Mock).mockImplementation(() => ({
+        [Symbol.asyncIterator]: async function* () {
+          yield {
+            enabledBaselines: undefined,
+          };
+        },
+      }));
+
+      // Execute
+      const response = await getEnabledBaselines(new ControlTowerClient({}));
+
+      // Verify
+      expect(response.length).toEqual(0);
+    });
+  });
+
+  describe('waitUntil function', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    test('should succeed when predicate returns true on first try', async () => {
+      // Mock predicate that returns true immediately
+      const mockPredicate = vi.fn().mockResolvedValue(true);
+      const errorMessage = 'Test error message';
+
+      // Execute - this should succeed immediately without any delays
+      await expect(waitUntil(mockPredicate, errorMessage)).resolves.toBeUndefined();
+
+      // Verify predicate was called only once
+      expect(mockPredicate).toHaveBeenCalledTimes(1);
+    });
+
+    test('should handle predicate that throws an error', async () => {
+      // Mock predicate that throws an error
+      const mockError = new Error('Predicate error');
+      const mockPredicate = vi.fn().mockRejectedValue(mockError);
+      const errorMessage = 'Test error message';
+
+      // Execute & Verify - should propagate the predicate error
+      await expect(waitUntil(mockPredicate, errorMessage)).rejects.toThrow(mockError);
+
+      // Verify predicate was called once
+      expect(mockPredicate).toHaveBeenCalledTimes(1);
+    });
+
+    test('should use default retry limit and interval parameters', async () => {
+      // Mock predicate that returns true immediately
+      const mockPredicate = vi.fn().mockResolvedValue(true);
+      const errorMessage = 'Test error message';
+
+      // Execute with no custom parameters
+      await waitUntil(mockPredicate, errorMessage);
+
+      // Verify predicate was called
+      expect(mockPredicate).toHaveBeenCalledTimes(1);
+    });
+
+    test('should accept custom retry limit and interval parameters', async () => {
+      // Mock predicate that returns true immediately
+      const mockPredicate = vi.fn().mockResolvedValue(true);
+      const errorMessage = 'Test error message';
+      const customRetryLimit = 10;
+      const customInterval = 5;
+
+      // Execute with custom parameters
+      await waitUntil(mockPredicate, errorMessage, customRetryLimit, customInterval);
+
+      // Verify predicate was called
+      expect(mockPredicate).toHaveBeenCalledTimes(1);
+    });
+
+    test('should call predicate function with no arguments', async () => {
+      // Mock predicate that returns true immediately
+      const mockPredicate = vi.fn().mockResolvedValue(true);
+      const errorMessage = 'Test error message';
+
+      // Execute
+      await waitUntil(mockPredicate, errorMessage);
+
+      // Verify predicate was called with no arguments
+      expect(mockPredicate).toHaveBeenCalledWith();
+    });
+
+    test('should handle async predicate functions', async () => {
+      // Mock async predicate that returns true after a promise resolution
+      const mockPredicate = vi.fn().mockImplementation(async () => {
+        await Promise.resolve();
+        return true;
+      });
+      const errorMessage = 'Test error message';
+
+      // Execute
+      await expect(waitUntil(mockPredicate, errorMessage)).resolves.toBeUndefined();
+
+      // Verify predicate was called
+      expect(mockPredicate).toHaveBeenCalledTimes(1);
+    });
+    test('should throw error when retry limit is exceeded', async () => {
+      const mockDelay = vi.fn().mockResolvedValue(undefined);
+      const mockPredicate = vi.fn().mockResolvedValue(false);
+      const errorMessage = 'Test error message';
+
+      await expect(waitUntil(mockPredicate, errorMessage, 5, 1, mockDelay)).rejects.toThrow(
+        `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: ${errorMessage}`,
+      );
+
+      expect(mockPredicate).toHaveBeenCalledTimes(6);
+      expect(mockDelay).toHaveBeenCalledTimes(5);
+      expect(mockDelay).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('getCurrentAccountDetails', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+
+      (STSClient as vi.Mock).mockImplementation(() => ({
+        send: mockSend,
+      }));
+    });
+
+    test('should return account details', async () => {
+      // Setup
+      mockSend.mockImplementation(command => {
+        if (command instanceof GetCallerIdentityCommand) {
+          return Promise.resolve({ Account: MOCK_CONSTANTS.accountId, Arn: MOCK_CONSTANTS.roleArn });
+        }
+        return Promise.reject(new Error('Unexpected command'));
+      });
+
+      // Execute
+      const response = await getCurrentAccountDetails(new STSClient({}));
+
+      // Verify
+      expect(response).toStrictEqual({ accountId: MOCK_CONSTANTS.accountId, roleArn: MOCK_CONSTANTS.roleArn });
+      expect(GetCallerIdentityCommand).toHaveBeenCalledTimes(1);
+    });
+
+    test('should throw error when GetCallerIdentityCommand api did not return Arn property', async () => {
+      // Setup
+      mockSend.mockImplementation(command => {
+        if (command instanceof GetCallerIdentityCommand) {
+          return Promise.resolve({ Account: MOCK_CONSTANTS.accountId, Arn: undefined });
+        }
+        return Promise.reject(new Error('Unexpected command'));
+      });
+
+      // Execute && Verify
+      await expect(async () => {
+        await getCurrentAccountDetails(new STSClient({}));
+      }).rejects.toThrowError(
+        `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: GetCallerIdentityCommand api did not return Arn property.`,
+      );
+      expect(GetCallerIdentityCommand).toHaveBeenCalledTimes(1);
+    });
+
+    test('should throw error when GetCallerIdentityCommand api did not return Account property', async () => {
+      // Setup
+      mockSend.mockImplementation(command => {
+        if (command instanceof GetCallerIdentityCommand) {
+          return Promise.resolve({ Account: undefined, Arn: MOCK_CONSTANTS.roleArn });
+        }
+        return Promise.reject(new Error('Unexpected command'));
+      });
+
+      // Execute && Verify
+      await expect(async () => {
+        await getCurrentAccountDetails(new STSClient({}));
+      }).rejects.toThrowError(
+        `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: GetCallerIdentityCommand api did not return Account property.`,
+      );
+      expect(GetCallerIdentityCommand).toHaveBeenCalledTimes(1);
     });
   });
 });

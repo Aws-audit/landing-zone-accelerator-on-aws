@@ -17,6 +17,7 @@ import {
   EnabledControlProps,
 } from '../../lib/aws-controltower/create-enabled-controls';
 import { snapShotTest } from '../snapshot-test';
+import { describe } from 'vitest';
 
 const testNamePrefix = 'Construct(TestCreateCTControls): ';
 
@@ -53,6 +54,11 @@ const controls: EnabledControlProps[] = [
   },
   {
     enabledControlIdentifier: 'AWS-GR_CLOUDTRAIL_VALIDATION_ENABLED',
+    ouArn: 'arn:aws:organizations::123456789012:ou/o-a1b2c3d4e5/ou-ab12-c3d4e5f6',
+    ouName: 'ExampleOU',
+  },
+  {
+    enabledControlIdentifier: '6s095tcdtgab75dd0229m5x6n',
     ouArn: 'arn:aws:organizations::123456789012:ou/o-a1b2c3d4e5/ou-ab12-c3d4e5f6',
     ouName: 'ExampleOU',
   },

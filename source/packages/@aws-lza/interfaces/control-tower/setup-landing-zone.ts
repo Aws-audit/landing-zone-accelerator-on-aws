@@ -137,6 +137,12 @@ export interface ISetupLandingZoneConfiguration {
      */
     readonly audit: ISharedAccountDetails;
   };
+  /**
+   * Flag indicating whether account auto-enrollment is enabled or not.
+   * When enabled, accounts moved between OUs are automatically enrolled in Control Tower.
+   * Available for Landing Zone version 3.1 and above.
+   */
+  readonly accountAutoEnrollment?: boolean;
 }
 
 /**
@@ -180,6 +186,13 @@ export interface ISetupLandingZoneHandlerParameter extends IModuleCommonParamete
    * ```
    */
   readonly configuration: ISetupLandingZoneConfiguration;
+  /**
+   * SSM parameter prefix for storing Control Tower state parameters
+   *
+   * @example
+   * '/accelerator/control-tower'
+   */
+  readonly ssmParamPrefix: string;
 }
 
 /**

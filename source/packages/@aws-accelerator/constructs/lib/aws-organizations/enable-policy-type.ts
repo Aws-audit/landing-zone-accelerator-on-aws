@@ -14,8 +14,7 @@
 import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-
-const path = require('path');
+import * as path from 'path';
 
 export enum PolicyTypeEnum {
   SERVICE_CONTROL_POLICY = 'SERVICE_CONTROL_POLICY',
@@ -23,6 +22,8 @@ export enum PolicyTypeEnum {
   CHATBOT_POLICY = 'CHATBOT_POLICY',
   BACKUP_POLICY = 'BACKUP_POLICY',
   AISERVICES_OPT_OUT_POLICY = 'AISERVICES_OPT_OUT_POLICY',
+  RESOURCE_CONTROL_POLICY = 'RESOURCE_CONTROL_POLICY',
+  DECLARATIVE_POLICY_EC2 = 'DECLARATIVE_POLICY_EC2',
 }
 
 /**

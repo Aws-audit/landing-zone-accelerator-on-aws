@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MacieSession Construct(MacieSession):  Snapshot Test 1`] = `
+exports[`MacieSession > Construct(MacieSession):  Snapshot Test 1`] = `
 {
   "Resources": {
     "CustomMacieEnableMacieCustomResourceProviderHandler1B3444A0": {
@@ -14,15 +14,20 @@ exports[`MacieSession Construct(MacieSession):  Snapshot Test 1`] = `
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomMacieEnableMacieCustomResourceProviderRole2B29C97C",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -92,14 +97,23 @@ exports[`MacieSession Construct(MacieSession):  Snapshot Test 1`] = `
                     "iam:CreateServiceLinkedRole",
                   ],
                   "Condition": {
-                    "StringLikeIfExists": {
-                      "iam:CreateServiceLinkedRole": [
-                        "macie.amazonaws.com",
-                      ],
+                    "StringLike": {
+                      "iam:AWSServiceName": "macie.amazonaws.com",
                     },
                   },
                   "Effect": "Allow",
-                  "Resource": "*",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/aws-service-role/macie.amazonaws.com/AWSServiceRoleForAmazonMacie",
+                      ],
+                    ],
+                  },
                   "Sid": "MacieEnableMacieTaskIamAction",
                 },
               ],

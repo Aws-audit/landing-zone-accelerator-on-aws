@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`BudgetDefinition Construct(BudgetDefinition):  Snapshot Test 1`] = `
+exports[`BudgetDefinition > Construct(BudgetDefinition):  Snapshot Test 1`] = `
 {
   "Resources": {
     "ManagementKey0813A4D9": {
@@ -103,7 +103,7 @@ exports[`BudgetDefinition Construct(BudgetDefinition):  Snapshot Test 1`] = `
 }
 `;
 
-exports[`BudgetDefinitionCrossRegion Construct(BudgetDefinition):  Snapshot Test 1`] = `
+exports[`BudgetDefinitionCrossRegion > Construct(BudgetDefinition):  Snapshot Test 1`] = `
 {
   "Resources": {
     "CrossRegionManagementKey1B0C6537": {
@@ -194,15 +194,20 @@ exports[`BudgetDefinitionCrossRegion Construct(BudgetDefinition):  Snapshot Test
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-dummyRegion",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomCrossRegionBudgetCustomResourceProviderRole08C8F7BD",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",

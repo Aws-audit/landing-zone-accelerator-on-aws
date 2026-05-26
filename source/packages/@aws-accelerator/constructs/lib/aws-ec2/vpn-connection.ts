@@ -14,6 +14,12 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { LzaCustomResource } from '../lza-custom-resource';
+import { MetadataKeys } from '@aws-accelerator/utils';
+
+export enum OutsideIpAddressType {
+  PublicIpv4 = 'PublicIpv4',
+  Ipv6 = 'Ipv6',
+}
 
 export interface VpnConnectionProps {
   /**
@@ -32,6 +38,22 @@ export interface VpnConnectionProps {
    * Customer-side IPv4 CIDR
    */
   readonly customerIpv4NetworkCidr?: string;
+  /**
+   * Amazon-side IPv6 CIDR
+   */
+  readonly amazonIpv6NetworkCidr?: string;
+  /**
+   * Customer-side IPv6 CIDR
+   */
+  readonly customerIpv6NetworkCidr?: string;
+  /**
+   * The outside ip address type
+   */
+  readonly outsideIpAddressType?: OutsideIpAddressType;
+  /**
+   * Indicate whether the VPN tunnels process IPv4 or IPv6 traffic.
+   */
+  readonly tunnelInsideIpVersion?: string;
   /**
    * If advanced VPN options are enabled, a custom resource handler to
    * maintain the resource
@@ -58,6 +80,10 @@ export interface VpnConnectionProps {
    */
   readonly transitGatewayId?: string;
   /**
+   * The attachment ID for the Direct Connect Gateway
+   */
+  readonly directConnectGateway?: string;
+  /**
    * The name of the Virtual Private Gateway to terminate the VPN Connection.
    */
   readonly virtualPrivateGateway?: string;
@@ -73,6 +99,12 @@ export interface VpnConnectionProps {
    * The array of tag values to add onto the VPN Connection.
    */
   readonly tags?: cdk.CfnTag[];
+
+  /**
+   * additional metadata that can be added to the construct
+   */
+
+  readonly metadata?: { [key: string]: string | number | boolean | undefined };
 }
 
 export interface VpnTunnelOptionsSpecifications {
@@ -139,6 +171,10 @@ export interface VpnTunnelOptionsSpecifications {
    */
   readonly tunnelInsideCidr?: string;
   /**
+   * A /126 CIDR block from the local fd00::/8 range.
+   */
+  readonly tunnelInsideIpv6Cidr?: string;
+  /**
    * Enable tunnel lifecycle control
    */
   readonly tunnelLifecycleControl?: boolean;
@@ -160,6 +196,7 @@ interface IVpnConnection extends cdk.IResource {
 export class VpnConnection extends cdk.Resource implements IVpnConnection {
   public readonly vpnConnectionId: string;
   public readonly name: string;
+  public readonly tunnelInsideIpVersion!: string;
 
   constructor(scope: Construct, id: string, props: VpnConnectionProps) {
     super(scope, id);
@@ -175,8 +212,18 @@ export class VpnConnection extends cdk.Resource implements IVpnConnection {
         tags: props.tags,
         transitGatewayId: props.transitGatewayId,
         vpnGatewayId: props.virtualPrivateGateway,
-        vpnTunnelOptionsSpecifications: props.vpnTunnelOptionsSpecifications,
+        vpnTunnelOptionsSpecifications: props.vpnTunnelOptionsSpecifications as (
+          | cdk.IResolvable
+          | cdk.aws_ec2.CfnVPNConnection.VpnTunnelOptionsSpecificationProperty
+        )[],
+        remoteIpv4NetworkCidr: props.amazonIpv4NetworkCidr,
+        localIpv4NetworkCidr: props.customerIpv4NetworkCidr,
+        remoteIpv6NetworkCidr: props.outsideIpAddressType === 'Ipv6' ? props.amazonIpv6NetworkCidr : undefined,
+        localIpv6NetworkCidr: props.outsideIpAddressType === 'Ipv6' ? props.customerIpv6NetworkCidr : undefined,
+        outsideIpAddressType: props.outsideIpAddressType,
+        tunnelInsideIpVersion: props.outsideIpAddressType === 'Ipv6' ? 'ipv6' : undefined,
       });
+      resource.addMetadata(MetadataKeys.LZA_LOOKUP, props.metadata);
       cdk.Tags.of(this).add('Name', props.name);
     } else {
       // Convert tags to EC2 API format
@@ -187,6 +234,7 @@ export class VpnConnection extends cdk.Resource implements IVpnConnection {
       tags.push({ Key: 'Name', Value: props.name });
 
       resource = new LzaCustomResource(this, 'CustomResource', {
+        metadata: props.metadata,
         resource: {
           name: 'CustomResource',
           parentId: id,
@@ -194,6 +242,9 @@ export class VpnConnection extends cdk.Resource implements IVpnConnection {
             {
               amazonIpv4NetworkCidr: props.amazonIpv4NetworkCidr,
               customerIpv4NetworkCidr: props.customerIpv4NetworkCidr,
+              amazonIpv6NetworkCidr: props.amazonIpv6NetworkCidr,
+              customerIpv6NetworkCidr: props.customerIpv6NetworkCidr,
+              outsideIpAddressType: props.outsideIpAddressType,
               enableVpnAcceleration: props.enableVpnAcceleration,
               customerGatewayId: props.customerGatewayId,
               owningAccountId: props.owningAccountId,
@@ -201,6 +252,7 @@ export class VpnConnection extends cdk.Resource implements IVpnConnection {
               roleName: props.roleName,
               staticRoutesOnly: props.staticRoutesOnly,
               transitGatewayId: props.transitGatewayId,
+              tunnelInsideIpVersion: props.outsideIpAddressType === 'Ipv6' ? 'ipv6' : undefined,
               vpnGatewayId: props.virtualPrivateGateway,
               vpnTunnelOptions: props.vpnTunnelOptionsSpecifications,
               tags,

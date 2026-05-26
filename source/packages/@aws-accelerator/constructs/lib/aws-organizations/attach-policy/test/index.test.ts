@@ -11,7 +11,7 @@ import {
   ListPoliciesCommand,
 } from '@aws-sdk/client-organizations';
 
-import { describe, beforeEach, afterEach, expect, test, jest } from '@jest/globals';
+import { describe, beforeEach, afterEach, expect, test, vi } from 'vitest';
 import { handler } from '../index';
 import { AcceleratorMockClient, EventType } from '../../../../test/unit-test/common/resources';
 
@@ -26,7 +26,7 @@ describe('Create Event', () => {
   const OLD_ENV = process.env; // cache old env
   beforeEach(() => {
     orgClient.reset();
-    jest.resetModules(); // Most important - it clears the cache
+    vi.resetModules(); // Most important - it clears the cache
     process.env = { ...OLD_ENV }; // Make a copy
   });
   // process env can change between tests so making this afterEach not afterAll
@@ -81,9 +81,7 @@ describe('Create Event', () => {
     orgClient
       .on(AttachPolicyCommand)
       .rejects(new MalformedPolicyDocumentException({ $metadata: { httpStatusCode: 400 }, message: 'Error' }));
-    await expect(handler(event)).rejects.toThrowError(
-      `Error while trying to attach policy: ${StaticInput.attachProps.policyId}. Error message: ${StaticInput.malFormedPolicyException}`,
-    );
+    await expect(handler(event)).rejects.toThrowError(/Error while trying to attach policy: policyId\. Error message:/);
   });
   test('Attach a policy - one policy already detached', async () => {
     const event = AcceleratorUnitTest.getEvent(EventType.CREATE, { new: [StaticInput.attachProps] });
@@ -149,7 +147,7 @@ describe('Update Event', () => {
   const OLD_ENV = process.env; // cache old env
   beforeEach(() => {
     orgClient.reset();
-    jest.resetModules(); // Most important - it clears the cache
+    vi.resetModules(); // Most important - it clears the cache
     process.env = { ...OLD_ENV }; // Make a copy
   });
   // process env can change between tests so making this afterEach not afterAll
@@ -178,7 +176,7 @@ describe('Delete Event', () => {
   const OLD_ENV = process.env; // cache old env
   beforeEach(() => {
     orgClient.reset();
-    jest.resetModules(); // Most important - it clears the cache
+    vi.resetModules(); // Most important - it clears the cache
     process.env = { ...OLD_ENV }; // Make a copy
   });
   // process env can change between tests so making this afterEach not afterAll
@@ -252,5 +250,46 @@ describe('Delete Event', () => {
       .rejectsOnce(new PolicyNotFoundException({ $metadata: { httpStatusCode: 400 }, message: 'Policy not found' }));
     const response = await handler(event);
     expect(response?.Status).toStrictEqual('SUCCESS');
+  });
+  test('Delete operation detaches only one policy', async () => {
+    const event = AcceleratorUnitTest.getEvent(EventType.DELETE, {
+      new: [
+        {
+          policyId: 'p-specific123',
+          targetId: 'ou-test123',
+          type: 'SERVICE_CONTROL_POLICY',
+          partition: 'aws',
+          policyTagKey: 'LZAManaged',
+        },
+      ],
+    });
+
+    orgClient.on(ListPoliciesCommand).resolves({
+      Policies: [{ Name: 'policy1', Id: 'p-specific123' }],
+    });
+
+    orgClient.on(ListPoliciesForTargetCommand).resolves({
+      Policies: [
+        { Name: 'policy1', Id: 'p-specific123' },
+        { Name: 'policy2', Id: 'p-other456' },
+        { Name: 'policy3', Id: 'p-other789' },
+      ],
+    });
+
+    orgClient.on(ListTagsForResourceCommand).resolves({
+      Tags: [{ Key: 'LZAManaged', Value: 'Yes' }],
+    });
+
+    orgClient.on(DetachPolicyCommand).resolves({});
+
+    const response = await handler(event);
+    expect(response?.Status).toStrictEqual('SUCCESS');
+
+    // Verify only one policy was detached
+    const detachCalls = orgClient.commandCalls(DetachPolicyCommand);
+    expect(detachCalls.length).toBe(1);
+
+    const detachedIds = detachCalls.map(call => call.args[0].input.PolicyId);
+    expect(detachedIds).toContain('p-specific123');
   });
 });

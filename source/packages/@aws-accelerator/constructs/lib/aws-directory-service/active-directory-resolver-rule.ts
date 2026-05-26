@@ -15,7 +15,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { v4 as uuidv4 } from 'uuid';
 
-import path = require('path');
+import * as path from 'path';
 import { DEFAULT_LAMBDA_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 
 /**
@@ -80,7 +80,7 @@ export class ActiveDirectoryResolverRule extends Construct {
       logGroupName: `/aws/lambda/${providerLambda.functionName}`,
       retention: props.cloudWatchLogRetentionInDays,
       encryptionKey: props.cloudWatchLogsKmsKey,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
     });
 
     const provider = new cdk.custom_resources.Provider(this, 'UpdateResolverRuleProvider', {

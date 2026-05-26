@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
+exports[`PrepareStack > Construct(PrepareStack):  Snapshot Test 1`] = `
 {
   "Resources": {
     "AcceleratorCloudWatchKmsArnParameter9BAD6EA0": {
@@ -89,23 +89,6 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Delete",
     },
-    "AcceleratorControlTowerDriftMessageParameter153D37CE": {
-      "Properties": {
-        "Name": "/accelerator/controltower/lastDriftMessage",
-        "Type": "String",
-        "Value": "none",
-      },
-      "Type": "AWS::SSM::Parameter",
-    },
-    "AcceleratorControlTowerDriftParameter217B3055": {
-      "Properties": {
-        "AllowedPattern": "^(true|false)$",
-        "Name": "/accelerator/controltower/driftDetected",
-        "Type": "String",
-        "Value": "false",
-      },
-      "Type": "AWS::SSM::Parameter",
-    },
     "AcceleratorLambdaKmsArnParameterFECEE80C": {
       "Properties": {
         "Name": "/accelerator/kms/lambda/key-arn",
@@ -134,7 +117,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
     "AcceleratorManagementCloudWatchKeyE630915F": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "AWS Accelerator CloudWatch Kms Key",
+        "Description": "KMS key for encrypting CloudWatch Log Groups created by LZA",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -223,7 +206,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
     "AcceleratorManagementLambdaKeyEA4C7DBE": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "AWS Accelerator Lambda Kms Key",
+        "Description": "KMS key for encrypting Lambda function environment variables",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -393,2143 +376,6 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::SSM::Parameter",
     },
-    "ControlTowerNotification1FCAF33D": {
-      "Properties": {
-        "DisplayName": "ForwardedControlTowerNotifications",
-        "KmsMasterKeyId": {
-          "Fn::GetAtt": [
-            "ManagementKey0813A4D9",
-            "Arn",
-          ],
-        },
-        "TopicName": "AWSAccelerator-ControlTowerNotification",
-      },
-      "Type": "AWS::SNS::Topic",
-    },
-    "ControlTowerNotificationPolicyC9D118BF": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sns:Publish",
-              "Effect": "Allow",
-              "Principal": {
-                "AWS": {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:",
-                      {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":iam::222222222222:root",
-                    ],
-                  ],
-                },
-              },
-              "Resource": {
-                "Ref": "ControlTowerNotification1FCAF33D",
-              },
-              "Sid": "auditAccount",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "Topics": [
-          {
-            "Ref": "ControlTowerNotification1FCAF33D",
-          },
-        ],
-      },
-      "Type": "AWS::SNS::TopicPolicy",
-    },
-    "ControlTowerNotificationsFunctionAllowInvokeAWSAcceleratorPrepareStack111111111111useast1ControlTowerNotification2475DF555DE3539F": {
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Fn::GetAtt": [
-            "ControlTowerNotificationsFunctionF5514B7A",
-            "Arn",
-          ],
-        },
-        "Principal": "sns.amazonaws.com",
-        "SourceArn": {
-          "Ref": "ControlTowerNotification1FCAF33D",
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
-    },
-    "ControlTowerNotificationsFunctionControlTowerNotification26E3C9B0": {
-      "Properties": {
-        "Endpoint": {
-          "Fn::GetAtt": [
-            "ControlTowerNotificationsFunctionF5514B7A",
-            "Arn",
-          ],
-        },
-        "Protocol": "lambda",
-        "TopicArn": {
-          "Ref": "ControlTowerNotification1FCAF33D",
-        },
-      },
-      "Type": "AWS::SNS::Subscription",
-    },
-    "ControlTowerNotificationsFunctionF5514B7A": {
-      "DependsOn": [
-        "ControlTowerNotificationsFunctionServiceRoleDefaultPolicy44497F9E",
-        "ControlTowerNotificationsFunctionServiceRoleB3D23260",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Description": "Lambda function to process ControlTower notifications from audit account",
-        "Environment": {
-          "Variables": {
-            "DRIFT_MESSAGE_PARAMETER_NAME": {
-              "Ref": "AcceleratorControlTowerDriftMessageParameter153D37CE",
-            },
-            "DRIFT_PARAMETER_NAME": {
-              "Ref": "AcceleratorControlTowerDriftParameter217B3055",
-            },
-          },
-        },
-        "Handler": "index.handler",
-        "Role": {
-          "Fn::GetAtt": [
-            "ControlTowerNotificationsFunctionServiceRoleB3D23260",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs20.x",
-        "Timeout": 300,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "ControlTowerNotificationsFunctionLogGroup35144E50": {
-      "DeletionPolicy": "Delete",
-      "Properties": {
-        "KmsKeyId": {
-          "Fn::GetAtt": [
-            "AcceleratorManagementCloudWatchKeyE630915F",
-            "Arn",
-          ],
-        },
-        "LogGroupName": {
-          "Fn::Join": [
-            "",
-            [
-              "/aws/lambda/",
-              {
-                "Ref": "ControlTowerNotificationsFunctionF5514B7A",
-              },
-            ],
-          ],
-        },
-        "RetentionInDays": 3653,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlTowerNotificationsFunctionServiceRoleB3D23260": {
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM4",
-              "reason": "AWS Basic Lambda execution permissions.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-              ],
-            ],
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "ControlTowerNotificationsFunctionServiceRoleDefaultPolicy44497F9E": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "ssm:PutParameter",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:",
-                      {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":ssm:us-east-1:111111111111:parameter",
-                      {
-                        "Ref": "AcceleratorControlTowerDriftParameter217B3055",
-                      },
-                    ],
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:",
-                      {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":ssm:us-east-1:111111111111:parameter",
-                      {
-                        "Ref": "AcceleratorControlTowerDriftMessageParameter153D37CE",
-                      },
-                    ],
-                  ],
-                },
-              ],
-              "Sid": "ssm",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "ControlTowerNotificationsFunctionServiceRoleDefaultPolicy44497F9E",
-        "Roles": [
-          {
-            "Ref": "ControlTowerNotificationsFunctionServiceRoleB3D23260",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "ControlTowerOuEventsFunctionFABED18B": {
-      "DependsOn": [
-        "ControlTowerOuEventsFunctionServiceRoleDefaultPolicy8188B90A",
-        "ControlTowerOuEventsFunctionServiceRoleBC29C0C5",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Description": "Lambda function to process ControlTower OU events from CloudTrail",
-        "Environment": {
-          "Variables": {
-            "CONFIG_TABLE_NAME": {
-              "Ref": "AcceleratorConfigTable590367C4",
-            },
-          },
-        },
-        "Handler": "index.handler",
-        "Role": {
-          "Fn::GetAtt": [
-            "ControlTowerOuEventsFunctionServiceRoleBC29C0C5",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs20.x",
-        "Timeout": 300,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "ControlTowerOuEventsFunctionLogGroupD5BA6F1F": {
-      "DeletionPolicy": "Delete",
-      "Properties": {
-        "KmsKeyId": {
-          "Fn::GetAtt": [
-            "AcceleratorManagementCloudWatchKeyE630915F",
-            "Arn",
-          ],
-        },
-        "LogGroupName": {
-          "Fn::Join": [
-            "",
-            [
-              "/aws/lambda/",
-              {
-                "Ref": "ControlTowerOuEventsFunctionFABED18B",
-              },
-            ],
-          ],
-        },
-        "RetentionInDays": 3653,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "ControlTowerOuEventsFunctionServiceRoleBC29C0C5": {
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM4",
-              "reason": "AWS Basic Lambda execution permissions.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-              ],
-            ],
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "ControlTowerOuEventsFunctionServiceRoleDefaultPolicy8188B90A": {
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM5",
-              "reason": "Requires access to all org units.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "dynamodb:UpdateItem",
-                "dynamodb:PutItem",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "AcceleratorConfigTable590367C4",
-                  "Arn",
-                ],
-              },
-              "Sid": "dynamodb",
-            },
-            {
-              "Action": [
-                "organizations:DescribeOrganizationalUnit",
-                "organizations:ListParents",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":organizations::111111111111:account/o-*/*",
-                  ],
-                ],
-              },
-              "Sid": "organizations",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "ControlTowerOuEventsFunctionServiceRoleDefaultPolicy8188B90A",
-        "Roles": [
-          {
-            "Ref": "ControlTowerOuEventsFunctionServiceRoleBC29C0C5",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "ControlTowerOuEventsRule7E8DCB15": {
-      "Properties": {
-        "Description": "Rule to monitor for Control Tower OU registration and de-registration events",
-        "EventPattern": {
-          "detail": {
-            "eventName": [
-              "RegisterOrganizationalUnit",
-              "DeregisterOrganizationalUnit",
-            ],
-          },
-          "detail-type": [
-            "AWS Service Event via CloudTrail",
-          ],
-          "source": [
-            "aws.controltower",
-          ],
-        },
-        "State": "ENABLED",
-        "Targets": [
-          {
-            "Arn": {
-              "Fn::GetAtt": [
-                "ControlTowerOuEventsFunctionFABED18B",
-                "Arn",
-              ],
-            },
-            "Id": "Target0",
-            "RetryPolicy": {
-              "MaximumRetryAttempts": 3,
-            },
-          },
-        ],
-      },
-      "Type": "AWS::Events::Rule",
-    },
-    "ControlTowerOuEventsRuleAllowEventRuleAWSAcceleratorPrepareStack111111111111useast1ControlTowerOuEventsFunction7E5B6D582E959D5A": {
-      "Properties": {
-        "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Fn::GetAtt": [
-            "ControlTowerOuEventsFunctionFABED18B",
-            "Arn",
-          ],
-        },
-        "Principal": "events.amazonaws.com",
-        "SourceArn": {
-          "Fn::GetAtt": [
-            "ControlTowerOuEventsRule7E8DCB15",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::Lambda::Permission",
-    },
-    "CreateCTAccounts3049A752": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CreateCTAccountsCreateControlTowerAccountLogGroup7DD19087",
-        "CreateCTAccountsCreateControlTowerAccountStatusLogGroup18D2531C",
-        "CreateCTAccountsCreateControlTowerAccountWaiterLogGroup1A71123A",
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonEvent8503E7D4",
-            "Arn",
-          ],
-        },
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::CreateControlTowerAccounts",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkisComplete97C67C8F": {
-      "DependsOn": [
-        "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkisCompleteServiceRoleDefaultPolicy3785920A",
-        "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkisCompleteServiceRoleBB950C19",
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Description": "AWS CDK resource provider framework - isComplete (AWSAccelerator-PrepareStack-111111111111-us-east-1/CreateCTAccounts/CreateControlTowerAcccountsProvider)",
-        "Environment": {
-          "Variables": {
-            "USER_IS_COMPLETE_FUNCTION_ARN": {
-              "Fn::GetAtt": [
-                "CreateCTAccountsCreateControlTowerAccountStatusE993FA04",
-                "Arn",
-              ],
-            },
-            "USER_ON_EVENT_FUNCTION_ARN": {
-              "Fn::GetAtt": [
-                "CreateCTAccountsCreateControlTowerAccount8636115B",
-                "Arn",
-              ],
-            },
-          },
-        },
-        "Handler": "framework.isComplete",
-        "Role": {
-          "Fn::GetAtt": [
-            "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkisCompleteServiceRoleBB950C19",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs20.x",
-        "Timeout": 900,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkisCompleteServiceRoleBB950C19": {
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM4",
-              "reason": "AWS Custom resource provider role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-              ],
-            ],
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkisCompleteServiceRoleDefaultPolicy3785920A": {
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM5",
-              "reason": "AWS Custom resource provider role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "CreateCTAccountsCreateControlTowerAccount8636115B",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "CreateCTAccountsCreateControlTowerAccount8636115B",
-                          "Arn",
-                        ],
-                      },
-                      ":*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "CreateCTAccountsCreateControlTowerAccountStatusE993FA04",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "CreateCTAccountsCreateControlTowerAccountStatusE993FA04",
-                          "Arn",
-                        ],
-                      },
-                      ":*",
-                    ],
-                  ],
-                },
-              ],
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkisCompleteServiceRoleDefaultPolicy3785920A",
-        "Roles": [
-          {
-            "Ref": "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkisCompleteServiceRoleBB950C19",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonEvent8503E7D4": {
-      "DependsOn": [
-        "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonEventServiceRoleDefaultPolicyADBC2803",
-        "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonEventServiceRole773985D8",
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-PrepareStack-111111111111-us-east-1/CreateCTAccounts/CreateControlTowerAcccountsProvider)",
-        "Environment": {
-          "Variables": {
-            "USER_IS_COMPLETE_FUNCTION_ARN": {
-              "Fn::GetAtt": [
-                "CreateCTAccountsCreateControlTowerAccountStatusE993FA04",
-                "Arn",
-              ],
-            },
-            "USER_ON_EVENT_FUNCTION_ARN": {
-              "Fn::GetAtt": [
-                "CreateCTAccountsCreateControlTowerAccount8636115B",
-                "Arn",
-              ],
-            },
-            "WAITER_STATE_MACHINE_ARN": {
-              "Ref": "CreateCTAccountsCreateControlTowerAcccountsProviderwaiterstatemachineA6C8A44E",
-            },
-          },
-        },
-        "Handler": "framework.onEvent",
-        "Role": {
-          "Fn::GetAtt": [
-            "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonEventServiceRole773985D8",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs20.x",
-        "Timeout": 900,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonEventServiceRole773985D8": {
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM4",
-              "reason": "AWS Custom resource provider role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-              ],
-            ],
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonEventServiceRoleDefaultPolicyADBC2803": {
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM5",
-              "reason": "AWS Custom resource provider role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "CreateCTAccountsCreateControlTowerAccount8636115B",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "CreateCTAccountsCreateControlTowerAccount8636115B",
-                          "Arn",
-                        ],
-                      },
-                      ":*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "CreateCTAccountsCreateControlTowerAccountStatusE993FA04",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "CreateCTAccountsCreateControlTowerAccountStatusE993FA04",
-                          "Arn",
-                        ],
-                      },
-                      ":*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            {
-              "Action": "states:StartExecution",
-              "Effect": "Allow",
-              "Resource": {
-                "Ref": "CreateCTAccountsCreateControlTowerAcccountsProviderwaiterstatemachineA6C8A44E",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonEventServiceRoleDefaultPolicyADBC2803",
-        "Roles": [
-          {
-            "Ref": "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonEventServiceRole773985D8",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonTimeout9340F558": {
-      "DependsOn": [
-        "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy40BA7D0E",
-        "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonTimeoutServiceRole8A0E95FA",
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Description": "AWS CDK resource provider framework - onTimeout (AWSAccelerator-PrepareStack-111111111111-us-east-1/CreateCTAccounts/CreateControlTowerAcccountsProvider)",
-        "Environment": {
-          "Variables": {
-            "USER_IS_COMPLETE_FUNCTION_ARN": {
-              "Fn::GetAtt": [
-                "CreateCTAccountsCreateControlTowerAccountStatusE993FA04",
-                "Arn",
-              ],
-            },
-            "USER_ON_EVENT_FUNCTION_ARN": {
-              "Fn::GetAtt": [
-                "CreateCTAccountsCreateControlTowerAccount8636115B",
-                "Arn",
-              ],
-            },
-          },
-        },
-        "Handler": "framework.onTimeout",
-        "Role": {
-          "Fn::GetAtt": [
-            "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonTimeoutServiceRole8A0E95FA",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs20.x",
-        "Timeout": 900,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonTimeoutServiceRole8A0E95FA": {
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM4",
-              "reason": "AWS Custom resource provider role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-              ],
-            ],
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy40BA7D0E": {
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM5",
-              "reason": "AWS Custom resource provider role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "CreateCTAccountsCreateControlTowerAccount8636115B",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "CreateCTAccountsCreateControlTowerAccount8636115B",
-                          "Arn",
-                        ],
-                      },
-                      ":*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "CreateCTAccountsCreateControlTowerAccountStatusE993FA04",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "CreateCTAccountsCreateControlTowerAccountStatusE993FA04",
-                          "Arn",
-                        ],
-                      },
-                      ":*",
-                    ],
-                  ],
-                },
-              ],
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy40BA7D0E",
-        "Roles": [
-          {
-            "Ref": "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonTimeoutServiceRole8A0E95FA",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "CreateCTAccountsCreateControlTowerAcccountsProviderwaiterstatemachineA6C8A44E": {
-      "DependsOn": [
-        "CreateCTAccountsCreateControlTowerAcccountsProviderwaiterstatemachineRoleDefaultPolicy987F4739",
-        "CreateCTAccountsCreateControlTowerAcccountsProviderwaiterstatemachineRoleE4D3D067",
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-SF1",
-              "reason": "AWS Custom resource provider role created by cdk.",
-            },
-            {
-              "id": "AwsSolutions-SF2",
-              "reason": "AWS Custom resource provider role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "DefinitionString": {
-          "Fn::Join": [
-            "",
-            [
-              "{"StartAt":"framework-isComplete-task","States":{"framework-isComplete-task":{"End":true,"Retry":[{"ErrorEquals":["States.ALL"],"IntervalSeconds":30,"MaxAttempts":480,"BackoffRate":1}],"Catch":[{"ErrorEquals":["States.ALL"],"Next":"framework-onTimeout-task"}],"Type":"Task","Resource":"",
-              {
-                "Fn::GetAtt": [
-                  "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkisComplete97C67C8F",
-                  "Arn",
-                ],
-              },
-              ""},"framework-onTimeout-task":{"End":true,"Type":"Task","Resource":"",
-              {
-                "Fn::GetAtt": [
-                  "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonTimeout9340F558",
-                  "Arn",
-                ],
-              },
-              ""}}}",
-            ],
-          ],
-        },
-        "LoggingConfiguration": {
-          "Destinations": [
-            {
-              "CloudWatchLogsLogGroup": {
-                "LogGroupArn": {
-                  "Fn::GetAtt": [
-                    "CreateCTAccountsCreateControlTowerAccountWaiterLogGroup1A71123A",
-                    "Arn",
-                  ],
-                },
-              },
-            },
-          ],
-          "IncludeExecutionData": true,
-          "Level": "ERROR",
-        },
-        "RoleArn": {
-          "Fn::GetAtt": [
-            "CreateCTAccountsCreateControlTowerAcccountsProviderwaiterstatemachineRoleE4D3D067",
-            "Arn",
-          ],
-        },
-      },
-      "Type": "AWS::StepFunctions::StateMachine",
-    },
-    "CreateCTAccountsCreateControlTowerAcccountsProviderwaiterstatemachineRoleDefaultPolicy987F4739": {
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM5",
-              "reason": "AWS Custom resource provider role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkisComplete97C67C8F",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkisComplete97C67C8F",
-                          "Arn",
-                        ],
-                      },
-                      ":*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonTimeout9340F558",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "CreateCTAccountsCreateControlTowerAcccountsProviderframeworkonTimeout9340F558",
-                          "Arn",
-                        ],
-                      },
-                      ":*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            {
-              "Action": [
-                "logs:CreateLogDelivery",
-                "logs:CreateLogStream",
-                "logs:GetLogDelivery",
-                "logs:UpdateLogDelivery",
-                "logs:DeleteLogDelivery",
-                "logs:ListLogDeliveries",
-                "logs:PutLogEvents",
-                "logs:PutResourcePolicy",
-                "logs:DescribeResourcePolicies",
-                "logs:DescribeLogGroups",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "CreateCTAccountsCreateControlTowerAcccountsProviderwaiterstatemachineRoleDefaultPolicy987F4739",
-        "Roles": [
-          {
-            "Ref": "CreateCTAccountsCreateControlTowerAcccountsProviderwaiterstatemachineRoleE4D3D067",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "CreateCTAccountsCreateControlTowerAcccountsProviderwaiterstatemachineRoleE4D3D067": {
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "states.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "CreateCTAccountsCreateControlTowerAccount8636115B": {
-      "DependsOn": [
-        "CreateCTAccountsCreateControlTowerAccountServiceRoleAEFB3CA3",
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Description": "Create Control Tower Account onEvent handler",
-        "Handler": "index.handler",
-        "KmsKeyArn": {
-          "Fn::GetAtt": [
-            "AcceleratorManagementCloudWatchKeyE630915F",
-            "Arn",
-          ],
-        },
-        "Role": {
-          "Fn::GetAtt": [
-            "CreateCTAccountsCreateControlTowerAccountServiceRoleAEFB3CA3",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs20.x",
-        "Timeout": 60,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "CreateCTAccountsCreateControlTowerAccountLogGroup7DD19087": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Properties": {
-        "KmsKeyId": {
-          "Fn::GetAtt": [
-            "AcceleratorManagementCloudWatchKeyE630915F",
-            "Arn",
-          ],
-        },
-        "LogGroupName": {
-          "Fn::Join": [
-            "",
-            [
-              "/aws/lambda/",
-              {
-                "Ref": "CreateCTAccountsCreateControlTowerAccount8636115B",
-              },
-            ],
-          ],
-        },
-        "RetentionInDays": 3653,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "CreateCTAccountsCreateControlTowerAccountServiceRoleAEFB3CA3": {
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM4",
-              "reason": "AWS Custom resource provider role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-              ],
-            ],
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "CreateCTAccountsCreateControlTowerAccountStatusE993FA04": {
-      "DependsOn": [
-        "CreateCTAccountsCreateControlTowerAccountStatusServiceRoleDefaultPolicy9BE6F791",
-        "CreateCTAccountsCreateControlTowerAccountStatusServiceRole999B76C4",
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Description": "Create Control Tower Account isComplete handler",
-        "Environment": {
-          "Variables": {
-            "NewAccountsTableName": {
-              "Ref": "NewCTAccountsE326CD07",
-            },
-          },
-        },
-        "Handler": "index.handler",
-        "KmsKeyArn": {
-          "Fn::GetAtt": [
-            "AcceleratorManagementCloudWatchKeyE630915F",
-            "Arn",
-          ],
-        },
-        "Role": {
-          "Fn::GetAtt": [
-            "CreateCTAccountsCreateControlTowerAccountStatusServiceRole999B76C4",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs20.x",
-        "Timeout": 300,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "CreateCTAccountsCreateControlTowerAccountStatusLogGroup18D2531C": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Properties": {
-        "KmsKeyId": {
-          "Fn::GetAtt": [
-            "AcceleratorManagementCloudWatchKeyE630915F",
-            "Arn",
-          ],
-        },
-        "LogGroupName": {
-          "Fn::Join": [
-            "",
-            [
-              "/aws/lambda/",
-              {
-                "Ref": "CreateCTAccountsCreateControlTowerAccountStatusE993FA04",
-              },
-            ],
-          ],
-        },
-        "RetentionInDays": 3653,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "CreateCTAccountsCreateControlTowerAccountStatusServiceRole999B76C4": {
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM4",
-              "reason": "AWS Custom resource provider role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-              ],
-            ],
-          },
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/AWSServiceCatalogEndUserFullAccess",
-              ],
-            ],
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "CreateCTAccountsCreateControlTowerAccountStatusServiceRoleDefaultPolicy9BE6F791": {
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM5",
-              "reason": "AWS Custom resource provider role created by cdk.",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "dynamodb:Scan",
-                "dynamodb:GetItem",
-                "dynamodb:DeleteItem",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "NewCTAccountsE326CD07",
-                  "Arn",
-                ],
-              },
-              "Sid": "DynamoDb",
-            },
-            {
-              "Action": [
-                "kms:Encrypt",
-                "kms:Decrypt",
-                "kms:GenerateDataKey*",
-                "kms:DescribeKey",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "ManagementKey0813A4D9",
-                  "Arn",
-                ],
-              },
-              "Sid": "KMS",
-            },
-            {
-              "Action": [
-                "controltower:CreateManagedAccount",
-                "controltower:SetupLandingZone",
-                "controltower:EnableGuardrail",
-                "controltower:Describe*",
-                "controltower:Get*",
-                "controltower:List*",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-              "Sid": "ControlTower",
-            },
-            {
-              "Action": [
-                "sso-directory:DescribeDirectory",
-                "sso-directory:CreateUser",
-                "sso-directory:SearchUsers",
-                "sso-directory:SearchGroups",
-                "sso:ListDirectoryAssociations",
-                "sso:DescribeRegisteredRegions",
-                "sso:ListProfileAssociations",
-                "sso:AssociateProfile",
-                "sso:GetProfile",
-                "sso:CreateProfile",
-                "sso:UpdateProfile",
-                "sso:GetTrust",
-                "sso:CreateTrust",
-                "sso:UpdateTrust",
-                "sso:GetApplicationInstance",
-                "sso:CreateApplicationInstance",
-                "sso:ListPermissionSets",
-                "sso:GetSSOStatus",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-              "Sid": "SSO",
-            },
-            {
-              "Action": [
-                "servicecatalog:SearchProvisionedProducts",
-                "servicecatalog:ProvisionProduct",
-                "servicecatalog:DescribeProduct",
-                "servicecatalog:ListProvisioningArtifacts",
-                "servicecatalog:DescribeProvisionedProduct",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-              "Sid": "ServiceCatalog",
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "CreateCTAccountsCreateControlTowerAccountStatusServiceRoleDefaultPolicy9BE6F791",
-        "Roles": [
-          {
-            "Ref": "CreateCTAccountsCreateControlTowerAccountStatusServiceRole999B76C4",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "CreateCTAccountsCreateControlTowerAccountWaiterLogGroup1A71123A": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Properties": {
-        "KmsKeyId": {
-          "Fn::GetAtt": [
-            "AcceleratorManagementCloudWatchKeyE630915F",
-            "Arn",
-          ],
-        },
-        "LogGroupName": "/aws/vendedlogs/states/waiter-state-machine/CreateControlTowerAccount",
-        "RetentionInDays": 3653,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "CreateCTAccountsLambdaPrincipalAssociationFAD34BEB": {
-      "DependsOn": [
-        "CreateOrganizationAccountsDDA8AFE1",
-        "CreateOrganizationAccountsServiceRole99CB3720",
-        "CreateOrganizationAccountsCreateOrganizationAccountsLogGroup00D93B3C",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisComplete071270AC",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRoleDefaultPolicy17A8199B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEvent96B71A5A",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRoleDefaultPolicy5CD1CC20",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutDD2DB516",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleDefaultPolicy7473AD40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineC299C25B",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRoleDefaultPolicyA69022C3",
-        "CreateOrganizationAccountsCreateOrganizationAccountsProviderwaiterstatemachineRole22D85F30",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRoleDefaultPolicy217D2441",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
-        "CreateOrganizationAccountsCreateOrganizationAccountStatusLogGroupD4DD5E40",
-        "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-        "CreateOrganizationAccounts49A5350C",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEvent4F574CF7",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRoleDefaultPolicyA669E020",
-        "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
-        "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRoleDefaultPolicy9ACA86A8",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionServiceRole09865D4C",
-        "ValidateEnvironmentConfigValidateEnvironmentFunctionLogGroup632317CC",
-        "ValidateEnvironmentConfigValidateEnvironmentResourceD10DC179",
-      ],
-      "Properties": {
-        "PortfolioId": {
-          "Ref": "GetPortFolioId5CA7347E",
-        },
-        "PrincipalARN": {
-          "Fn::GetAtt": [
-            "CreateCTAccountsCreateControlTowerAccountStatusServiceRole999B76C4",
-            "Arn",
-          ],
-        },
-        "PrincipalType": "IAM",
-      },
-      "Type": "AWS::ServiceCatalog::PortfolioPrincipalAssociation",
-    },
     "CreateOrganizationAccounts49A5350C": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
@@ -2579,12 +425,16 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "Environment": {
           "Variables": {
             "AccountRoleName": "AWSControlTowerExecution",
+            "ConfigTableName": {
+              "Ref": "AcceleratorConfigTable590367C4",
+            },
             "GovCloudAccountMappingTableName": {
               "Ref": "govCloudAccountMapping0E3D2AD8",
             },
             "NewOrgAccountsTableName": {
               "Ref": "NewOrgAccountsE5BA262F",
             },
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "Handler": "index.handler",
@@ -2594,13 +444,14 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CreateOrganizationAccountsCreateOrganizationAccountStatusServiceRole5944FA8B",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -2754,10 +605,25 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                 "organizations:DescribeCreateAccountStatus",
                 "organizations:ListRoots",
                 "organizations:MoveAccount",
+                "organizations:DescribeAccount",
               ],
               "Effect": "Allow",
               "Resource": "*",
               "Sid": "Organizations",
+            },
+            {
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:UpdateItem",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AcceleratorConfigTable590367C4",
+                  "Arn",
+                ],
+              },
+              "Sid": "DynamoDbConfig",
             },
             {
               "Action": [
@@ -2857,6 +723,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - isComplete (AWSAccelerator-PrepareStack-111111111111-us-east-1/CreateOrganizationAccounts/CreateOrganizationAccountsProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_IS_COMPLETE_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
@@ -2872,13 +739,18 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.isComplete",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkisCompleteServiceRole19A96F30",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2985,6 +857,16 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
               ],
             },
             {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CreateOrganizationAccountsDDA8AFE1",
+                  "Arn",
+                ],
+              },
+            },
+            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -3009,6 +891,16 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -3043,6 +935,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-PrepareStack-111111111111-us-east-1/CreateOrganizationAccounts/CreateOrganizationAccountsProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_IS_COMPLETE_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
@@ -3061,13 +954,18 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonEventServiceRole66CD01EF",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3174,6 +1072,16 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
               ],
             },
             {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CreateOrganizationAccountsDDA8AFE1",
+                  "Arn",
+                ],
+              },
+            },
+            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -3198,6 +1106,16 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
+                  "Arn",
+                ],
+              },
             },
             {
               "Action": "states:StartExecution",
@@ -3239,6 +1157,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - onTimeout (AWSAccelerator-PrepareStack-111111111111-us-east-1/CreateOrganizationAccounts/CreateOrganizationAccountsProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_IS_COMPLETE_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
@@ -3254,13 +1173,18 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.onTimeout",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CreateOrganizationAccountsCreateOrganizationAccountsProviderframeworkonTimeoutServiceRoleA8ECA8F4",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3367,6 +1291,16 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
               ],
             },
             {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CreateOrganizationAccountsDDA8AFE1",
+                  "Arn",
+                ],
+              },
+            },
+            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -3391,6 +1325,16 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CreateOrganizationAccountsCreateOrganizationAccountStatusBBDEFDFE",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -3453,22 +1397,6 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
               ""}}}",
             ],
           ],
-        },
-        "LoggingConfiguration": {
-          "Destinations": [
-            {
-              "CloudWatchLogsLogGroup": {
-                "LogGroupArn": {
-                  "Fn::GetAtt": [
-                    "CreateOrganizationAccountsCreateOrganizationAccountsWaiterLogGroup60891BB2",
-                    "Arn",
-                  ],
-                },
-              },
-            },
-          ],
-          "IncludeExecutionData": true,
-          "Level": "ERROR",
         },
         "RoleArn": {
           "Fn::GetAtt": [
@@ -3582,22 +1510,6 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                 },
               ],
             },
-            {
-              "Action": [
-                "logs:CreateLogDelivery",
-                "logs:CreateLogStream",
-                "logs:GetLogDelivery",
-                "logs:UpdateLogDelivery",
-                "logs:DeleteLogDelivery",
-                "logs:ListLogDeliveries",
-                "logs:PutLogEvents",
-                "logs:PutResourcePolicy",
-                "logs:DescribeResourcePolicies",
-                "logs:DescribeLogGroups",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
           ],
           "Version": "2012-10-17",
         },
@@ -3653,6 +1565,11 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Create Organization Accounts OnEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -3660,13 +1577,14 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CreateOrganizationAccountsServiceRole99CB3720",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 30,
       },
       "Type": "AWS::Lambda::Function",
@@ -3739,7 +1657,6 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "configTableName": {
           "Ref": "AcceleratorConfigTable590367C4",
         },
-        "controlTowerEnabled": true,
         "organizationsEnabled": true,
         "partition": {
           "Ref": "AWS::Partition",
@@ -3748,93 +1665,6 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
       },
       "Type": "Custom::CreateOrganizationalUnits",
       "UpdateReplacePolicy": "Delete",
-    },
-    "CustomGetPortfolioIdCustomResourceProviderHandlerB6C78D44": {
-      "DependsOn": [
-        "CustomGetPortfolioIdCustomResourceProviderRole698D24D6",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
-          "S3Key": "REPLACED-GENERATED-NAME.zip",
-        },
-        "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
-        "Role": {
-          "Fn::GetAtt": [
-            "CustomGetPortfolioIdCustomResourceProviderRole698D24D6",
-            "Arn",
-          ],
-        },
-        "Runtime": "nodejs20.x",
-        "Timeout": 900,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "CustomGetPortfolioIdCustomResourceProviderLogGroupA4D50C6A": {
-      "DeletionPolicy": "Delete",
-      "Properties": {
-        "KmsKeyId": {
-          "Fn::GetAtt": [
-            "AcceleratorManagementCloudWatchKeyE630915F",
-            "Arn",
-          ],
-        },
-        "LogGroupName": {
-          "Fn::Join": [
-            "",
-            [
-              "/aws/lambda/",
-              {
-                "Ref": "CustomGetPortfolioIdCustomResourceProviderHandlerB6C78D44",
-              },
-            ],
-          ],
-        },
-        "RetentionInDays": 3653,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "CustomGetPortfolioIdCustomResourceProviderRole698D24D6": {
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Sub": "arn:\${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-          },
-        ],
-        "Policies": [
-          {
-            "PolicyDocument": {
-              "Statement": [
-                {
-                  "Action": [
-                    "servicecatalog:ListPortfolios",
-                  ],
-                  "Effect": "Allow",
-                  "Resource": "*",
-                  "Sid": "ServiceCatalog",
-                },
-              ],
-              "Version": "2012-10-17",
-            },
-            "PolicyName": "Inline",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
     },
     "CustomInviteAccountsToOrganizationCustomResourceProviderHandlerC9A5BAC1": {
       "DependsOn": [
@@ -3845,15 +1675,20 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomInviteAccountsToOrganizationCustomResourceProviderRole88663193",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3969,6 +1804,13 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "ACCELERATOR_STAGE": "prepare",
+            "AWS_STS_REGIONAL_ENDPOINTS": "regional",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
         "MemorySize": 1024,
         "Role": {
@@ -3977,7 +1819,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4052,6 +1894,8 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                   "Action": [
                     "dynamodb:UpdateItem",
                     "dynamodb:PutItem",
+                    "dynamodb:Scan",
+                    "dynamodb:DeleteItem",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -4085,9 +1929,22 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                 {
                   "Action": [
                     "s3:GetObject",
+                    "s3:ListBucket",
                   ],
                   "Effect": "Allow",
                   "Resource": [
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "arn:",
+                          {
+                            "Ref": "AWS::Partition",
+                          },
+                          ":s3:::cdk-accel-assets-111111111111-us-east-1",
+                        ],
+                      ],
+                    },
                     {
                       "Fn::Join": [
                         "",
@@ -4131,15 +1988,20 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomOrganizationsCreateOrganizationalUnitsCustomResourceProviderRole4B8B81B0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4228,29 +2090,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
-    "GetPortFolioId5CA7347E": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomGetPortfolioIdCustomResourceProviderLogGroupA4D50C6A",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomGetPortfolioIdCustomResourceProviderHandlerB6C78D44",
-            "Arn",
-          ],
-        },
-        "displayName": "AWS Control Tower Account Factory Portfolio",
-        "providerName": "AWS Control Tower",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::GetPortfolioId",
-      "UpdateReplacePolicy": "Delete",
-    },
     "GovCloudAccountMappingTableNameParameter9B54E984": {
-      "DependsOn": [
-        "NewCTAccountsTableNameParameter065A4927",
-      ],
       "Properties": {
         "Name": "/accelerator/prepare-stack/govCloudAccountMappingTableName",
         "Type": "String",
@@ -4298,9 +2138,10 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "accountConfigS3Key": "63719fee842b919b4c18317c680c63ac7aee966fbc80ad273eeade6349c40186.yaml",
+        "accountConfigS3Key": "03884f31cf99c3af1b57657ec50d81f8fd0b4bbec60a6b238546b4c0a6bd3dc6.yaml",
         "auditAccountEmail": "all-enabled-audit-account@example.com",
         "commitId": "",
+        "configDirS3Key": "REPLACED-GENERATED-NAME.zip",
         "configRepositoryName": "aws-accelerator-config",
         "configS3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
         "configTableName": {
@@ -4309,7 +2150,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "isOrgsEnabled": true,
         "logArchiveAccountEmail": "all-enabled-logarchive-account@example.com",
         "managementAccountEmail": "all-enabled-management-account@example.com",
-        "organizationsConfigS3Key": "424303e536ae2b4ba5e2dbe75b69a0bbfb9c54a18133b94c07d3856114de2c30.yaml",
+        "organizationsConfigS3Key": "1d10012388be84598c9e0451c6df5d611e33a0bcadea532d22dddf4222bb91e2.yaml",
         "partition": "aws",
         "replacementsConfigS3Key": "e075bcecb878a10a77f0f4650b85c3ab1692fabf90da3e07131fc7006192385f.yaml",
         "stackName": "AWSAccelerator-PrepareStack-111111111111-us-east-1",
@@ -4321,7 +2162,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
     "ManagementKey0813A4D9": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "AWS Accelerator Management Account Kms Key",
+        "Description": "KMS key for encrypting DynamoDB tables, CloudWatch Logs, and SNS topics in the management account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -4464,59 +2305,6 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
       },
       "Type": "AWS::KMS::Alias",
     },
-    "NewCTAccountsE326CD07": {
-      "DeletionPolicy": "Delete",
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-DDB3",
-              "reason": "NewCTAccounts DynamoDB table do not need point in time recovery, data can be re-created",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AttributeDefinitions": [
-          {
-            "AttributeName": "accountEmail",
-            "AttributeType": "S",
-          },
-        ],
-        "BillingMode": "PAY_PER_REQUEST",
-        "KeySchema": [
-          {
-            "AttributeName": "accountEmail",
-            "KeyType": "HASH",
-          },
-        ],
-        "PointInTimeRecoverySpecification": {
-          "PointInTimeRecoveryEnabled": true,
-        },
-        "SSESpecification": {
-          "KMSMasterKeyId": {
-            "Fn::GetAtt": [
-              "ManagementKey0813A4D9",
-              "Arn",
-            ],
-          },
-          "SSEEnabled": true,
-          "SSEType": "KMS",
-        },
-      },
-      "Type": "AWS::DynamoDB::Table",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "NewCTAccountsTableNameParameter065A4927": {
-      "Properties": {
-        "Name": "/accelerator/prepare-stack/NewCTAccountsTableName",
-        "Type": "String",
-        "Value": {
-          "Ref": "NewCTAccountsE326CD07",
-        },
-      },
-      "Type": "AWS::SSM::Parameter",
-    },
     "NewOrgAccountsE5BA262F": {
       "DeletionPolicy": "Delete",
       "Metadata": {
@@ -4562,7 +2350,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
     },
     "NewOrgAccountsTableNameParameter91A89034": {
       "DependsOn": [
-        "NewCTAccountsTableNameParameter065A4927",
+        "GovCloudAccountMappingTableNameParameter9B54E984",
       ],
       "Properties": {
         "Name": "/accelerator/prepare-stack/NewOrgAccountsTableName",
@@ -4595,7 +2383,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-PrepareStack-111111111111-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -4766,6 +2554,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-PrepareStack-111111111111-us-east-1/ValidateEnvironmentConfig/Custom::ValidateEnvironmentConfiguration)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
@@ -4775,13 +2564,18 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ValidateEnvironmentConfigCustomValidateEnvironmentConfigurationframeworkonEventServiceRole675155BD",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4867,6 +2661,16 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ValidateEnvironmentConfigValidateEnvironmentFunction13F94F77",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -4890,6 +2694,11 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Validate Environment Configuration",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "MemorySize": 1024,
         "Role": {
@@ -4898,7 +2707,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -5003,20 +2812,12 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
             {
               "Action": "dynamodb:PutItem",
               "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "NewOrgAccountsE5BA262F",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::GetAtt": [
-                    "NewCTAccountsE326CD07",
-                    "Arn",
-                  ],
-                },
-              ],
+              "Resource": {
+                "Fn::GetAtt": [
+                  "NewOrgAccountsE5BA262F",
+                  "Arn",
+                ],
+              },
               "Sid": "dynamodb",
             },
             {
@@ -5059,46 +2860,20 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
               "Action": "ssm:GetParameter",
               "Effect": "Allow",
               "Resource": [
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:",
-                      {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":ssm:us-east-1:111111111111:parameter",
-                      {
-                        "Ref": "AcceleratorControlTowerDriftParameter217B3055",
-                      },
-                    ],
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:",
-                      {
-                        "Ref": "AWS::Partition",
-                      },
-                      ":ssm:us-east-1:111111111111:parameter",
-                      {
-                        "Ref": "AcceleratorControlTowerDriftMessageParameter153D37CE",
-                      },
-                    ],
-                  ],
-                },
-                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/Network/network/vpc/Network-Inspection/deployedCidrs",
-                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/SharedServices/network/vpc/SharedServices-Main/deployedCidrs",
-                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/SharedServices/network/vpc/SharedServices-appVpc/deployedCidrs",
-                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/Network/network/vpc/Network-NonTemplate-Static-Central/deployedCidrs",
-                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/Network/network/vpc/Network-NonTemplate-Static-West/deployedCidrs",
-                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/SharedServices/network/vpc/SharedServices-NonTemplate-Static-Central/deployedCidrs",
-                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/SharedServices/network/vpc/SharedServices-NonTemplate-Static-Central-2/deployedCidrs",
-                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/SharedServices/network/vpc/SharedServices-NonTemplate-Static-West/deployedCidrs",
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/*/network/vpc/*/deployedCidrs",
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/network-stacks/useV2Stacks",
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/*/network/tgw/*/multicastSupport",
               ],
               "Sid": "sms",
+            },
+            {
+              "Action": "ssm:PutParameter",
+              "Effect": "Allow",
+              "Resource": [
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/network-stacks/useV2Stacks",
+                "arn:aws:ssm:us-east-1:111111111111:parameter/accelerator/validation/*/network/tgw/*/multicastSupport",
+              ],
+              "Sid": "ssmCreate",
             },
           ],
           "Version": "2012-10-17",
@@ -5130,21 +2905,14 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         "configTableName": {
           "Ref": "AcceleratorConfigTable590367C4",
         },
-        "controlTowerEnabled": true,
-        "driftDetectionMessageParameterName": {
-          "Ref": "AcceleratorControlTowerDriftMessageParameter153D37CE",
-        },
-        "driftDetectionParameterName": {
-          "Ref": "AcceleratorControlTowerDriftParameter217B3055",
-        },
-        "newCTAccountsTableName": {
-          "Ref": "NewCTAccountsE326CD07",
-        },
+        "maxAccountAttachedScps": 5,
+        "maxOuAttachedScps": 5,
         "newOrgAccountsTableName": {
           "Ref": "NewOrgAccountsE5BA262F",
         },
         "organizationsEnabled": true,
         "partition": "aws",
+        "policyTagKey": "AWSAcceleratorManaged",
         "serviceControlPolicies": [
           {
             "name": "AcceleratorGuardrails1",
@@ -5193,7 +2961,42 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
         ],
         "skipScpValidation": "no",
         "stackName": "AWSAccelerator-PrepareStack-111111111111-us-east-1",
+        "transitGateways": [
+          {
+            "logicalId": "SsmParamNetworkTgwMutlicastTgwMulticastOptionValue",
+            "multicastSupport": "enable",
+            "parameterName": "/accelerator/validation/Network/network/tgw/MutlicastTgw/multicastSupport",
+            "transitGatewayName": "Network/MutlicastTgw",
+          },
+          {
+            "logicalId": "SsmParamNetworkTgwNetworkMainMulticastOptionValue",
+            "parameterName": "/accelerator/validation/Network/network/tgw/Network-Main/multicastSupport",
+            "transitGatewayName": "Network/Network-Main",
+          },
+          {
+            "logicalId": "SsmParamNetworkTgwNetworkMain_2MulticastOptionValue",
+            "parameterName": "/accelerator/validation/Network/network/tgw/Network-Main-2/multicastSupport",
+            "transitGatewayName": "Network/Network-Main-2",
+          },
+          {
+            "logicalId": "SsmParamNetworkTgwNetworkMain_3MulticastOptionValue",
+            "parameterName": "/accelerator/validation/Network/network/tgw/Network-Main-3/multicastSupport",
+            "transitGatewayName": "Network/Network-Main-3",
+          },
+          {
+            "logicalId": "SsmParamSharedServicesTgwSharedServicesMainMulticastOptionValue",
+            "parameterName": "/accelerator/validation/SharedServices/network/tgw/SharedServices-Main/multicastSupport",
+            "transitGatewayName": "SharedServices/SharedServices-Main",
+          },
+          {
+            "logicalId": "SsmParamSharedServicesTgwSharedServicesSecondaryTgwMulticastOptionValue",
+            "parameterName": "/accelerator/validation/SharedServices/network/tgw/SharedServices-SecondaryTgw/multicastSupport",
+            "transitGatewayName": "SharedServices/SharedServices-SecondaryTgw",
+          },
+        ],
+        "useV2StacksValue": true,
         "uuid": "REPLACED-UUID",
+        "v2StacksParamName": "/accelerator/network-stacks/useV2Stacks",
         "vpcCidrs": [
           {
             "cidrs": [
@@ -5266,7 +3069,7 @@ exports[`PrepareStack Construct(PrepareStack):  Snapshot Test 1`] = `
       "UpdateReplacePolicy": "Delete",
     },
     "govCloudAccountMapping0E3D2AD8": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "AttributeDefinitions": [
           {

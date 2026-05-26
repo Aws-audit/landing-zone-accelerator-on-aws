@@ -15,7 +15,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { NagSuppressions } from 'cdk-nag';
 import { pascalCase } from 'change-case';
-const path = require('path');
+import * as path from 'path';
 import { DEFAULT_LAMBDA_RUNTIME } from '../../../utils/lib/lambda';
 
 /**
@@ -59,6 +59,10 @@ export interface AcceleratorMetadataProps {
    */
   readonly configBucketName: string;
   /**
+   * Secure bucket name
+   */
+  readonly secureBucketName: string;
+  /**
    * The Accelerator Organization Id
    */
   readonly organizationId: string;
@@ -78,10 +82,22 @@ export interface AcceleratorMetadataProps {
    * Global Region
    */
   readonly globalRegion: string;
+  /**
+   * Installer Stack Name
+   */
+  readonly installerStackName: string;
+  /**
+   * Account and OU configuration table SSM Parameter path
+   */
+  readonly accountOuConfigTableParameterPath: string;
+  /**
+   * Account and OU configuration table arn SSM Parameter path
+   */
+  readonly accountOuConfigTableArnParameterPath: string;
 }
 
 /**
- * Class for FMSOrganizationAdminAccount
+ * Class for Accelerator Metadata
  */
 export class AcceleratorMetadata extends Construct {
   lambdaFunction: { lambda: cdk.aws_lambda.Function; logGroup: cdk.aws_logs.LogGroup };
@@ -89,7 +105,10 @@ export class AcceleratorMetadata extends Construct {
   rule: cdk.aws_events.Rule;
   constructor(scope: Construct, id: string, props: AcceleratorMetadataProps) {
     super(scope, id);
-
+    const configTableArn = cdk.aws_ssm.StringParameter.valueForStringParameter(
+      this,
+      props.accountOuConfigTableArnParameterPath,
+    );
     const stack = cdk.Stack.of(scope);
     const account = cdk.Stack.of(this).account;
     const region = cdk.Stack.of(this).region;
@@ -102,6 +121,8 @@ export class AcceleratorMetadata extends Construct {
       region,
       props.metadataLogBucketName,
       props.configBucketName,
+      props.secureBucketName,
+      configTableArn,
     );
     this.lambdaFunction = this.createLambdaFunction(functionName, stack, lambdaCode, this.role, props);
     this.rule = this.createMetadataCloudwatchRule(stack, props.acceleratorPrefix, this.lambdaFunction.lambda);
@@ -114,18 +135,20 @@ export class AcceleratorMetadata extends Construct {
     region: string,
     metadataLogBucketName: string,
     configBucketName: string,
+    secureBucketName: string,
+    configTableArn: string,
   ) {
     const lambdaRole = new cdk.aws_iam.Role(this, 'MetadataLambda', {
       assumedBy: new cdk.aws_iam.ServicePrincipal('lambda.amazonaws.com'),
       roleName: `${acceleratorPrefix}-${account}-${region}-metadata-lambda-role`,
     });
-    console.log(lambdaRole.node.tryGetContext('suffix'));
     lambdaRole.addToPolicy(
       new cdk.aws_iam.PolicyStatement({
         effect: cdk.aws_iam.Effect.ALLOW,
         actions: [
           'codepipeline:GetPipelineExecution',
           'codepipeline:ListPipelineExecutions',
+          'codepipeline:ListActionExecutions',
           'codecommit:GetFolder',
           'codecommit:GetFile',
           'kms:DescribeKey',
@@ -137,13 +160,6 @@ export class AcceleratorMetadata extends Construct {
           'logs:CreateLogGroup',
           'logs:CreateLogStream',
           'logs:PutLogEvents',
-          'organizations:DescribeOrganizationalUnit',
-          'organizations:DescribeAccount',
-          'organizations:ListAccounts',
-          'organizations:ListChildren',
-          'organizations:ListOrganizationalUnitsForParent',
-          'organizations:ListParents',
-          'organizations:ListRoots',
           'ssm:GetParameter',
           'sts:AssumeRole',
         ],
@@ -164,6 +180,7 @@ export class AcceleratorMetadata extends Construct {
           's3:PutObjectRetention',
           's3:PutObjectTagging',
           's3:PutObjectVersionTagging',
+          's3:ListBucketVersions',
           's3:Abort*',
         ],
         resources: [
@@ -171,7 +188,16 @@ export class AcceleratorMetadata extends Construct {
           `arn:${cdk.Stack.of(this).partition}:s3:::${metadataLogBucketName}/*`,
           `arn:${cdk.Stack.of(this).partition}:s3:::${configBucketName}`,
           `arn:${cdk.Stack.of(this).partition}:s3:::${configBucketName}/*`,
+          `arn:${cdk.Stack.of(this).partition}:s3:::${secureBucketName}`,
+          `arn:${cdk.Stack.of(this).partition}:s3:::${secureBucketName}/*`,
         ],
+      }),
+    );
+    lambdaRole.addToPolicy(
+      new cdk.aws_iam.PolicyStatement({
+        effect: cdk.aws_iam.Effect.ALLOW,
+        actions: ['dynamodb:Scan'],
+        resources: [`${configTableArn}`],
       }),
     );
     return lambdaRole;
@@ -204,7 +230,8 @@ export class AcceleratorMetadata extends Construct {
         METADATA_BUCKET: props.metadataLogBucketName,
         ACCELERATOR_PREFIX: props.acceleratorPrefix,
         GLOBAL_REGION: props.globalRegion,
-        ACCELERATOR_VERSION_SSM_PATH: `${props.acceleratorSsmParamPrefix}/${props.acceleratorPrefix}-InstallerStack/version`,
+        ACCELERATOR_VERSION_SSM_PATH: `${props.acceleratorSsmParamPrefix}/${props.installerStackName}/version`,
+        DDB_CONFIG_TABLE_SSM_PARAMETER_PATH: props.accountOuConfigTableParameterPath,
       },
     });
 

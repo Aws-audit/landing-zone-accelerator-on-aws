@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`OrganizationalUnits Construct(OrganizationalUnit):  Snapshot Test 1`] = `
+exports[`OrganizationalUnits > Construct(OrganizationalUnit):  Snapshot Test 1`] = `
 {
   "Resources": {
     "ConfigTable5CD72349": {
@@ -72,15 +72,20 @@ exports[`OrganizationalUnits Construct(OrganizationalUnit):  Snapshot Test 1`] =
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomOrganizationsCreateOrganizationalUnitsCustomResourceProviderRole4B8B81B0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -185,7 +190,6 @@ exports[`OrganizationalUnits Construct(OrganizationalUnit):  Snapshot Test 1`] =
         "configTableName": {
           "Ref": "ConfigTable5CD72349",
         },
-        "controlTowerEnabled": true,
         "organizationsEnabled": true,
         "partition": {
           "Ref": "AWS::Partition",

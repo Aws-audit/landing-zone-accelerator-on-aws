@@ -17,12 +17,10 @@ import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { pascalCase } from 'pascal-case';
 import * as path from 'path';
-import { DEFAULT_LAMBDA_RUNTIME } from '../../../utils/lib/lambda';
 
 import {
   DeploymentTargets,
   GuardDutyConfig,
-  Region,
   ResourcePolicyEnforcementConfig,
   SecurityHubConfig,
 } from '@aws-accelerator/config';
@@ -43,7 +41,6 @@ import {
   SecurityHubRegionAggregation,
 } from '@aws-accelerator/constructs';
 
-import { SnsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import {
   AcceleratorKeyType,
   AcceleratorStack,
@@ -123,12 +120,6 @@ export class SecurityAuditStack extends AcceleratorStack {
     this.configureSnsNotifications();
 
     //
-    // create lambda function to forward
-    // control tower notifications to the management account
-    //
-    this.configureControlTowerNotification();
-
-    //
     // Create SSM Parameters
     //
     this.createSsmParameters();
@@ -163,8 +154,8 @@ export class SecurityAuditStack extends AcceleratorStack {
       this.logger.info(`Configuring Macie`);
 
       if (
-        this.props.securityConfig.centralSecurityServices.macie.excludeRegions.indexOf(
-          cdk.Stack.of(this).region as Region,
+        (this.props.securityConfig.centralSecurityServices.macie.excludeRegions ?? []).indexOf(
+          cdk.Stack.of(this).region,
         ) === -1
       ) {
         this.logger.info('Adding Macie');
@@ -204,7 +195,7 @@ export class SecurityAuditStack extends AcceleratorStack {
         eksProtection,
         enableEksAgent,
         enableEc2MalwareProtection,
-        keepMalwareProtectionSnapshosts,
+        keepMalwareProtectionSnapshots,
         enableRdsProtection,
         enableLambdaProtection,
       ] = this.processRegionExclusions(guardDutyConfig);
@@ -212,6 +203,10 @@ export class SecurityAuditStack extends AcceleratorStack {
       const guardDutyMembers = new GuardDutyMembers(this, 'GuardDutyMembers', {
         enableS3Protection: s3Protection,
         enableEksProtection: eksProtection,
+        enableEksAgent: enableEksAgent,
+        enableEc2MalwareProtection: enableEc2MalwareProtection,
+        enableLambdaProtection: enableLambdaProtection,
+        enableRdsProtection: enableRdsProtection,
         kmsKey: this.cloudwatchKey,
         logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
         guardDutyMemberAccountIds,
@@ -227,7 +222,7 @@ export class SecurityAuditStack extends AcceleratorStack {
         eksProtection ||
         enableEksAgent ||
         enableEc2MalwareProtection ||
-        keepMalwareProtectionSnapshosts ||
+        keepMalwareProtectionSnapshots ||
         enableRdsProtection ||
         enableLambdaProtection ||
         updateExportFrequency
@@ -237,7 +232,7 @@ export class SecurityAuditStack extends AcceleratorStack {
           enableS3Protection: s3Protection,
           enableEksProtection: eksProtection,
           enableEc2MalwareProtection: enableEc2MalwareProtection,
-          keepMalwareProtectionSnapshosts: keepMalwareProtectionSnapshosts,
+          keepMalwareProtectionSnapshots: keepMalwareProtectionSnapshots,
           enableEksAgent: enableEksAgent,
           enableRdsProtection: enableRdsProtection,
           enableLambdaProtection: enableLambdaProtection,
@@ -258,7 +253,7 @@ export class SecurityAuditStack extends AcceleratorStack {
     let eksProtection = guardDutyConfig.eksProtection?.enable ?? false;
     let enableEksAgent = guardDutyConfig.eksProtection?.manageAgent ?? false;
     let enableEc2MalwareProtection = guardDutyConfig.ec2Protection?.enable ?? false;
-    let keepMalwareProtectionSnapshosts = guardDutyConfig.ec2Protection?.keepSnapshots ?? false;
+    let keepMalwareProtectionSnapshots = guardDutyConfig.ec2Protection?.keepSnapshots ?? false;
     let enableRdsProtection = guardDutyConfig.rdsProtection?.enable ?? false;
     let enableLambdaProtection = guardDutyConfig.lambdaProtection?.enable ?? false;
 
@@ -269,7 +264,7 @@ export class SecurityAuditStack extends AcceleratorStack {
     }
     if (this.isRegionExcluded(guardDutyConfig.ec2Protection?.excludeRegions ?? [])) {
       enableEc2MalwareProtection = false;
-      keepMalwareProtectionSnapshosts = false;
+      keepMalwareProtectionSnapshots = false;
     }
     if (this.isRegionExcluded(guardDutyConfig.eksProtection?.excludeRegions ?? [])) enableRdsProtection = false;
     if (this.isRegionExcluded(guardDutyConfig.eksProtection?.excludeRegions ?? [])) enableLambdaProtection = false;
@@ -279,7 +274,7 @@ export class SecurityAuditStack extends AcceleratorStack {
       eksProtection,
       enableEksAgent,
       enableEc2MalwareProtection,
-      keepMalwareProtectionSnapshosts,
+      keepMalwareProtectionSnapshots,
       enableRdsProtection,
       enableLambdaProtection,
     ];
@@ -296,7 +291,7 @@ export class SecurityAuditStack extends AcceleratorStack {
     if (this.props.securityConfig.centralSecurityServices.auditManager?.enable) {
       if (
         this.props.securityConfig.centralSecurityServices.auditManager.excludeRegions.includes(
-          cdk.Stack.of(this).region as Region,
+          cdk.Stack.of(this).region,
         )
       ) {
         this.logger.info(`Audit Manager enabled, but excluded in ${cdk.Stack.of(this).region} region.`);
@@ -396,7 +391,7 @@ export class SecurityAuditStack extends AcceleratorStack {
     if (this.props.securityConfig.centralSecurityServices.detective?.enable) {
       if (
         this.props.securityConfig.centralSecurityServices.detective?.excludeRegions.indexOf(
-          cdk.Stack.of(this).region as Region,
+          cdk.Stack.of(this).region,
         ) === -1
       ) {
         this.logger.info('Adding Detective ');
@@ -468,7 +463,7 @@ export class SecurityAuditStack extends AcceleratorStack {
     if (
       this.props.securityConfig.centralSecurityServices.ssmAutomation.excludeRegions === undefined ||
       this.props.securityConfig.centralSecurityServices.ssmAutomation.excludeRegions.indexOf(
-        cdk.Stack.of(this).region as Region,
+        cdk.Stack.of(this).region,
       ) === -1
     ) {
       //
@@ -510,15 +505,14 @@ export class SecurityAuditStack extends AcceleratorStack {
    */
   private configureIamAnalyzer() {
     this.logger.debug(`accessAnalyzer.enable: ${this.props.securityConfig.accessAnalyzer.enable}`);
-    if (
-      this.props.securityConfig.accessAnalyzer.enable &&
-      this.props.globalConfig.homeRegion === cdk.Stack.of(this).region
-    ) {
-      this.logger.info('Adding IAM Access Analyzer ');
-      new cdk.aws_accessanalyzer.CfnAnalyzer(this, 'AccessAnalyzer', {
-        type: 'ORGANIZATION',
-      });
+    if (!this.props.securityConfig.accessAnalyzer.enable) {
+      return;
     }
+
+    this.logger.info(`Adding IAM Access Analyzer for region ${cdk.Stack.of(this).region}`);
+    new cdk.aws_accessanalyzer.CfnAnalyzer(this, 'AccessAnalyzer', {
+      type: 'ORGANIZATION',
+    });
   }
 
   /**
@@ -535,7 +529,7 @@ export class SecurityAuditStack extends AcceleratorStack {
         alias: this.acceleratorResourceNames.customerManagedKeys.sns.alias,
         description: this.acceleratorResourceNames.customerManagedKeys.sns.description,
         enableKeyRotation: true,
-        removalPolicy: cdk.RemovalPolicy.RETAIN,
+        removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
       });
       if (this.props.organizationConfig.enable) {
         snsKey.addToResourcePolicy(
@@ -600,90 +594,5 @@ export class SecurityAuditStack extends AcceleratorStack {
       this.logger.info(`Create SNS Subscription: ${snsSubscriptionItem.email}`);
       topic.addSubscription(new cdk.aws_sns_subscriptions.EmailSubscription(snsSubscriptionItem.email));
     }
-  }
-
-  /**
-   * Function to configure CT notification
-   */
-  private configureControlTowerNotification() {
-    if (
-      this.props.globalConfig.controlTower.enable &&
-      cdk.Stack.of(this).region == this.props.globalConfig.homeRegion
-    ) {
-      const mgmtAccountSnsTopicArn = `arn:${cdk.Stack.of(this).partition}:sns:${
-        cdk.Stack.of(this).region
-      }:${this.props.accountsConfig.getManagementAccountId()}:${
-        this.props.prefixes.snsTopicName
-      }-ControlTowerNotification`;
-      const controlTowerNotificationsForwarderFunction = new cdk.aws_lambda.Function(
-        this,
-        'ControlTowerNotificationsForwarderFunction',
-        {
-          code: cdk.aws_lambda.Code.fromAsset(
-            path.join(__dirname, '../lambdas/control-tower-notifications-forwarder/dist'),
-          ),
-          runtime: DEFAULT_LAMBDA_RUNTIME,
-          handler: 'index.handler',
-          description: 'Lambda function to forward ControlTower notifications to management account',
-          timeout: cdk.Duration.minutes(2),
-          environment: {
-            SNS_TOPIC_ARN: mgmtAccountSnsTopicArn,
-          },
-        },
-      );
-      controlTowerNotificationsForwarderFunction.addToRolePolicy(
-        new cdk.aws_iam.PolicyStatement({
-          sid: 'sns',
-          effect: cdk.aws_iam.Effect.ALLOW,
-          actions: ['sns:Publish'],
-          resources: [mgmtAccountSnsTopicArn],
-        }),
-      );
-
-      controlTowerNotificationsForwarderFunction.addToRolePolicy(
-        new cdk.aws_iam.PolicyStatement({
-          sid: 'kms',
-          effect: cdk.aws_iam.Effect.ALLOW,
-          actions: ['kms:DescribeKey', 'kms:GenerateDataKey', 'kms:Decrypt', 'kms:Encrypt'],
-          resources: [
-            `arn:${cdk.Stack.of(this).partition}:kms:${
-              cdk.Stack.of(this).region
-            }:${this.props.accountsConfig.getManagementAccountId()}:key/*`,
-          ],
-        }),
-      );
-
-      const existingControlTowerSNSTopic = cdk.aws_sns.Topic.fromTopicArn(
-        this,
-        'ControlTowerSNSTopic',
-        `arn:${cdk.Stack.of(this).partition}:sns:${cdk.Stack.of(this).region}:${
-          cdk.Stack.of(this).account
-        }:aws-controltower-AggregateSecurityNotifications`,
-      );
-
-      controlTowerNotificationsForwarderFunction.addEventSource(new SnsEventSource(existingControlTowerSNSTopic));
-    }
-
-    // AwsSolutions-IAM4: The IAM user, role, or group uses AWS managed policies
-    this.nagSuppressionInputs.push({
-      id: NagSuppressionRuleIds.IAM4,
-      details: [
-        {
-          path: `${this.stackName}/ControlTowerNotificationsForwarderFunction/ServiceRole/Resource`,
-          reason: 'AWS Custom resource provider lambda role created by cdk.',
-        },
-      ],
-    });
-
-    // AwsSolutions-IAM5: TThe IAM entity contains wildcard permissions
-    this.nagSuppressionInputs.push({
-      id: NagSuppressionRuleIds.IAM5,
-      details: [
-        {
-          path: `${this.stackName}/ControlTowerNotificationsForwarderFunction/ServiceRole/DefaultPolicy/Resource`,
-          reason: 'Require access to all keys in management account',
-        },
-      ],
-    });
   }
 }

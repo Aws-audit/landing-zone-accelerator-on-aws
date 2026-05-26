@@ -12,18 +12,26 @@
  */
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, UpdateCommand, UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
+import {
+  DynamoDBDocumentClient,
+  UpdateCommand,
+  UpdateCommandInput,
+  ScanCommand,
+  DeleteCommand,
+  NativeAttributeValue,
+} from '@aws-sdk/lib-dynamodb';
 import { CloudFormationClient, DescribeStacksCommand } from '@aws-sdk/client-cloudformation';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
-import * as yaml from 'js-yaml';
+import * as fs from 'fs';
+import AdmZip from 'adm-zip';
 import {
   AccountConfig,
   AccountsConfig,
+  AccountIdConfig,
   OrganizationalUnitConfig,
+  OrganizationalUnitIdConfig,
   OrganizationConfig,
-  parseAccountsConfig,
-  parseReplacementsConfig,
   ReplacementsConfig,
 } from '@aws-accelerator/config';
 import { Readable } from 'stream';
@@ -62,10 +70,8 @@ export async function handler(event: CloudFormationCustomResourceEvent): Promise
   console.log(event);
   const configTableName: string = event.ResourceProperties['configTableName'];
   const configRepositoryName: string = event.ResourceProperties['configRepositoryName'];
-  const managementAccountEmail: string = event.ResourceProperties['managementAccountEmail'];
-  const auditAccountEmail: string = event.ResourceProperties['auditAccountEmail'];
-  const logArchiveAccountEmail: string = event.ResourceProperties['logArchiveAccountEmail'];
   const configS3Bucket: string = event.ResourceProperties['configS3Bucket'];
+  const configDirS3Key: string = event.ResourceProperties['configDirS3Key'];
   const organizationsConfigS3Key: string = event.ResourceProperties['organizationsConfigS3Key'];
   const accountConfigS3Key: string = event.ResourceProperties['accountConfigS3Key'];
   const replacementsConfigS3Key: string = event.ResourceProperties['replacementsConfigS3Key'];
@@ -104,12 +110,7 @@ export async function handler(event: CloudFormationCustomResourceEvent): Promise
         partition,
         configTableName,
         commitId,
-        { name: configS3Bucket, organizationsConfigS3Key, accountConfigS3Key, replacementsConfigS3Key },
-        {
-          managementAccount: managementAccountEmail,
-          auditAccount: auditAccountEmail,
-          logArchiveAccount: logArchiveAccountEmail,
-        },
+        { name: configS3Bucket, configDirS3Key, organizationsConfigS3Key, accountConfigS3Key, replacementsConfigS3Key },
         isOrgsEnabled,
       );
 
@@ -121,20 +122,32 @@ export async function handler(event: CloudFormationCustomResourceEvent): Promise
   }
 }
 
-async function getConfigFileContents(configFileS3Bucket: string, configFileS3Key: string): Promise<string> {
+async function downloadConfigFiles(
+  bucket: string,
+  localDir: string,
+  configKeys: { configDirS3Key: string },
+): Promise<void> {
+  console.log(`Downloading and extracting config directory from ${configKeys.configDirS3Key}`);
   const response = await throttlingBackOff(() =>
-    s3Client.send(new GetObjectCommand({ Bucket: configFileS3Bucket, Key: configFileS3Key })),
+    s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: configKeys.configDirS3Key })),
   );
-  const stream = response.Body as Readable;
-  return streamToString(stream);
+
+  const zipBuffer = await streamToBuffer(response.Body as Readable);
+
+  try {
+    const zip = new AdmZip(zipBuffer);
+    zip.extractAllTo(localDir, true);
+  } catch (error) {
+    throw new Error(`Failed to extract config directory from ${configKeys.configDirS3Key}: ${error}`);
+  }
 }
 
-async function streamToString(stream: Readable): Promise<string> {
+async function streamToBuffer(stream: Readable): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Uint8Array[] = [];
     stream.on('data', chunk => chunks.push(chunk));
     stream.on('error', reject);
-    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
   });
 }
 
@@ -143,6 +156,7 @@ async function putOrganizationConfigInTable(
   configTableName: string,
   awsKey: string,
   commitId: string,
+  orgInfo: OrganizationalUnitIdConfig,
 ): Promise<void> {
   if (awsKey != '') {
     const params: UpdateCommandInput = {
@@ -151,16 +165,19 @@ async function putOrganizationConfigInTable(
         dataType: 'organization',
         acceleratorKey: configData.name,
       },
-      UpdateExpression: 'set #awsKey = :v_awsKey, #dataBag = :v_dataBag, #commitId = :v_commitId',
+      UpdateExpression:
+        'set #awsKey = :v_awsKey, #dataBag = :v_dataBag, #commitId = :v_commitId, #orgInfo = :v_orgInfo',
       ExpressionAttributeNames: {
         '#awsKey': 'awsKey',
         '#dataBag': 'dataBag',
         '#commitId': 'commitId',
+        '#orgInfo': 'orgInfo',
       },
       ExpressionAttributeValues: {
         ':v_awsKey': awsKey,
         ':v_dataBag': JSON.stringify(configData),
         ':v_commitId': commitId,
+        ':v_orgInfo': JSON.stringify(orgInfo),
       },
     };
     await throttlingBackOff(() => documentClient.send(new UpdateCommand(params)));
@@ -171,14 +188,16 @@ async function putOrganizationConfigInTable(
         dataType: 'organization',
         acceleratorKey: configData.name,
       },
-      UpdateExpression: 'set #dataBag = :v_dataBag, #commitId = :v_commitId',
+      UpdateExpression: 'set #dataBag = :v_dataBag, #commitId = :v_commitId, #orgInfo = :v_orgInfo',
       ExpressionAttributeNames: {
         '#dataBag': 'dataBag',
         '#commitId': 'commitId',
+        '#orgInfo': 'orgInfo',
       },
       ExpressionAttributeValues: {
         ':v_dataBag': JSON.stringify(configData),
         ':v_commitId': commitId,
+        ':v_orgInfo': JSON.stringify(orgInfo),
       },
     };
     await throttlingBackOff(() => documentClient.send(new UpdateCommand(params)));
@@ -192,6 +211,7 @@ async function putAccountConfigInTable(
   awsKey: string,
   commitId: string,
   ouName: string,
+  accountIdData: AccountIdConfig,
 ): Promise<void> {
   if (awsKey !== '') {
     const params: UpdateCommandInput = {
@@ -200,18 +220,21 @@ async function putAccountConfigInTable(
         dataType: accountType + 'Account',
         acceleratorKey: configData.email,
       },
-      UpdateExpression: 'set #awsKey = :v_awsKey, #dataBag = :v_dataBag, #commitId = :v_commitId, #ouName = :v_ouName',
+      UpdateExpression:
+        'set #awsKey = :v_awsKey, #dataBag = :v_dataBag, #commitId = :v_commitId, #ouName = :v_ouName, #orgInfo = :v_orgInfo',
       ExpressionAttributeNames: {
         '#awsKey': 'awsKey',
         '#dataBag': 'dataBag',
         '#commitId': 'commitId',
         '#ouName': 'ouName',
+        '#orgInfo': 'orgInfo',
       },
       ExpressionAttributeValues: {
         ':v_awsKey': awsKey,
         ':v_dataBag': JSON.stringify(configData),
         ':v_commitId': commitId,
         ':v_ouName': ouName,
+        ':v_orgInfo': JSON.stringify(accountIdData),
       },
     };
     await throttlingBackOff(() => documentClient.send(new UpdateCommand(params)));
@@ -222,20 +245,41 @@ async function putAccountConfigInTable(
         dataType: accountType + 'Account',
         acceleratorKey: configData.email,
       },
-      UpdateExpression: 'set #dataBag = :v_dataBag, #commitId = :v_commitId, #ouName = :v_ouName',
+      UpdateExpression:
+        'set #dataBag = :v_dataBag, #commitId = :v_commitId, #ouName = :v_ouName, #orgInfo = :v_orgInfo',
       ExpressionAttributeNames: {
         '#dataBag': 'dataBag',
         '#commitId': 'commitId',
         '#ouName': 'ouName',
+        '#orgInfo': 'orgInfo',
       },
       ExpressionAttributeValues: {
         ':v_dataBag': JSON.stringify(configData),
         ':v_commitId': commitId,
         ':v_ouName': ouName,
+        ':v_orgInfo': JSON.stringify(accountIdData),
       },
     };
     await throttlingBackOff(() => documentClient.send(new UpdateCommand(params)));
   }
+}
+
+async function putCommitIdInTable(configTableName: string, commitId: string): Promise<void> {
+  const params: UpdateCommandInput = {
+    TableName: configTableName,
+    Key: {
+      dataType: 'commitId',
+      acceleratorKey: 'current',
+    },
+    UpdateExpression: 'set #commitId = :v_commitId',
+    ExpressionAttributeNames: {
+      '#commitId': 'commitId',
+    },
+    ExpressionAttributeValues: {
+      ':v_commitId': commitId,
+    },
+  };
+  await throttlingBackOff(() => documentClient.send(new UpdateCommand(params)));
 }
 
 async function isStackInRollback(stackName: string): Promise<boolean> {
@@ -255,48 +299,45 @@ async function onCreateUpdateFunction(
   commitId: string,
   bucket: {
     name: string;
+    configDirS3Key: string;
     organizationsConfigS3Key: string;
     accountConfigS3Key: string;
     replacementsConfigS3Key: string;
-  },
-  emails: {
-    managementAccount: string;
-    auditAccount: string;
-    logArchiveAccount: string;
   },
   isOrgsEnabled: boolean,
 ): Promise<{
   PhysicalResourceId: string | undefined;
   Status: string;
 }> {
-  const accountsConfigContent = await getConfigFileContents(bucket.name, bucket.accountConfigS3Key);
-  const accountsValues = parseAccountsConfig(yaml.load(accountsConfigContent));
-  const accountsConfig = new AccountsConfig(
-    {
-      managementAccountEmail: emails.managementAccount,
-      auditAccountEmail: emails.auditAccount,
-      logArchiveAccountEmail: emails.logArchiveAccount,
-    },
-    accountsValues,
-  );
+  const configDir = '/tmp/config';
+  fs.rmSync(configDir, { recursive: true, force: true });
+  fs.mkdirSync(configDir, { recursive: true });
 
-  let replacementsConfig = undefined;
-  if (bucket.replacementsConfigS3Key) {
-    const replacementsConfigContent = await getConfigFileContents(bucket.name, bucket.replacementsConfigS3Key);
-    const replacementsValues = parseReplacementsConfig(yaml.load(replacementsConfigContent));
+  await downloadConfigFiles(bucket.name, configDir, {
+    configDirS3Key: bucket.configDirS3Key,
+  });
 
-    // edge-case: loading without looking up SSM replacements
-    replacementsConfig = new ReplacementsConfig(replacementsValues, accountsConfig, true);
-    const orgConfigContent = await getConfigFileContents(bucket.name, bucket.organizationsConfigS3Key);
-    const isOrgsEnabled = OrganizationConfig.loadFromString(orgConfigContent, replacementsConfig).enable;
-    replacementsConfig.loadReplacementValues({}, isOrgsEnabled);
-  }
+  const accountsConfig = AccountsConfig.load(configDir);
+  const replacementsConfig = bucket.replacementsConfigS3Key
+    ? ReplacementsConfig.load(configDir, accountsConfig)
+    : undefined;
 
-  const organizationConfigContent = await getConfigFileContents(bucket.name, bucket.organizationsConfigS3Key);
-  const organizationConfig = OrganizationConfig.loadFromString(organizationConfigContent, replacementsConfig);
+  const organizationConfig = replacementsConfig
+    ? OrganizationConfig.load(configDir, replacementsConfig)
+    : OrganizationConfig.loadRawOrganizationsConfig(configDir);
   await organizationConfig.loadOrganizationalUnitIds(partition);
 
   await putAllOrganizationConfigInTable(organizationConfig, configTableName, commitId);
+
+  const rootId = organizationConfig.organizationalUnitIds!.find(ou => ou.name === 'Root')!.id;
+  const rootOrgInfo = organizationConfig.organizationalUnitIds!.find(ou => ou.name === 'Root')!;
+  await putOrganizationConfigInTable(
+    { name: 'Root', ignore: undefined },
+    configTableName,
+    rootId,
+    commitId,
+    rootOrgInfo,
+  );
 
   // Boolean to set single account deployment mode
   const enableSingleAccountMode = process.env['ACCELERATOR_ENABLE_SINGLE_ACCOUNT_MODE']
@@ -308,14 +349,15 @@ async function onCreateUpdateFunction(
   for (const account of accountsConfig.mandatoryAccounts) {
     switch (account.name) {
       case 'Management':
-        const managmentId = accountsConfig.getManagementAccountId();
+        const managementId = accountsConfig.getManagementAccountId();
         await putAccountConfigInTable(
           'mandatory',
           account,
           configTableName,
-          managmentId,
+          managementId,
           commitId,
           account.organizationalUnit,
+          getAccountIdConfigForAccount(accountsConfig, managementId, account.email),
         );
         break;
       case 'LogArchive':
@@ -327,6 +369,7 @@ async function onCreateUpdateFunction(
           logArchiveId,
           commitId,
           account.organizationalUnit,
+          getAccountIdConfigForAccount(accountsConfig, logArchiveId, account.email),
         );
         break;
       case 'Audit':
@@ -338,11 +381,20 @@ async function onCreateUpdateFunction(
           auditId,
           commitId,
           account.organizationalUnit,
+          getAccountIdConfigForAccount(accountsConfig, auditId, account.email),
         );
         break;
     }
     const awsKey = accountsConfig.getAccountId(account.name) || '';
-    await putAccountConfigInTable('mandatory', account, configTableName, awsKey, commitId, account.organizationalUnit);
+    await putAccountConfigInTable(
+      'mandatory',
+      account,
+      configTableName,
+      awsKey,
+      commitId,
+      account.organizationalUnit,
+      getAccountIdConfigForAccount(accountsConfig, awsKey, account.email),
+    );
   }
   for (const account of accountsConfig.workloadAccounts) {
     let accountId: string;
@@ -358,12 +410,103 @@ async function onCreateUpdateFunction(
       accountId,
       commitId,
       account.organizationalUnit,
+      getAccountIdConfigForAccount(accountsConfig, accountId, account.email),
     );
   }
+  // Delete accounts that are not in the config
+  await cleanupNotInUseAccounts(configTableName, accountsConfig);
+  await putCommitIdInTable(configTableName, commitId);
+
   return {
     PhysicalResourceId: commitId,
     Status: 'Success',
   };
+}
+
+/**
+ * Deletes account entries from the DynamoDB table that are not present in the config
+ *
+ * @param configTableName The name of the DynamoDB table
+ * @param accountsConfig The AccountsConfig object containing all valid accounts
+ */
+async function cleanupNotInUseAccounts(configTableName: string, accountsConfig: AccountsConfig): Promise<void> {
+  console.log('Checking for accounts to remove from the DynamoDB table that are not in the config..');
+
+  const configAccountEmails = new Set<string>();
+
+  for (const account of accountsConfig.mandatoryAccounts) {
+    configAccountEmails.add(account.email);
+  }
+
+  for (const account of accountsConfig.workloadAccounts) {
+    configAccountEmails.add(account.email);
+  }
+
+  const accountTypes = ['mandatoryAccount', 'workloadAccount'];
+  const accountsToDelete: Array<{ dataType: string; acceleratorKey: string }> = [];
+
+  for (const accountType of accountTypes) {
+    let lastEvaluatedKey: Record<string, NativeAttributeValue> | undefined = undefined;
+
+    do {
+      const scanParams: {
+        TableName: string;
+        FilterExpression: string;
+        ExpressionAttributeValues: Record<string, string>;
+        ExclusiveStartKey?: Record<string, NativeAttributeValue>;
+      } = {
+        TableName: configTableName,
+        FilterExpression: 'dataType = :dataType',
+        ExpressionAttributeValues: {
+          ':dataType': accountType,
+        },
+        ExclusiveStartKey: lastEvaluatedKey,
+      };
+
+      const response = await throttlingBackOff(() => documentClient.send(new ScanCommand(scanParams)));
+
+      if (response.Items) {
+        for (const item of response.Items) {
+          const dataType = item['dataType'] as string;
+          const acceleratorKey = item['acceleratorKey'] as string;
+
+          if (!configAccountEmails.has(acceleratorKey)) {
+            accountsToDelete.push({
+              dataType,
+              acceleratorKey,
+            });
+          }
+        }
+      }
+
+      lastEvaluatedKey = response.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
+  }
+
+  if (accountsToDelete.length > 0) {
+    console.log(
+      `Found ${accountsToDelete.length} accounts to delete from DynamoDB that are not in the accounts-config.yaml file`,
+    );
+
+    await Promise.all(
+      accountsToDelete.map(async key => {
+        const deleteParams = {
+          TableName: configTableName,
+          Key: {
+            dataType: key.dataType,
+            acceleratorKey: key.acceleratorKey,
+          },
+        };
+
+        console.log(`Removing account: ${key.acceleratorKey} (${key.dataType}) from DynamoDB table`);
+        await throttlingBackOff(() => documentClient.send(new DeleteCommand(deleteParams)));
+      }),
+    );
+
+    console.log('Successfully removed accounts from the DynamoDB table that are not in the accounts-config.yaml file');
+  } else {
+    console.log('No accounts to remove from DynamoDB, all accounts in the table are in the accounts-config.yaml file');
+  }
 }
 
 async function putAllOrganizationConfigInTable(
@@ -384,6 +527,22 @@ async function putAllOrganizationConfigInTable(
       if (message.startsWith('configuration validation failed')) awsKey = '';
       else throw error;
     }
-    await putOrganizationConfigInTable(organizationalUnit, configTableName, awsKey, commitId);
+    const orgIdInfo = organizationConfig.organizationalUnitIds!.find(ou => ou.name === organizationalUnit.name)!;
+    await putOrganizationConfigInTable(organizationalUnit, configTableName, awsKey, commitId, orgIdInfo);
   }
+}
+
+function getAccountIdConfigForAccount(
+  accountsConfig: AccountsConfig,
+  accountId: string,
+  email: string,
+): AccountIdConfig {
+  if (accountId === '') {
+    return { accountId, email };
+  }
+  const account = accountsConfig.accountIds?.find(obj => obj.accountId === accountId);
+  if (!account) {
+    throw new Error(`No account found for accountId: ${accountId}`);
+  }
+  return account;
 }

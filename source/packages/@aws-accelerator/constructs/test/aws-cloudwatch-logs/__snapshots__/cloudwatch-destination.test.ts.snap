@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`CloudWatchDestination Construct(CloudWatchDestination):  Snapshot Test 1`] = `
+exports[`CloudWatchDestination > Construct(CloudWatchDestination):  Snapshot Test 1`] = `
 {
   "Conditions": {
     "AwsCdkKinesisEncryptedStreamsUnsupportedRegions": {
@@ -309,7 +309,7 @@ exports[`CloudWatchDestination Construct(CloudWatchDestination):  Snapshot Test 
 }
 `;
 
-exports[`CloudWatchDestination Construct(CloudWatchDestination):  Snapshot Test 2`] = `
+exports[`CloudWatchDestination > Construct(CloudWatchDestination):  Snapshot Test 2`] = `
 {
   "Conditions": {
     "AwsCdkKinesisEncryptedStreamsUnsupportedRegions": {
@@ -341,7 +341,7 @@ exports[`CloudWatchDestination Construct(CloudWatchDestination):  Snapshot Test 
           "Fn::Join": [
             "",
             [
-              "{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["111111111111","222222222222"]},"Action":["logs:PutSubscriptionFilter","logs:PutAccountPolicy"],"Resource":"arn:",
+              "{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["logs:PutSubscriptionFilter","logs:PutAccountPolicy"],"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -353,7 +353,7 @@ exports[`CloudWatchDestination Construct(CloudWatchDestination):  Snapshot Test 
               {
                 "Ref": "AWS::AccountId",
               },
-              ":destination:AWSAcceleratorCloudWatchToS3"}]}",
+              ":destination:AWSAcceleratorCloudWatchToS3","Condition":{"StringEquals":{"aws:PrincipalOrgID":"o-some-org-id"}}}]}",
             ],
           ],
         },

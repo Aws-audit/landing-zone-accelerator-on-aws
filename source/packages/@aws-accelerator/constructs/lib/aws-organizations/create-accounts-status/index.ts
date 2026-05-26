@@ -18,12 +18,13 @@
  */
 
 import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
-import { CreateAccountResponse } from 'aws-sdk/clients/organizations';
+import { CreateAccountResponse } from '@aws-sdk/client-organizations';
 import { getGlobalRegion, setRetryStrategy } from '@aws-accelerator/utils/lib/common-functions';
 import { CloudFormationCustomResourceEvent, Context } from '@aws-accelerator/utils/lib/common-types';
 import {
   CreateAccountCommand,
   CreateGovCloudAccountCommand,
+  DescribeAccountCommand,
   DescribeCreateAccountStatusCommand,
   DescribeCreateAccountStatusResponse,
   ListRootsCommand,
@@ -31,12 +32,13 @@ import {
   OrganizationsClient,
 } from '@aws-sdk/client-organizations';
 import { AttributeValue, DynamoDBClient, ScanCommand } from '@aws-sdk/client-dynamodb';
-import { DeleteCommand, DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 
 const newOrgAccountsTableName = process.env['NewOrgAccountsTableName'] ?? '';
 const govCloudAccountMappingTableName = process.env['GovCloudAccountMappingTableName'] ?? '';
 const accountRoleName = process.env['AccountRoleName'];
 const solutionId = process.env['SOLUTION_ID'] ?? '';
+const configTableName = process.env['ConfigTableName'] ?? '';
 
 interface AccountConfig {
   name: string;
@@ -86,6 +88,16 @@ export async function handler(
       };
     }
 
+    if (partition === 'aws-us-gov') {
+      console.error(
+        'Cannot add accounts in the GovCloud partition.  Accounts must be added in the commercial parition.',
+      );
+      deleteAllRecordsFromTable(newOrgAccountsTableName);
+      throw new Error(
+        'Cannot create new accounts in the GovCloud partition. Did you add the accountId to the accounts-config file?',
+      );
+    }
+
     const singleAccountToAdd = accountToAdd[0];
     console.log(`enablegovcloud value: ${singleAccountToAdd.enableGovCloud}`);
     let createAccountResponse: CreateAccountResponse;
@@ -109,25 +121,25 @@ export async function handler(
             };
           }
         case 'SUCCEEDED':
-          if (createAccountResponse.CreateAccountStatus.GovCloudAccountId) {
-            console.log(
-              `GovCloud account created with id ${createAccountResponse.CreateAccountStatus.GovCloudAccountId}`,
-            );
-            await saveGovCloudAccountMapping(
-              createAccountResponse.CreateAccountStatus.AccountId!,
-              createAccountResponse.CreateAccountStatus.GovCloudAccountId,
-              createAccountResponse.CreateAccountStatus.AccountName!,
-            );
-          }
-          console.log(
-            `Account with id ${createAccountResponse.CreateAccountStatus.AccountId} was created for email ${singleAccountToAdd.email}`,
-          );
-          await moveAccountToOrgIdFromRoot(
+          await handleSucceededAccountCreation(
             createAccountResponse.CreateAccountStatus.AccountId!,
+            createAccountResponse.CreateAccountStatus.GovCloudAccountId,
+            createAccountResponse.CreateAccountStatus.AccountName!,
+            singleAccountToAdd.email,
             singleAccountToAdd.organizationalUnitId,
           );
-          await deleteSingleAccountConfigFromTable(singleAccountToAdd.email);
           break;
+        case 'FAILED':
+          if (createAccountResponse.CreateAccountStatus?.FailureReason === 'EMAIL_ALREADY_EXISTS') {
+            console.warn(`Account with the email address of ${singleAccountToAdd.email} already exists`);
+            await deleteSingleAccountConfigFromTable(singleAccountToAdd.email);
+            return {
+              IsComplete: true,
+            };
+          }
+          throw new Error(
+            `Could not create account ${singleAccountToAdd.email}. Response state: ${createAccountResponse.CreateAccountStatus?.State}. Failure reason: ${createAccountResponse.CreateAccountStatus?.FailureReason}`,
+          );
         default:
           throw new Error(
             `Could not create account ${singleAccountToAdd.email}. Response state: ${createAccountResponse.CreateAccountStatus?.State}. Failure reason: ${createAccountResponse.CreateAccountStatus?.FailureReason}`,
@@ -144,20 +156,25 @@ export async function handler(
           };
         case 'SUCCEEDED':
           console.log(`Account with id ${createAccountStatusResponse.CreateAccountStatus?.AccountId} is complete`);
-          if (createAccountStatusResponse.CreateAccountStatus.GovCloudAccountId) {
-            console.log(createAccountStatusResponse.CreateAccountStatus.GovCloudAccountId);
-            await saveGovCloudAccountMapping(
-              createAccountStatusResponse.CreateAccountStatus.AccountId!,
-              createAccountStatusResponse.CreateAccountStatus.GovCloudAccountId,
-              singleAccountToAdd.name,
-            );
-          }
-          await moveAccountToOrgIdFromRoot(
+          await handleSucceededAccountCreation(
             createAccountStatusResponse.CreateAccountStatus.AccountId!,
+            createAccountStatusResponse.CreateAccountStatus.GovCloudAccountId,
+            singleAccountToAdd.name,
+            singleAccountToAdd.email,
             singleAccountToAdd.organizationalUnitId,
           );
-          await deleteSingleAccountConfigFromTable(singleAccountToAdd.email);
           break;
+        case 'FAILED':
+          if (createAccountStatusResponse.CreateAccountStatus?.FailureReason === 'EMAIL_ALREADY_EXISTS') {
+            console.warn(`Account with the email address of ${singleAccountToAdd.email} already exists`);
+            await deleteSingleAccountConfigFromTable(singleAccountToAdd.email);
+            return {
+              IsComplete: true,
+            };
+          }
+          throw new Error(
+            `Could not create account ${singleAccountToAdd.email}. Response state: ${createAccountStatusResponse.CreateAccountStatus?.State}, Failure reason: ${createAccountStatusResponse.CreateAccountStatus?.FailureReason}`,
+          );
         default:
           throw new Error(
             `Could not create account ${singleAccountToAdd.email}. Response state: ${createAccountStatusResponse.CreateAccountStatus?.State}, Failure reason: ${createAccountStatusResponse.CreateAccountStatus?.FailureReason}`,
@@ -187,8 +204,8 @@ async function getSingleAccountConfigFromTable(): Promise<AccountConfigs> {
 
   if (itemCount > 0) {
     const accountConfigAttributeValue: AttributeValue = response.Items![0]['accountConfig'];
-    if (typeof accountConfigAttributeValue === 'string') {
-      const account: AccountConfig = JSON.parse(accountConfigAttributeValue);
+    if (typeof accountConfigAttributeValue['S'] === 'string') {
+      const account: AccountConfig = JSON.parse(accountConfigAttributeValue['S']);
       accountToAdd.push(account);
       console.log(`Account to add ${JSON.stringify(accountToAdd)}`);
     }
@@ -311,17 +328,98 @@ async function deleteAllRecordsFromTable(paramTableName: string) {
     TableName: paramTableName,
     ProjectionExpression: 'accountEmail',
   };
-  const response = await throttlingBackOff(() => documentClient.send(new ScanCommand(params)));
-  if (response.Items) {
-    for (const item of response.Items) {
-      console.log(item['accountEmail']);
-      const itemParams = {
-        TableName: paramTableName,
-        Key: {
-          accountEmail: item['accountEmail'],
-        },
-      };
-      await throttlingBackOff(() => documentClient.send(new DeleteCommand(itemParams)));
+  try {
+    const response = await throttlingBackOff(() => documentClient.send(new ScanCommand(params)));
+    if (response.Items) {
+      for (const item of response.Items) {
+        console.log(item['accountEmail']);
+        const itemParams = {
+          TableName: paramTableName,
+          Key: {
+            accountEmail: item['accountEmail'],
+          },
+        };
+        await throttlingBackOff(() => documentClient.send(new DeleteCommand(itemParams)));
+      }
     }
+  } catch (e) {
+    console.warn('Failed to delete all records: ', e);
   }
+}
+
+async function updateConfigTableWithAccountInfo(accountId: string, email: string): Promise<void> {
+  try {
+    // First, find the account in the config table
+    const getParams = {
+      TableName: configTableName,
+      Key: {
+        dataType: 'workloadAccount',
+        acceleratorKey: email,
+      },
+    };
+
+    // Try with workloadAccount first
+    let response = await throttlingBackOff(() => documentClient.send(new GetCommand(getParams)));
+    let dataType = 'workloadAccount';
+
+    // If not found, try with mandatoryAccount
+    if (!response.Item) {
+      getParams.Key.dataType = 'mandatoryAccount';
+      dataType = 'mandatoryAccount';
+      response = await throttlingBackOff(() => documentClient.send(new GetCommand(getParams)));
+
+      // If still not found, throw error
+      if (!response.Item) {
+        throw new Error(`Account with email ${email} not found in config table`);
+      }
+    }
+
+    // Get account details from Organizations API
+    const describeAccountResponse = await throttlingBackOff(() =>
+      organizationsClient.send(new DescribeAccountCommand({ AccountId: accountId })),
+    );
+
+    const orgsApiResponse = describeAccountResponse.Account;
+
+    // Update the config table with account info using UpdateCommand
+    const updateParams = {
+      TableName: configTableName,
+      Key: {
+        dataType: dataType,
+        acceleratorKey: email,
+      },
+      UpdateExpression: 'SET awsKey = :awsKey, orgInfo = :orgInfo',
+      ExpressionAttributeValues: {
+        ':awsKey': accountId,
+        ':orgInfo': JSON.stringify({
+          email,
+          accountId,
+          status: orgsApiResponse?.Status,
+          orgsApiResponse,
+        }),
+      },
+    };
+
+    await throttlingBackOff(() => documentClient.send(new UpdateCommand(updateParams)));
+    console.log(`Updated config table for account ${accountId}`);
+  } catch (error) {
+    console.error(`Error updating config table: ${error}`);
+    throw error;
+  }
+}
+async function handleSucceededAccountCreation(
+  accountId: string,
+  govCloudAccountId: string | undefined,
+  accountName: string,
+  email: string,
+  organizationalUnitId: string,
+): Promise<void> {
+  if (govCloudAccountId) {
+    console.log(`GovCloud account created with id ${govCloudAccountId}`);
+    await saveGovCloudAccountMapping(accountId, govCloudAccountId, accountName);
+  }
+  console.log(`Account with id ${accountId} was created for email ${email}`);
+  await moveAccountToOrgIdFromRoot(accountId, organizationalUnitId);
+  await updateConfigTableWithAccountInfo(accountId, email);
+  await deleteSingleAccountConfigFromTable(email);
 }

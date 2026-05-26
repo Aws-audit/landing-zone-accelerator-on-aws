@@ -12,6 +12,7 @@
  */
 
 import * as cdk from 'aws-cdk-lib';
+import { describe } from 'vitest';
 import { SsmSessionManagerPolicy } from '../../index';
 import { snapShotTest } from '../snapshot-test';
 
@@ -34,10 +35,6 @@ new SsmSessionManagerPolicy(stack, 'SsmSessionManagerPolicy', {
     alias: 'accelerator/sessionmanager-logs/session',
     description: 'AWS Accelerator Session Manager Session Encryption',
   },
-  cloudWatchLogGroupList: [
-    'arn:aws:logs:us-east-1:111111111111:log-group:*',
-    'arn:aws:logs:us-west-2:111111111111:log-group:*',
-  ],
   sessionManagerCloudWatchLogGroupList: [
     'arn:aws:logs:us-east-1:111111111111:log-group:aws-accelerator-sessionmanager-logs:*',
     'arn:aws:logs:us-west-2:111111111111:log-group:aws-accelerator-sessionmanager-logs:*',

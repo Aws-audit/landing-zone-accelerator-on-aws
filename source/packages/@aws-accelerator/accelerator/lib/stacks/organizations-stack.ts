@@ -17,7 +17,6 @@ import {
   GuardDutyConfig,
   IdentityCenterAssignmentConfig,
   IdentityCenterPermissionSetConfig,
-  Region,
 } from '@aws-accelerator/config';
 import {
   AuditManagerOrganizationAdminAccount,
@@ -305,7 +304,7 @@ export class OrganizationsStack extends AcceleratorStack {
               policyId: policy.id,
               targetId: this.stackProperties.organizationConfig.getOrganizationalUnitId(orgUnit),
               type: PolicyType.BACKUP_POLICY,
-              configPolicyNames: this.getScpNamesForTarget(orgUnit, 'ou'),
+              configPolicyNames: this.getPolicyNamesForTarget(orgUnit, 'ou'),
               acceleratorPrefix: this.props.prefixes.accelerator,
               kmsKey: this.cloudwatchKey,
               logRetentionInDays: this.logRetention,
@@ -337,6 +336,7 @@ export class OrganizationsStack extends AcceleratorStack {
           this.stackProperties.globalConfig.reports.costAndUsageReport.lifecycleRules,
         ),
         replicationProps: this.bucketReplicationProps,
+        s3RemovalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
       });
 
       // AwsSolutions-IAM5: The IAM entity contains wildcard permissions and does not have a cdk_nag rule suppression with evidence for those permission.
@@ -375,7 +375,7 @@ export class OrganizationsStack extends AcceleratorStack {
         s3Bucket: reportBucket.getS3Bucket(),
         s3Prefix: `${this.stackProperties.globalConfig.reports.costAndUsageReport.s3Prefix}/${
           cdk.Stack.of(this).account
-        }/`,
+        }`,
         s3Region: cdk.Stack.of(this).region,
         timeUnit: this.stackProperties.globalConfig.reports.costAndUsageReport.timeUnit,
         additionalArtifacts: this.stackProperties.globalConfig.reports.costAndUsageReport.additionalArtifacts,
@@ -442,7 +442,10 @@ export class OrganizationsStack extends AcceleratorStack {
    * Function to enable IPAM delegated admin account
    */
   private enableIpamDelegatedAdminAccount() {
-    if (this.stackProperties.networkConfig.centralNetworkServices?.ipams) {
+    if (
+      this.stackProperties.networkConfig.centralNetworkServices?.ipams &&
+      this.stackProperties.networkConfig.centralNetworkServices?.ipams?.length > 0
+    ) {
       // Get delegated admin account
       const networkAdminAccountId = this.stackProperties.accountsConfig.getAccountId(
         this.stackProperties.networkConfig.centralNetworkServices.delegatedAdminAccount,
@@ -532,7 +535,7 @@ export class OrganizationsStack extends AcceleratorStack {
    */
   private enableMacieDelegatedAdminAccount(adminAccountId: string) {
     if (this.centralSecurityServices.macie.enable) {
-      if (this.centralSecurityServices.macie.excludeRegions.indexOf(cdk.Stack.of(this).region as Region) == -1) {
+      if ((this.centralSecurityServices.macie.excludeRegions ?? []).indexOf(cdk.Stack.of(this).region) == -1) {
         this.logger.debug(
           `Starts macie admin account delegation to the account with email ${
             this.stackProperties.accountsConfig.getAuditAccount().email
@@ -605,9 +608,7 @@ export class OrganizationsStack extends AcceleratorStack {
    */
   private enableAuditManagerDelegatedAdminAccount(adminAccountId: string) {
     if (this.centralSecurityServices.auditManager?.enable) {
-      if (
-        this.centralSecurityServices.auditManager?.excludeRegions.indexOf(cdk.Stack.of(this).region as Region) == -1
-      ) {
+      if (this.centralSecurityServices.auditManager?.excludeRegions.indexOf(cdk.Stack.of(this).region) == -1) {
         this.logger.debug(
           `Starts audit manager admin account delegation to the account with email ${
             this.stackProperties.accountsConfig.getAuditAccount().email
@@ -637,7 +638,7 @@ export class OrganizationsStack extends AcceleratorStack {
    */
   private enableDetectiveDelegatedAdminAccount(adminAccountId: string) {
     if (this.centralSecurityServices.detective?.enable) {
-      if (this.centralSecurityServices.detective?.excludeRegions.indexOf(cdk.Stack.of(this).region as Region) == -1) {
+      if (this.centralSecurityServices.detective?.excludeRegions.indexOf(cdk.Stack.of(this).region) == -1) {
         this.logger.debug(
           `Starts detective admin account delegation to the account with email ${
             this.stackProperties.accountsConfig.getAuditAccount().email
@@ -723,7 +724,7 @@ export class OrganizationsStack extends AcceleratorStack {
               policyId: policy.id,
               targetId: this.stackProperties.organizationConfig.getOrganizationalUnitId(orgUnit),
               type: PolicyType.TAG_POLICY,
-              configPolicyNames: this.getScpNamesForTarget(orgUnit, 'ou'),
+              configPolicyNames: this.getPolicyNamesForTarget(orgUnit, 'ou'),
               acceleratorPrefix: this.props.prefixes.accelerator,
               kmsKey: this.cloudwatchKey,
               logRetentionInDays: this.logRetention,
@@ -772,7 +773,7 @@ export class OrganizationsStack extends AcceleratorStack {
             policyId: policy.id,
             targetId: this.stackProperties.organizationConfig.getOrganizationalUnitId(orgUnit),
             type: PolicyType.CHATBOT_POLICY,
-            configPolicyNames: this.getScpNamesForTarget(orgUnit, 'ou'),
+            configPolicyNames: this.getPolicyNamesForTarget(orgUnit, 'ou'),
             acceleratorPrefix: this.props.prefixes.accelerator,
             kmsKey: this.cloudwatchKey,
             logRetentionInDays: this.logRetention,
@@ -875,6 +876,7 @@ export class OrganizationsStack extends AcceleratorStack {
       retention: this.stackProperties.globalConfig.cloudwatchLogRetentionInDays,
       encryptionKey: cloudTrailCloudWatchCmk,
       logGroupName: `${this.props.prefixes.trailLogName}-cloudtrail-logs`,
+      removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
     });
 
     let managementEventType = cdk.aws_cloudtrail.ReadWriteType.ALL;

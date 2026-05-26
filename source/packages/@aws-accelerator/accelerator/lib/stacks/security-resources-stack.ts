@@ -11,28 +11,27 @@
  *  and limitations under the License.
  */
 
+import {
+  AccountCloudTrailConfig,
+  AseaResourceType,
+  AwsConfigRuleSet,
+  ConfigRule,
+  IsPublicSsmDoc,
+  Tag,
+} from '@aws-accelerator/config';
+import { Tag as ConfigRuleTag } from '@aws-sdk/client-config-service';
 import * as cdk from 'aws-cdk-lib';
 import { NagSuppressions } from 'cdk-nag';
 import { pascalCase } from 'change-case';
 import { Construct } from 'constructs';
 import path from 'path';
-import { Tag as ConfigRuleTag } from '@aws-sdk/client-config-service';
-import {
-  AccountCloudTrailConfig,
-  AwsConfigRuleSet,
-  ConfigRule,
-  Region,
-  Tag,
-  IsPublicSsmDoc,
-  AseaResourceType,
-} from '@aws-accelerator/config';
 
 import {
-  ConfigServiceRecorder,
   CloudWatchLogGroups,
+  ConfigServiceRecorder,
   ConfigServiceTags,
-  SsmSessionManagerSettings,
   SecurityHubEventsLog,
+  SsmSessionManagerSettings,
 } from '@aws-accelerator/constructs';
 import * as cdk_extensions from '@aws-cdk-extensions/cdk-extensions';
 
@@ -171,7 +170,7 @@ export class SecurityResourcesStack extends AcceleratorStack {
     if (
       (this.props.globalConfig.snsTopics &&
         cdk.Stack.of(this).account === this.props.accountsConfig.getLogArchiveAccountId()) ||
-      (this.props.globalConfig.snsTopics && this.isIncluded(this.props.globalConfig.snsTopics.deploymentTargets))
+      (this.props.globalConfig.snsTopics && this.isIncluded(this.props.globalConfig.snsTopics.deploymentTargets ?? []))
     ) {
       this.snsKey = cdk.aws_kms.Key.fromKeyArn(
         this,
@@ -225,7 +224,7 @@ export class SecurityResourcesStack extends AcceleratorStack {
             },
             secretName,
             encryptionKey: key,
-            removalPolicy: cdk.RemovalPolicy.RETAIN,
+            removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
           },
         );
 
@@ -344,7 +343,7 @@ export class SecurityResourcesStack extends AcceleratorStack {
    */
   private configureCloudWatchMetrics() {
     for (const metricSetItem of this.props.securityConfig.cloudWatch.metricSets ?? []) {
-      if (!metricSetItem.regions?.includes(cdk.Stack.of(this).region as Region)) {
+      if (!metricSetItem.regions?.includes(cdk.Stack.of(this).region)) {
         continue;
       }
 
@@ -363,6 +362,7 @@ export class SecurityResourcesStack extends AcceleratorStack {
           metricName: metricItem.metricName,
           filterPattern: cdk.aws_logs.FilterPattern.literal(metricItem.filterPattern),
           metricValue: metricItem.metricValue,
+          defaultValue: metricItem.defaultValue,
         });
 
         if (this.accountTrailCloudWatchLogGroups.get(metricItem.logGroupName)) {
@@ -377,7 +377,7 @@ export class SecurityResourcesStack extends AcceleratorStack {
    */
   private configureCloudwatchAlarm() {
     for (const alarmSetItem of this.props.securityConfig.cloudWatch.alarmSets ?? []) {
-      if (!alarmSetItem.regions?.includes(cdk.Stack.of(this).region as Region)) {
+      if (!alarmSetItem.regions?.includes(cdk.Stack.of(this).region)) {
         continue;
       }
 
@@ -386,7 +386,8 @@ export class SecurityResourcesStack extends AcceleratorStack {
       }
 
       for (const alarmItem of alarmSetItem.alarms ?? []) {
-        const alarm = new cdk.aws_cloudwatch.Alarm(this, pascalCase(alarmItem.alarmName), {
+        let alarm: cdk.aws_cloudwatch.Alarm | cdk.aws_cloudwatch.AnomalyDetectionAlarm;
+        const alarmProps = {
           alarmName: alarmItem.alarmName,
           alarmDescription: alarmItem.alarmDescription,
           metric: new cdk.aws_cloudwatch.Metric({
@@ -399,7 +400,13 @@ export class SecurityResourcesStack extends AcceleratorStack {
           evaluationPeriods: alarmItem.evaluationPeriods,
           threshold: alarmItem.threshold,
           treatMissingData: this.getTreatMissingData(alarmItem.treatMissingData),
-        });
+        };
+
+        if (this.isAnomalyDetectionOperator(alarmItem.comparisonOperator)) {
+          alarm = new cdk.aws_cloudwatch.AnomalyDetectionAlarm(this, pascalCase(alarmItem.alarmName), alarmProps);
+        } else {
+          alarm = new cdk.aws_cloudwatch.Alarm(this, pascalCase(alarmItem.alarmName), alarmProps);
+        }
 
         if (this.props.globalConfig.snsTopics) {
           alarm.addAlarmAction(
@@ -436,6 +443,18 @@ export class SecurityResourcesStack extends AcceleratorStack {
         }
       }
     }
+  }
+
+  private isAnomalyDetectionOperator(operator: string): boolean {
+    const anomalyDetectionOperators = [
+      cdk.aws_cloudwatch.ComparisonOperator.LESS_THAN_LOWER_OR_GREATER_THAN_UPPER_THRESHOLD,
+      cdk.aws_cloudwatch.ComparisonOperator.GREATER_THAN_UPPER_THRESHOLD,
+      cdk.aws_cloudwatch.ComparisonOperator.LESS_THAN_LOWER_THRESHOLD,
+    ];
+
+    return anomalyDetectionOperators.includes(
+      operator as cdk.aws_cloudwatch.ComparisonOperator.LESS_THAN_LOWER_THRESHOLD,
+    );
   }
 
   private configureCloudwatchLogGroups() {
@@ -714,6 +733,11 @@ export class SecurityResourcesStack extends AcceleratorStack {
   private createCustomConfigRule(rule: ConfigRule): CustomConfigRuleType {
     let ruleScope: cdk.aws_config.RuleScope | undefined;
 
+    if (rule.customRule === undefined) {
+      this.logger.info(`custom rule for Config rule ${rule.name} is undefined`);
+      return;
+    }
+
     if (rule.customRule.triggeringResources.lookupType == 'ResourceTypes') {
       const ruleScopeResources: cdk.aws_config.ResourceType[] = [];
       for (const item of rule.customRule.triggeringResources.lookupValue) {
@@ -758,6 +782,8 @@ export class SecurityResourcesStack extends AcceleratorStack {
     });
 
     // Read in the policy document which should be properly formatted json
+
+    /* eslint-disable-next-line @typescript-eslint/no-require-imports */
     const policyDocument = require(path.join(this.props.configDirPath, rule.customRule.lambda.rolePolicyFile));
     // Create a statements list using the PolicyStatement factory
     const policyStatements: cdk.aws_iam.PolicyStatement[] = [];
@@ -921,6 +947,7 @@ export class SecurityResourcesStack extends AcceleratorStack {
    * @param ruleSet
    */
   private createAwsConfigRules(ruleSet: AwsConfigRuleSet) {
+    const configRules = [];
     for (const rule of ruleSet.rules) {
       let configRule: CustomConfigRuleType;
 
@@ -934,10 +961,7 @@ export class SecurityResourcesStack extends AcceleratorStack {
         // Tag rule
         this.setupConfigServicesTagging(rule, configRule);
         // Create remediation for config rule
-        if (
-          rule.remediation &&
-          (rule.remediation.excludeRegions ?? []).indexOf(cdk.Stack.of(this).region as Region) === -1
-        ) {
+        if (rule.remediation && (rule.remediation.excludeRegions ?? []).indexOf(cdk.Stack.of(this).region) === -1) {
           this.setupConfigRuleRemediation(rule, configRule);
         }
 
@@ -947,21 +971,30 @@ export class SecurityResourcesStack extends AcceleratorStack {
         if (this.configServiceUpdater) {
           configRule.node.addDependency(this.configServiceUpdater);
         }
+        configRules.push(configRule);
       }
     }
+    return configRules;
   }
 
   /**
    * Function to setup AWS Config rules
    */
   private setupAwsConfigRules() {
+    const allConfigRules: cdk.CfnResource[] = [];
     for (const ruleSet of this.props.securityConfig.awsConfig.ruleSets) {
       if (!this.isIncluded(ruleSet.deploymentTargets)) {
         continue;
       }
 
-      this.createAwsConfigRules(ruleSet);
+      const cfnRules = this.createAwsConfigRules(ruleSet)
+        .filter((rule): rule is NonNullable<CustomConfigRuleType> => rule !== undefined)
+        .map(rule => rule.node.tryFindChild('Resource'))
+        .filter((cfn): cfn is cdk.CfnResource => cfn instanceof cdk.CfnResource);
+
+      allConfigRules.push(...cfnRules);
     }
+    this.setCfnResourceDependencies(allConfigRules, 2);
   }
 
   private getComparisonOperator(comparisonOperator: string): cdk.aws_cloudwatch.ComparisonOperator {
@@ -1329,6 +1362,8 @@ export class SecurityResourcesStack extends AcceleratorStack {
     isLambdaRole = false,
   ): cdk.aws_iam.IRole {
     // Read in the policy document which should be properly formatted json
+
+    /* eslint-disable-next-line @typescript-eslint/no-require-imports */
     const policyDocument = require(policyFilePath);
     // Create a statements list using the PolicyStatement factory
     const policyStatements: cdk.aws_iam.PolicyStatement[] = [];
@@ -1440,7 +1475,7 @@ export class SecurityResourcesStack extends AcceleratorStack {
           notificationLevel: securityHubConfig.notificationLevel,
           lambdaKey: this.lambdaKey,
           cloudWatchLogRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
-          logLevel: securityHubConfig.logging?.cloudWatch?.logLevel,
+          logLevel: securityHubConfig.logging?.cloudWatch?.logLevel ?? 'HIGH',
           logGroupName: securityHubConfig.logging?.cloudWatch?.logGroupName,
         });
       }
@@ -1545,6 +1580,29 @@ export class SecurityResourcesStack extends AcceleratorStack {
 
       // Configure Account CloudTrail
       this.configureAccountCloudTrail(accountTrail);
+    }
+  }
+
+  private setCfnResourceDependencies(cfnResources: cdk.CfnResource[], dependencyFrequency: number) {
+    if (cfnResources.length === 0) {
+      return;
+    }
+
+    if (dependencyFrequency === 0) {
+      return;
+    }
+
+    let dependency: cdk.CfnResource = cfnResources[0];
+    for (let i = 0; i < cfnResources.length; i++) {
+      if (i === 0) {
+        continue;
+      }
+      if (i % dependencyFrequency === 0) {
+        cfnResources[i].addDependency(dependency);
+        dependency = cfnResources[i];
+      } else {
+        cfnResources[i].addDependency(dependency);
+      }
     }
   }
 }

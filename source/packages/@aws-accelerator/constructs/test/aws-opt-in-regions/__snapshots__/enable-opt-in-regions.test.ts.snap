@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = `
+exports[`EnableOptInRegions > Construct(EnableOptInRegions):  Snapshot Test 1`] = `
 {
   "Resources": {
     "CustomKey1E6D0D07": {
@@ -77,6 +77,11 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Opt-in Regions isComplete handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -84,13 +89,14 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
             "Arn",
           ],
         },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsIsCompleteServiceRole88C6992C",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -188,6 +194,11 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Opt-in Regions onEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -195,13 +206,14 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
             "Arn",
           ],
         },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsOnEventServiceRoleD4B35886",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 60,
       },
       "Type": "AWS::Lambda::Function",
@@ -301,6 +313,7 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
         "Description": "AWS CDK resource provider framework - isComplete (Stack/OptInRegions/OptInRegionsProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_IS_COMPLETE_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "OptInRegionsOptInRegionsIsComplete20A899A2",
@@ -316,13 +329,18 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
           },
         },
         "Handler": "framework.isComplete",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsProviderframeworkisCompleteServiceRole3768088A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -389,6 +407,16 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
               ],
             },
             {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsOnEventDF9D2B80",
+                  "Arn",
+                ],
+              },
+            },
+            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -413,6 +441,16 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsIsComplete20A899A2",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -439,6 +477,7 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
         "Description": "AWS CDK resource provider framework - onEvent (Stack/OptInRegions/OptInRegionsProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_IS_COMPLETE_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "OptInRegionsOptInRegionsIsComplete20A899A2",
@@ -457,13 +496,18 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsProviderframeworkonEventServiceRoleE512B52D",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -499,6 +543,16 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
               ],
             },
             {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsOnEventDF9D2B80",
+                  "Arn",
+                ],
+              },
+            },
+            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -523,6 +577,16 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsIsComplete20A899A2",
+                  "Arn",
+                ],
+              },
             },
             {
               "Action": "states:StartExecution",
@@ -587,6 +651,7 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
         "Description": "AWS CDK resource provider framework - onTimeout (Stack/OptInRegions/OptInRegionsProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_IS_COMPLETE_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "OptInRegionsOptInRegionsIsComplete20A899A2",
@@ -602,13 +667,18 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
           },
         },
         "Handler": "framework.onTimeout",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsProviderframeworkonTimeoutServiceRoleC3734E22",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -675,6 +745,16 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
               ],
             },
             {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsOnEventDF9D2B80",
+                  "Arn",
+                ],
+              },
+            },
+            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -699,6 +779,16 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsIsComplete20A899A2",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -740,22 +830,6 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
             ],
           ],
         },
-        "LoggingConfiguration": {
-          "Destinations": [
-            {
-              "CloudWatchLogsLogGroup": {
-                "LogGroupArn": {
-                  "Fn::GetAtt": [
-                    "OptInRegionsOptInRegionsProviderwaiterstatemachineLogGroupDDB06910",
-                    "Arn",
-                  ],
-                },
-              },
-            },
-          ],
-          "IncludeExecutionData": false,
-          "Level": "ERROR",
-        },
         "RoleArn": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsProviderwaiterstatemachineRoleB3284282",
@@ -764,26 +838,6 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
         },
       },
       "Type": "AWS::StepFunctions::StateMachine",
-    },
-    "OptInRegionsOptInRegionsProviderwaiterstatemachineLogGroupDDB06910": {
-      "DeletionPolicy": "Retain",
-      "Properties": {
-        "LogGroupName": {
-          "Fn::Join": [
-            "",
-            [
-              "/aws/vendedlogs/states/waiter-state-machine-",
-              {
-                "Ref": "OptInRegionsOptInRegionsProviderframeworkisCompleteA55ADDD8",
-              },
-              "-c841d4c9c0fdb8d6f91953b31a208bd1b2bcd0c384",
-            ],
-          ],
-        },
-        "RetentionInDays": 731,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Retain",
     },
     "OptInRegionsOptInRegionsProviderwaiterstatemachineRoleB3284282": {
       "Properties": {
@@ -857,22 +911,6 @@ exports[`EnableOptInRegions Construct(EnableOptInRegions):  Snapshot Test 1`] = 
                   ],
                 },
               ],
-            },
-            {
-              "Action": [
-                "logs:CreateLogDelivery",
-                "logs:CreateLogStream",
-                "logs:GetLogDelivery",
-                "logs:UpdateLogDelivery",
-                "logs:DeleteLogDelivery",
-                "logs:ListLogDeliveries",
-                "logs:PutLogEvents",
-                "logs:PutResourcePolicy",
-                "logs:DescribeResourcePolicies",
-                "logs:DescribeLogGroups",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
             },
           ],
           "Version": "2012-10-17",

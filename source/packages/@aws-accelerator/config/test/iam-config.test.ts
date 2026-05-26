@@ -12,35 +12,31 @@
  */
 
 import {
-  IamConfig,
-  UserConfig,
-  PolicySetConfig,
-  PolicyConfig,
-  RoleSetConfig,
-  SamlProviderConfig,
-  GroupSetConfig,
-  GroupConfig,
-  PoliciesConfig,
-  UserSetConfig,
   AssumedByConfig,
-  RoleConfig,
+  GroupConfig,
+  GroupSetConfig,
+  IamConfig,
   IdentityCenterAssignmentConfig,
   IdentityCenterConfig,
   IdentityCenterPermissionSetConfig,
+  PoliciesConfig,
+  PolicyConfig,
+  PolicySetConfig,
+  RoleConfig,
+  RoleSetConfig,
+  SamlProviderConfig,
+  UserConfig,
+  UserSetConfig,
 } from '../lib/iam-config';
-import { describe, it, expect } from '@jest/globals';
-import * as path from 'path';
-import * as fs from 'fs';
+import { ReplacementsConfig } from '../lib/replacements-config';
+import { describe, it, expect } from 'vitest';
+import { AccountsConfig } from '../lib/accounts-config';
+import { SNAPSHOT_CONFIG } from './config-test-helper';
+
+const configDir = SNAPSHOT_CONFIG;
 
 describe('IamConfig', () => {
   describe('Test config', () => {
-    // it('has loaded successfully', () => {
-    //   const iamConfig = new IamConfig();
-    //   const iamConfigFromFile = IamConfig.load(path.resolve('../accelerator/test/configs/all-enabled'), true);
-    //   expect(iamConfig.ouIdNames).toEqual(['Root']);
-    //   expect(iamConfigFromFile.ouIdNames).toEqual(['Root', 'Security', 'Infrastructure']);
-    // });
-
     it('test static types', () => {
       const groupSetConfig = new GroupSetConfig();
       expect(groupSetConfig.groups).toEqual([]);
@@ -86,11 +82,20 @@ describe('IamConfig', () => {
     });
   });
 
-  it('loads from string', () => {
-    const buffer = fs.readFileSync(path.join('../accelerator/test/configs/snapshot-only', IamConfig.FILENAME), 'utf8');
-    const iamConfigFromString = IamConfig.loadFromString(buffer);
-    if (!iamConfigFromString) {
-      throw new Error('iamConfigFromString is not defined');
+  it('loads from file', () => {
+    const accountsConfig = AccountsConfig.load(configDir);
+    const replacementsConfig = ReplacementsConfig.load(configDir, accountsConfig);
+    const iamConfig = IamConfig.load(configDir, replacementsConfig);
+    if (!iamConfig) {
+      throw new Error('iamConfig is not defined');
     }
+  });
+
+  it('yaml !include works', () => {
+    const accountsConfig = AccountsConfig.load(configDir);
+    const replacementsConfig = ReplacementsConfig.load(configDir, accountsConfig);
+    const iamConfig = IamConfig.load(configDir, replacementsConfig);
+    expect(iamConfig.managedActiveDirectories).toHaveLength(1);
+    expect(iamConfig.managedActiveDirectories![0].name).toBe('AcceleratorManagedActiveDirectory');
   });
 });

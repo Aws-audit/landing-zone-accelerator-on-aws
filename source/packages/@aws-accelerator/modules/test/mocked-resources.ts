@@ -11,6 +11,7 @@
  *  and limitations under the License.
  */
 
+import { vi } from 'vitest';
 import {
   AccountConfig,
   AccountsConfig,
@@ -28,7 +29,7 @@ import {
   ReplacementsConfig,
   SecurityConfig,
 } from '@aws-accelerator/config';
-import { Account, Organization } from '@aws-sdk/client-organizations';
+import { Account, AccountState, Organization } from '@aws-sdk/client-organizations';
 
 const mockSecurityHubConfig: ISecurityHubConfig = {
   enable: true,
@@ -113,6 +114,46 @@ export const mockImportedLoggingBucketGlobalConfig = {
 
 export const mockGlobalConfiguration = {
   homeRegion: 'mockHomeRegion',
+  managementAccountAccessRole: 'AWSControlTowerExecution',
+  controlTower: {
+    enable: true,
+    landingZone: {
+      version: 'mockCTVersion',
+      logging: {
+        loggingBucketRetentionDays: 365,
+        accessLoggingBucketRetentionDays: 365,
+        organizationTrail: true,
+      },
+      security: {
+        enableIdentityCenterAccess: true,
+      },
+    },
+  },
+  logging: {
+    cloudwatchLogs: {} as CloudWatchLogsConfig,
+    sessionManager: {
+      sendToCloudWatchLogs: false,
+      sendToS3: false,
+    },
+    cloudtrail: {
+      enable: false,
+    },
+  } as LoggingConfig,
+  cdkOptions: {
+    centralizeBuckets: true,
+    useManagementAccessRole: true,
+  },
+  centralRootUserManagement: {
+    enable: true,
+    capabilities: {
+      rootCredentialsManagement: true,
+      allowRootSessions: true,
+    },
+  },
+} as GlobalConfig;
+
+export const mockGlobalConfigurationWithoutCentralRootUserManagment = {
+  homeRegion: 'mockHomeRegion',
   controlTower: {
     enable: true,
     landingZone: {
@@ -164,7 +205,77 @@ export const mockGlobalConfigurationWithOutLandingZone = {
   },
 } as GlobalConfig;
 
+export const mockGlobalConfigurationWithOutControlTower = {
+  homeRegion: 'mockHomeRegion',
+  controlTower: {
+    enable: false,
+  },
+} as GlobalConfig;
+
 export const mockAccountsConfiguration: Partial<AccountsConfig> = {
+  mandatoryAccounts: [
+    {
+      name: 'Management',
+      description: 'mockManagement',
+      email: 'mockManagement@example.com',
+      organizationalUnit: 'Root',
+      accountAlias: 'mock-management-account-alias',
+    },
+    {
+      name: 'LogArchive',
+      description: 'mockLogArchive',
+      email: 'mockLogArchive@example.com',
+      organizationalUnit: 'Security',
+      accountAlias: 'mock-log-archive-account-alias',
+    },
+    {
+      name: 'Audit',
+      description: 'mockAudit',
+      email: 'mockAudit@example.com',
+      organizationalUnit: 'Security',
+    },
+  ] as AccountConfig[],
+  workloadAccounts: [
+    {
+      name: 'SharedServices',
+      description: 'mockSharedServices',
+      email: 'mockSharedServices@example.com',
+      organizationalUnit: 'Infrastructure',
+    },
+    {
+      name: 'Network',
+      description: 'mockNetwork',
+      email: 'mockNetwork@example.com',
+      organizationalUnit: 'Infrastructure',
+    },
+  ] as AccountConfig[],
+  accountIds: [
+    {
+      email: 'mockManagement@example.com',
+      accountId: '111111111111',
+      status: 'ACTIVE',
+    },
+    {
+      email: 'mockLogArchive@example.com',
+      accountId: '222222222222',
+      status: 'ACTIVE',
+    },
+    {
+      email: 'mockAccount1@example.com',
+      accountId: '888888888888',
+      status: 'ACTIVE',
+      orgsApiResponse: {},
+    },
+    {
+      email: 'mockAccount2@example.com',
+      accountId: '999999999999',
+      status: 'ACTIVE',
+      orgsApiResponse: {},
+    },
+  ],
+};
+
+export const mockAccountsConfigurationNoAccountIds: Partial<AccountsConfig> = {
   mandatoryAccounts: [
     {
       name: 'Management',
@@ -199,26 +310,14 @@ export const mockAccountsConfiguration: Partial<AccountsConfig> = {
       organizationalUnit: 'Infrastructure',
     },
   ] as AccountConfig[],
-  accountIds: [
-    {
-      email: 'mockAccount1@example.com',
-      accountId: '111111111111',
-      status: 'ACTIVE',
-    },
-    {
-      email: 'mockAccount2@example.com',
-      accountId: '222222222222',
-      status: 'ACTIVE',
-    },
-  ],
 };
 
 export const mockCustomizationsConfig: Partial<CustomizationsConfig> = {
   customizations: { cloudFormationStacks: [], cloudFormationStackSets: [], serviceCatalogPortfolios: [] },
   applications: [],
   firewalls: undefined,
-  getCustomStacks: jest.fn().mockReturnValue(undefined),
-  getAppStacks: jest.fn().mockReturnValue(undefined),
+  getCustomStacks: vi.fn().mockReturnValue(undefined),
+  getAppStacks: vi.fn().mockReturnValue(undefined),
 };
 
 export const mockIamConfig: Partial<IamConfig> = {
@@ -251,6 +350,21 @@ export const mockOrganizationConfig: Partial<OrganizationConfig> = {
       name: 'Suspended',
       ignore: true,
     } as OrganizationalUnitConfig,
+    {
+      name: 'Level1',
+    } as OrganizationalUnitConfig,
+    {
+      name: 'Level1/Level2',
+    } as OrganizationalUnitConfig,
+    {
+      name: 'Level1/Level3',
+    } as OrganizationalUnitConfig,
+    {
+      name: 'Level1/Level2/Level2-1',
+    } as OrganizationalUnitConfig,
+    {
+      name: 'Level1/Level2/Level2-2',
+    } as OrganizationalUnitConfig,
   ],
   serviceControlPolicies: [],
   taggingPolicies: [],
@@ -267,7 +381,6 @@ export const mockReplacementsConfig: Partial<ReplacementsConfig> = {
     SharedServices: 'SharedServices',
     Network: 'Network',
   },
-  validateOnly: false,
 };
 
 export const mockSecurityConfig: Partial<SecurityConfig> = {
@@ -318,9 +431,10 @@ export const MOCK_CONSTANTS = {
     region: 'mockRegion',
     prefix: 'mockPrefix',
     configDirPath: '/path/to/config',
-    useExistingRole: false,
+    useExistingRoles: false,
     solutionId: 'mockSolutionId',
     dryRun: false,
+    maxConcurrentExecution: 10,
   },
   configs: {
     customizationsConfig: mockCustomizationsConfig as CustomizationsConfig,
@@ -370,8 +484,6 @@ export const MOCK_CONSTANTS = {
       importedCentralLogBucketCmkArn: '/accelerator/imported-resources/logging/central-bucket/kms/arn',
       importedAssetBucket: '/accelerator/imported-bucket/assets/s3',
       centralLogBucketCmkArn: '/accelerator/logging/central-bucket/kms/arn',
-      controlTowerDriftDetection: '/accelerator/controltower/driftDetected',
-      controlTowerLastDriftMessage: '/accelerator/controltower/lastDriftMessage',
       configTableArn: '/accelerator/prepare-stack/configTable/arn',
       configTableName: '/accelerator/prepare-stack/configTable/name',
       cloudTrailBucketName: '/accelerator/organization/security/cloudtrail/log/bucket-name',
@@ -397,83 +509,88 @@ export const MOCK_CONSTANTS = {
     customerManagedKeys: {
       orgTrailLog: {
         alias: 'alias/accelerator/organizations-cloudtrail/log-group/',
-        description: 'CloudTrail Log Group CMK',
+        description: 'KMS key for encrypting CloudWatch Logs for organization-wide CloudTrail in management account',
       },
       centralLogsBucket: {
         alias: 'alias/accelerator/central-logs/s3',
-        description: 'AWS Accelerator Central Logs Bucket CMK',
+        description: 'KMS key for encrypting centralized S3 logging bucket in log archive account',
       },
       s3: {
         alias: 'alias/accelerator/kms/s3/key',
-        description: 'AWS Accelerator S3 Kms Key',
+        description: 'KMS key for encrypting general-purpose S3 buckets created by LZA',
       },
       cloudWatchLog: {
         alias: 'alias/accelerator/kms/cloudwatch/key',
-        description: 'AWS Accelerator CloudWatch Kms Key',
+        description: 'KMS key for encrypting CloudWatch Log Groups created by LZA',
       },
       cloudWatchLogReplication: {
         alias: 'alias/accelerator/kms/replication/cloudwatch/logs/key',
-        description: 'AWS Accelerator CloudWatch Logs Replication Kms Key',
+        description:
+          'KMS key for encrypting Kinesis Data Streams used for CloudWatch Logs replication in the log archive account',
       },
       awsBackup: {
         alias: 'alias/accelerator/kms/backup/key',
-        description: 'AWS Accelerator Backup Kms Key',
+        description: 'KMS key for encrypting AWS Backup vaults and recovery points',
       },
       sns: {
         alias: 'alias/accelerator/kms/sns/key',
-        description: 'AWS Accelerator SNS Kms Key',
+        description: 'KMS key for encrypting SNS topics in security audit account',
       },
       snsTopic: {
         alias: 'alias/accelerator/kms/snstopic/key',
-        description: 'AWS Accelerator SNS Topic Kms Key',
+        description: 'KMS key for encrypting SNS topics for notifications and alerts in the log archive account',
       },
       secretsManager: {
         alias: 'alias/accelerator/kms/secrets-manager/key',
-        description: 'AWS Accelerator Secrets Manager Kms Key',
+        description: 'KMS key for encrypting AWS Secrets Manager secrets created by LZA in the log archive account',
       },
       lambda: {
         alias: 'alias/accelerator/kms/lambda/key',
-        description: 'AWS Accelerator Lambda Kms Key',
+        description: 'KMS key for encrypting Lambda function environment variables',
       },
       acceleratorKey: {
         alias: 'alias/accelerator/kms/key',
-        description: 'AWS Accelerator Kms Key',
+        description:
+          'KMS key for encrypting cross-service resources (SNS, Lambda, CloudWatch, SQS, Macie, GuardDuty, Audit Manager) in the audit account',
       },
       managementKey: {
         alias: 'alias/accelerator/management/kms/key',
-        description: 'AWS Accelerator Management Account Kms Key',
+        description:
+          'KMS key for encrypting DynamoDB tables, CloudWatch Logs, and SNS topics in the management account',
       },
       importedAssetsBucketCmkArn: {
         alias: 'alias/accelerator/imported/assets/kms/key',
-        description: 'Key used to encrypt solution assets',
+        description: 'KMS key for encrypting imported S3 bucket containing solution assets in the log archive account',
       },
       assetsBucket: {
         alias: 'alias/accelerator/assets/kms/key',
-        description: 'Key used to encrypt solution assets',
+        description:
+          'KMS key for encrypting S3 bucket containing LZA solution assets and CDK artifacts in the management account',
       },
       ssmKey: {
         alias: 'alias/accelerator/sessionmanager-logs/session',
-        description: 'AWS Accelerator Session Manager Session Encryption',
+        description: 'KMS key for encrypting SSM Session Manager session logs and data',
       },
       sqs: {
         alias: 'alias/accelerator/kms/sqs/key',
-        description: 'AWS Accelerator SQS Kms Key',
+        description: 'KMS key for encrypting SQS queues created by LZA',
       },
       importedCentralLogsBucket: {
         alias: 'alias/accelerator/imported-bucket/central-logs/s3',
-        description: 'AWS Accelerator Imported Central Logs Bucket CMK',
+        description: 'KMS key for encrypting imported centralized S3 logging bucket in the log archive account',
       },
       importedAssetBucket: {
         alias: 'alias/accelerator/imported-bucket/assets/s3',
-        description: 'AWS Accelerator Imported Asset Bucket CMK',
+        description: 'KMS key for encrypting imported S3 assets bucket in the log archive account',
       },
       metadataBucket: {
         alias: 'alias/accelerator/kms/metadata/key',
-        description: 'The s3 bucket key for accelerator metadata collection',
+        description:
+          'KMS key for encrypting S3 bucket storing LZA metadata and configuration in the log archive account',
       },
       ebsDefault: {
         alias: 'alias/accelerator/ebs/default-encryption/key',
-        description: 'AWS Accelerator default EBS Volume Encryption key',
+        description: 'KMS key for default EBS volume encryption across all accounts',
       },
     },
     bucketPrefixes: {
@@ -508,7 +625,7 @@ export const MOCK_CONSTANTS = {
       Arn: 'arn:aws:organizations::111111111111:account/o-exampleorgid/111111111111',
       Email: 'account1@example.com',
       Name: 'Account1',
-      Status: 'ACTIVE',
+      State: AccountState.ACTIVE,
       JoinedMethod: 'CREATED',
       JoinedTimestamp: new Date('2023-01-01'),
     },
@@ -517,7 +634,7 @@ export const MOCK_CONSTANTS = {
       Arn: 'arn:aws:organizations::111111111111:account/o-exampleorgid/222222222222',
       Email: 'account2@example.com',
       Name: 'Account2',
-      Status: 'ACTIVE',
+      State: AccountState.ACTIVE,
       JoinedMethod: 'INVITED',
       JoinedTimestamp: new Date('2023-01-02'),
     },
@@ -536,6 +653,35 @@ export const MOCK_CONSTANTS = {
   auditAccountId: 'mockAuditAccountID',
   logArchiveAccountId: 'mockLogArchiveAccountID',
 
+  // Test account IDs for filtering scenarios
+  testAccounts: {
+    suspended: {
+      id: '333333333333',
+      name: 'SuspendedAccount',
+      email: 'suspended@example.com',
+    },
+    ignored: {
+      id: '444444444444',
+      name: 'IgnoredAccount',
+      email: 'ignored@example.com',
+    },
+    unknown: {
+      id: '555555555555',
+      name: 'UnknownAccount',
+      email: 'unknown@example.com',
+    },
+    validSuspended: {
+      id: '666666666666',
+      name: 'ValidSuspendedAccount',
+      email: 'validSuspended@example.com',
+    },
+    activeWorkload: {
+      id: '777777777777',
+      name: 'ActiveWorkloadAccount',
+      email: 'activeWorkload@example.com',
+    },
+  },
+
   unknownError: new Error('Unknown command'),
 
   acceleratorEnvironmentDetails: {
@@ -546,4 +692,84 @@ export const MOCK_CONSTANTS = {
 
   enabledRegions: ['mockRegion1', 'mockRegion2', 'mockRegion3'],
   excludedRegions: ['mockRegion1', 'mockRegion2'],
+  organizationUnitsDetail: [
+    {
+      organizationId: 'mockSecurityId1',
+      rootId: 'mockRootId1',
+      name: 'Security',
+      id: 'mockId1',
+      arn: 'mockArn1',
+      ouLevel: 1,
+      parentId: 'mockParentId1',
+      parentName: 'mockParentName1',
+      completePath: 'Security',
+      parentCompletePath: 'mockParentCompletePath1',
+      registeredwithControlTower: true,
+    },
+    {
+      organizationId: 'mockOrganizationId1',
+      rootId: 'mockRootId1',
+      name: 'mockName1',
+      id: 'mockId1',
+      arn: 'mockArn1',
+      ouLevel: 1,
+      parentId: 'mockParentId1',
+      parentName: 'mockParentName1',
+      completePath: 'mockCompletePath1',
+      parentCompletePath: 'mockParentCompletePath1',
+      registeredwithControlTower: true,
+    },
+    {
+      organizationId: 'mockOrganizationId2',
+      rootId: 'mockRootId2',
+      name: 'mockName2',
+      id: 'mockId2',
+      arn: 'mockArn2',
+      ouLevel: 2,
+      parentId: 'mockParentId2',
+      parentName: 'mockParentName2',
+      completePath: 'mockCompletePath2',
+      parentCompletePath: 'mockParentCompletePath2',
+      registeredwithControlTower: false,
+    },
+    {
+      organizationId: 'mockOrganizationId3',
+      rootId: 'mockRootId3',
+      name: 'mockName3',
+      id: 'mockId3',
+      arn: 'mockArn3',
+      ouLevel: 2,
+      parentId: 'mockParentId3',
+      parentName: 'mockParentName3',
+      completePath: 'Level1/Level2',
+      parentCompletePath: 'mockParentCompletePath3',
+      registeredwithControlTower: false,
+    },
+    {
+      organizationId: 'mockOrganizationId4',
+      rootId: 'mockRootId4',
+      name: 'mockName4',
+      id: 'mockId4',
+      arn: 'mockArn4',
+      ouLevel: 3,
+      parentId: 'mockParentId4',
+      parentName: 'mockParentName4',
+      completePath: 'Level1/Level2/Level2-1',
+      parentCompletePath: 'Level1/Level2',
+      registeredwithControlTower: false,
+    },
+    {
+      organizationId: 'mockOrganizationId4',
+      rootId: 'mockRootId4',
+      name: 'mockName4',
+      id: 'mockId4',
+      arn: 'mockArn4',
+      ouLevel: 3,
+      parentId: 'mockParentId4',
+      parentName: 'mockParentName4',
+      completePath: 'Level1/Level2/Level2-2',
+      parentCompletePath: 'mockParentCompletePath4',
+      registeredwithControlTower: false,
+    },
+  ],
 };

@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`QueryLoggingConfig Construct(QueryLoggingConfig):  Snapshot Test 1`] = `
+exports[`QueryLoggingConfig > Construct(QueryLoggingConfig):  Snapshot Test 1`] = `
 {
   "Resources": {
     "CustomQueryLoggingConfigAssociationCustomResourceProviderHandlerFDE723DC": {
@@ -14,15 +14,20 @@ exports[`QueryLoggingConfig Construct(QueryLoggingConfig):  Snapshot Test 1`] = 
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomQueryLoggingConfigAssociationCustomResourceProviderRole0317AB9A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -174,7 +179,7 @@ exports[`QueryLoggingConfig Construct(QueryLoggingConfig):  Snapshot Test 1`] = 
       "Type": "AWS::Route53Resolver::ResolverQueryLoggingConfig",
     },
     "TestLogGroup4EEF7AD4": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "RetentionInDays": 731,
       },
@@ -229,7 +234,7 @@ exports[`QueryLoggingConfig Construct(QueryLoggingConfig):  Snapshot Test 1`] = 
 }
 `;
 
-exports[`QueryLoggingConfig Construct(QueryLoggingConfig):  Snapshot Test 2`] = `
+exports[`QueryLoggingConfig > Construct(QueryLoggingConfig):  Snapshot Test 2`] = `
 {
   "Resources": {
     "CustomLogResourcePolicyCustomResourceProviderHandlerB58C0C34": {
@@ -243,15 +248,20 @@ exports[`QueryLoggingConfig Construct(QueryLoggingConfig):  Snapshot Test 2`] = 
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomLogResourcePolicyCustomResourceProviderRole83D4C53E",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -332,15 +342,20 @@ exports[`QueryLoggingConfig Construct(QueryLoggingConfig):  Snapshot Test 2`] = 
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomQueryLoggingConfigAssociationCustomResourceProviderRole0317AB9A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -439,15 +454,20 @@ exports[`QueryLoggingConfig Construct(QueryLoggingConfig):  Snapshot Test 2`] = 
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomQueryLoggingConfigCustomResourceProviderRole70878758",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -668,7 +688,7 @@ exports[`QueryLoggingConfig Construct(QueryLoggingConfig):  Snapshot Test 2`] = 
       "UpdateReplacePolicy": "Delete",
     },
     "TestLogGroup4EEF7AD4": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "RetentionInDays": 731,
       },

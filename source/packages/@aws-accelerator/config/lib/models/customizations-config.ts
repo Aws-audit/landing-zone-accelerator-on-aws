@@ -773,11 +773,11 @@ export interface INetworkInterfaceItem {
  * ```
  */
 export interface ILaunchTemplateConfig {
-  /*
+  /**
    * Name of Launch Template
    */
   readonly name: t.NonEmptyString;
-  /*
+  /**
    * The block device mapping.
    */
   readonly blockDeviceMappings?: IBlockDeviceMappingItem[];
@@ -1500,7 +1500,7 @@ export interface ICloudFormationStack {
   /**
    * A list of AWS regions to deploy the stack to.
    */
-  readonly regions: t.Region[];
+  readonly regions: string[];
   /**
    * The order to deploy the stack relative to the other stacks. Must be a positive integer.
    * To deploy stacks in parallel, set runOrder of each stack to 1.
@@ -1574,7 +1574,7 @@ export interface ICloudFormationStackSet {
   /**
    * A list of regions to deploy the stackset.
    */
-  readonly regions: t.Region[];
+  readonly regions: string[];
   /**
    * The file path to the template file used for deployment.
    */
@@ -1902,7 +1902,7 @@ export interface IPortfolioConfig {
   /**
    * The region names to deploy the portfolio.
    */
-  readonly regions: t.Region[];
+  readonly regions: string[];
   /**
    * The provider of the portfolio
    */
@@ -1951,7 +1951,6 @@ export interface IServiceCatalogConfig {
  *
  */
 export interface ICustomizationConfig {
-  readonly createCfnStackSetExecutionRole?: boolean;
   readonly cloudFormationStacks?: ICloudFormationStack[];
   readonly cloudFormationStackSets?: ICloudFormationStackSet[];
   readonly serviceCatalogPortfolios?: IPortfolioConfig[];
@@ -2649,6 +2648,8 @@ export interface IEc2FirewallConfig {
 
 /**
  * *{@link CustomizationsConfig}*
+ *
+ * @category Customizations Configuration
  *
  * @description
  * Defines custom CloudFormation and external web and application tier resources. We recommend creating resources

@@ -721,7 +721,7 @@ export class NetworkFirewallValidator {
     }
     // Validate targets
     for (const target of domainList.targets) {
-      if (!helpers.matchesRegex(target, '^\\.?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-z]{2,8}$')) {
+      if (!helpers.matchesRegex(target, '^(\\.[-a-zA-Z0-9]+(\\.[-a-zA-Z0-9]+)*|[-a-zA-Z0-9]+(\\.[-a-zA-Z0-9]+)+)$')) {
         errors.push(
           `[Network Firewall rule group ${rule.name}]: target "${target}" is invalid. Targets must be formatted ".example.com" for wildcard domains and "example.com" for explicit match domains`,
         );
@@ -1006,6 +1006,7 @@ export class NetworkFirewallValidator {
       const statelessPolicyNames = policy.firewallPolicy.statelessRuleGroups.map(group => {
         return group.name;
       });
+
       const statelessPolicyPriorities = policy.firewallPolicy.statelessRuleGroups.map(ruleGroup => {
         return ruleGroup.priority.toString();
       });
@@ -1064,8 +1065,17 @@ export class NetworkFirewallValidator {
   ) {
     if (policy.firewallPolicy.statefulRuleGroups) {
       const statefulPolicyNames = policy.firewallPolicy.statefulRuleGroups.map(group => {
-        return group.name;
+        return group.name! || group.managedStatefulRuleGroupName!;
       });
+
+      // Validate that each stateful rule group has either name or managedStatefulRuleGroupName
+      for (const group of policy.firewallPolicy.statefulRuleGroups) {
+        if (!group.name && !group.managedStatefulRuleGroupName) {
+          errors.push(
+            `[Network Firewall policy ${policy.name}]: stateful rule group must have either 'name' or 'managedStatefulRuleGroupName' provided`,
+          );
+        }
+      }
 
       // Validate there are no duplicates
       if (helpers.hasDuplicates(statefulPolicyNames)) {
@@ -1154,13 +1164,23 @@ export class NetworkFirewallValidator {
     groupType: 'STATEFUL' | 'STATELESS',
     errors: string[],
   ) {
+    const managedStatefulRuleGroupNames =
+      policy.firewallPolicy.statefulRuleGroups?.map(group => group.managedStatefulRuleGroupName).filter(name => name) ||
+      [];
     for (const name of policyNames) {
       const group = allRules.get(name);
-      // Validate rule group exists
-      if (!group) {
-        errors.push(`[Network Firewall policy ${policy.name}]: rule group "${name}" does not exist`);
+      if (policy.firewallPolicy.statefulRuleGroups) {
+        // Validate rule group exists (skip managed rule groups)
+        if (!group && !managedStatefulRuleGroupNames.includes(name)) {
+          errors.push(`[Network Firewall policy ${policy.name}]: rule group "${name}" does not exist`);
+        }
       }
-
+      // Validate rule group exists on stateless rules
+      if (policy.firewallPolicy.statelessRuleGroups) {
+        if (!group) {
+          errors.push(`[Network Firewall policy ${policy.name}]: rule group "${name}" does not exist`);
+        }
+      }
       if (group) {
         // Validate regions match
         const regionMismatch = policy.regions.some(region => !group.regions.includes(region));

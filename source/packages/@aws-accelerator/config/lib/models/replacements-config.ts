@@ -78,6 +78,9 @@ export interface IParameterReplacement {
  *  -  key: ALLOWED_PRINCIPAL_ARN
  *     type: 'String'
  *     value: arn:aws:iam::*:role/AWSA*
+ *  -  key: MaxPasswordAge
+ *     type: 'Number'
+ *     value: 90
  * ```
  */
 export interface IParameterReplacementV2 {
@@ -96,11 +99,13 @@ export interface IParameterReplacementV2 {
   /**
    * Value of the parameter if type is string or array
    */
-  readonly value?: t.NonEmptyString | t.NonEmptyString[];
+  readonly value?: t.NonEmptyString | t.NonEmptyString[] | number;
 }
 
 /**
  * Accelerator replacements configuration
+ *
+ * @category Replacements Configuration
  */
 export interface IReplacementsConfig {
   /**

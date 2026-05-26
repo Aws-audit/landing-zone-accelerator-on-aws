@@ -1,10 +1,14 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
+exports[`SecurityStack > Construct(SecurityStack):  Snapshot Test 1`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter": {
       "Default": "/accelerator/kms/cloudwatch/key-arn",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+    "SsmParameterValueacceleratorpreparestackconfigTablearnC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/prepare-stack/configTable/arn",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
   },
@@ -75,6 +79,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "CONFIG_REPOSITORY_LOCATION": "codecommit",
             "CONFIG_REPOSITORY_NAME": "aws-accelerator-config",
             "CROSS_ACCOUNT_ROLE": "AWSControlTowerExecution",
+            "DDB_CONFIG_TABLE_SSM_PARAMETER_PATH": "/accelerator/prepare-stack/configTable/name",
             "ELB_LOGGING_BUCKET": "existing-elb-logs-bucket-111111111111-us-east-1",
             "GLOBAL_REGION": "us-east-1",
             "LOG_ACCOUNT_ID": "333333333333",
@@ -83,17 +88,19 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "PARTITION": {
               "Ref": "AWS::Partition",
             },
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "FunctionName": "AWSAccelerator-metadata-collection",
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorMetadataMetadataLambdaC27FFAF6",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 600,
       },
       "Type": "AWS::Lambda::Function",
@@ -204,6 +211,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
               "Action": [
                 "codepipeline:GetPipelineExecution",
                 "codepipeline:ListPipelineExecutions",
+                "codepipeline:ListActionExecutions",
                 "codecommit:GetFolder",
                 "codecommit:GetFile",
                 "kms:DescribeKey",
@@ -215,13 +223,6 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
                 "logs:PutLogEvents",
-                "organizations:DescribeOrganizationalUnit",
-                "organizations:DescribeAccount",
-                "organizations:ListAccounts",
-                "organizations:ListChildren",
-                "organizations:ListOrganizationalUnitsForParent",
-                "organizations:ListParents",
-                "organizations:ListRoots",
                 "ssm:GetParameter",
                 "sts:AssumeRole",
               ],
@@ -240,6 +241,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
                 "s3:PutObjectRetention",
                 "s3:PutObjectTagging",
                 "s3:PutObjectVersionTagging",
+                "s3:ListBucketVersions",
                 "s3:Abort*",
               ],
               "Effect": "Allow",
@@ -292,7 +294,38 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
                     ],
                   ],
                 },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::undefined-pipeline-111111111111-us-east-1",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::undefined-pipeline-111111111111-us-east-1/*",
+                    ],
+                  ],
+                },
               ],
+            },
+            {
+              "Action": "dynamodb:Scan",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "SsmParameterValueacceleratorpreparestackconfigTablearnC96584B6F00A464EAD1953AFF4B05118Parameter",
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -340,15 +373,20 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomEbsDefaultVolumeEncryptionCustomResourceProviderRole7A4FA6A8",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -440,15 +478,20 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGuardDutyCreatePublishingDestinationCommandCustomResourceProviderRoleD01DD26B",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -565,15 +608,20 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomIamUpdateAccountPasswordPolicyCustomResourceProviderRoleC4ECAFE0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -648,15 +696,20 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomMaciePutClassificationExportConfigurationCustomResourceProviderRoleEB42D531",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -719,6 +772,30 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
                   "Resource": "*",
                   "Sid": "MaciePutClassificationExportConfigurationTaskMacieActions",
                 },
+                {
+                  "Action": [
+                    "iam:CreateServiceLinkedRole",
+                  ],
+                  "Condition": {
+                    "StringLike": {
+                      "iam:AWSServiceName": "macie.amazonaws.com",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/aws-service-role/macie.amazonaws.com/AWSServiceRoleForAmazonMacie",
+                      ],
+                    ],
+                  },
+                  "Sid": "MacieCreateSlr",
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -737,15 +814,20 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSecurityHubBatchEnableStandardsCustomResourceProviderRole1ABC8ED2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -840,15 +922,20 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -973,9 +1060,9 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "EbsEncryptionKey9149E0DA": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
-        "Description": "AWS Accelerator default EBS Volume Encryption key",
+        "Description": "KMS key for default EBS volume encryption across all accounts",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -1279,7 +1366,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SecurityStack-111111111111-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -1297,7 +1384,7 @@ exports[`SecurityStack Construct(SecurityStack):  Snapshot Test 1`] = `
 }
 `;
 
-exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
+exports[`delegatedAdminStack > Construct(SecurityStack):  Snapshot Test 1`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -1306,6 +1393,10 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
     },
     "SsmParameterValueacceleratorkmskey1keyarnC96584B6F00A464EAD1953AFF4B05118Parameter": {
       "Default": "/accelerator/kms/key1/key-arn",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+    "SsmParameterValueacceleratorpreparestackconfigTablearnC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/prepare-stack/configTable/arn",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
   },
@@ -1376,6 +1467,7 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "CONFIG_REPOSITORY_LOCATION": "codecommit",
             "CONFIG_REPOSITORY_NAME": "aws-accelerator-config",
             "CROSS_ACCOUNT_ROLE": "AWSControlTowerExecution",
+            "DDB_CONFIG_TABLE_SSM_PARAMETER_PATH": "/accelerator/prepare-stack/configTable/name",
             "ELB_LOGGING_BUCKET": "aws-accelerator-elb-access-logs-333333333333-us-east-1",
             "GLOBAL_REGION": "us-east-1",
             "LOG_ACCOUNT_ID": "333333333333",
@@ -1384,17 +1476,19 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
             "PARTITION": {
               "Ref": "AWS::Partition",
             },
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "FunctionName": "AWSAccelerator-metadata-collection",
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorMetadataMetadataLambdaC27FFAF6",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 600,
       },
       "Type": "AWS::Lambda::Function",
@@ -1505,6 +1599,7 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
               "Action": [
                 "codepipeline:GetPipelineExecution",
                 "codepipeline:ListPipelineExecutions",
+                "codepipeline:ListActionExecutions",
                 "codecommit:GetFolder",
                 "codecommit:GetFile",
                 "kms:DescribeKey",
@@ -1516,13 +1611,6 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
                 "logs:PutLogEvents",
-                "organizations:DescribeOrganizationalUnit",
-                "organizations:DescribeAccount",
-                "organizations:ListAccounts",
-                "organizations:ListChildren",
-                "organizations:ListOrganizationalUnitsForParent",
-                "organizations:ListParents",
-                "organizations:ListRoots",
                 "ssm:GetParameter",
                 "sts:AssumeRole",
               ],
@@ -1541,6 +1629,7 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
                 "s3:PutObjectRetention",
                 "s3:PutObjectTagging",
                 "s3:PutObjectVersionTagging",
+                "s3:ListBucketVersions",
                 "s3:Abort*",
               ],
               "Effect": "Allow",
@@ -1593,7 +1682,38 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
                     ],
                   ],
                 },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::undefined-pipeline-111111111111-us-east-1",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::undefined-pipeline-111111111111-us-east-1/*",
+                    ],
+                  ],
+                },
               ],
+            },
+            {
+              "Action": "dynamodb:Scan",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "SsmParameterValueacceleratorpreparestackconfigTablearnC96584B6F00A464EAD1953AFF4B05118Parameter",
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -1641,15 +1761,20 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomEbsDefaultVolumeEncryptionCustomResourceProviderRole7A4FA6A8",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1738,15 +1863,20 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGuardDutyCreatePublishingDestinationCommandCustomResourceProviderRoleD01DD26B",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1863,15 +1993,20 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomIamUpdateAccountPasswordPolicyCustomResourceProviderRoleC4ECAFE0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1946,15 +2081,20 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomMaciePutClassificationExportConfigurationCustomResourceProviderRoleEB42D531",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2017,6 +2157,30 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
                   "Resource": "*",
                   "Sid": "MaciePutClassificationExportConfigurationTaskMacieActions",
                 },
+                {
+                  "Action": [
+                    "iam:CreateServiceLinkedRole",
+                  ],
+                  "Condition": {
+                    "StringLike": {
+                      "iam:AWSServiceName": "macie.amazonaws.com",
+                    },
+                  },
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:",
+                        {
+                          "Ref": "AWS::Partition",
+                        },
+                        ":iam::*:role/aws-service-role/macie.amazonaws.com/AWSServiceRoleForAmazonMacie",
+                      ],
+                    ],
+                  },
+                  "Sid": "MacieCreateSlr",
+                },
               ],
               "Version": "2012-10-17",
             },
@@ -2035,15 +2199,20 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSecurityHubBatchEnableStandardsCustomResourceProviderRole1ABC8ED2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2138,15 +2307,20 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2396,7 +2570,7 @@ exports[`delegatedAdminStack Construct(SecurityStack):  Snapshot Test 1`] = `
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SecurityStack-111111111111-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },

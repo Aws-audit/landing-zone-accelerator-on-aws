@@ -15,8 +15,7 @@ import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lam
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { v4 as uuidv4 } from 'uuid';
-
-const path = require('path');
+import * as path from 'path';
 
 /**
  * Initialized OrganizationalUnit properties
@@ -24,7 +23,6 @@ const path = require('path');
 export interface OrganizationalUnitsProps {
   readonly acceleratorConfigTable: cdk.aws_dynamodb.Table;
   readonly commitId: string;
-  readonly controlTowerEnabled: boolean;
   readonly organizationsEnabled: boolean;
   /**
    * Custom resource lambda log group encryption key, when undefined default AWS managed key will be used
@@ -79,7 +77,6 @@ export class OrganizationalUnits extends Construct {
       properties: {
         configTableName: props.acceleratorConfigTable.tableName,
         commitId: props.commitId,
-        controlTowerEnabled: props.controlTowerEnabled,
         organizationsEnabled: props.organizationsEnabled,
         partition: cdk.Aws.PARTITION,
         uuid: uuidv4(),

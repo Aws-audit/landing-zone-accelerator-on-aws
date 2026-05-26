@@ -14,8 +14,7 @@
 import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-
-const path = require('path');
+import * as path from 'path';
 
 /**
  * Initialized DetectiveGraphConfigProps properties
@@ -104,7 +103,7 @@ export class DetectiveGraphConfig extends Construct {
         logGroupName: `/aws/lambda/${(provider.node.findChild('Handler') as cdk.aws_lambda.CfnFunction).ref}`,
         retention: props.logRetentionInDays,
         encryptionKey: props.kmsKey,
-        removalPolicy: cdk.RemovalPolicy.RETAIN,
+        removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
       });
     resource.node.addDependency(logGroup);
 

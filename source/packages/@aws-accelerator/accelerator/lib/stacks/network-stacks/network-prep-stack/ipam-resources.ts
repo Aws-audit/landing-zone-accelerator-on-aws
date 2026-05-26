@@ -13,7 +13,7 @@
 
 import { CentralNetworkServicesConfig, IpamConfig, IpamPoolConfig } from '@aws-accelerator/config';
 import { Ipam, IpamPool, IpamScope } from '@aws-accelerator/constructs';
-import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
+import { SsmResourceType } from '@aws-accelerator/utils';
 import * as cdk from 'aws-cdk-lib';
 import { NagSuppressions } from 'cdk-nag';
 import { pascalCase } from 'pascal-case';
@@ -136,6 +136,7 @@ export class IpamResources {
     const basePools = ipamItem.pools!.filter(item => {
       return !item.sourceIpamPool;
     });
+    let previousPool: IpamPool | undefined;
     for (const poolItem of basePools ?? []) {
       this.stack.addLogs(LogLevel.INFO, `Add IPAM top-level pool ${poolItem.name}`);
       let poolScope: string | undefined;
@@ -151,6 +152,12 @@ export class IpamResources {
       // Create base pool
       const pool = this.createIpamPool(ipam, poolItem, poolScope);
       poolMap.set(`${ipamItem.name}_${poolItem.name}`, pool.ipamPoolId);
+
+      // Add dependency on previously created pool to avoid concurrent mutation throttling
+      if (previousPool) {
+        pool.node.addDependency(previousPool);
+      }
+      previousPool = pool;
     }
     return poolMap;
   }
@@ -178,11 +185,15 @@ export class IpamResources {
    * @param poolItem {@link IpamPoolConfig}
    * @param scopeMap Map<string, string>
    */
-  private checkIpamScopeExists(poolItem: IpamPoolConfig, scopeMap: Map<string, string>): string | undefined {
+  private checkIpamScopeExists(
+    poolItem: IpamPoolConfig,
+    ipamItem: IpamConfig,
+    scopeMap: Map<string, string>,
+  ): string | undefined {
     let poolScope: string | undefined;
 
     if (poolItem.scope) {
-      poolScope = scopeMap.get(poolItem.scope);
+      poolScope = scopeMap.get(`${ipamItem.name}_${poolItem.scope}`);
 
       if (!poolScope) {
         this.stack.addLogs(LogLevel.ERROR, `Unable to locate IPAM scope ${poolItem.scope} for pool ${poolItem.name}`);
@@ -210,6 +221,8 @@ export class IpamResources {
       return item.sourceIpamPool;
     });
 
+    let previousPool: IpamPool | undefined;
+
     // Use while loop for iteration
     while (poolMap.size < ipamItem.pools!.length) {
       for (const poolItem of nestedPools) {
@@ -227,11 +240,17 @@ export class IpamResources {
 
         if (sourcePool && !poolExists) {
           this.stack.addLogs(LogLevel.INFO, `Add IPAM nested pool ${poolItem.name}`);
-          const poolScope = this.checkIpamScopeExists(poolItem, scopeMap);
+          const poolScope = this.checkIpamScopeExists(poolItem, ipamItem, scopeMap);
 
           // Create nested pool
           const pool = this.createIpamPool(ipam, poolItem, poolScope, sourcePool);
           poolMap.set(`${ipamItem.name}_${poolItem.name}`, pool.ipamPoolId);
+
+          // Add dependency on previously created pool to avoid concurrent mutation throttling
+          if (previousPool) {
+            pool.node.addDependency(previousPool);
+          }
+          previousPool = pool;
         }
       }
     }

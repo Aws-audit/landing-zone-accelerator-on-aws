@@ -83,7 +83,7 @@ sedi()
 # ex. do_replace myfile.json %%VERSION%% v1.1.1
 do_replace()
 {
-    replace="s/$2/$3/g"
+    replace="s|$2|$3|g"
     file=$1
     do_cmd sedi $replace $file
 }
@@ -118,7 +118,32 @@ create_template_installer_json()
     do_cmd yarn run cdk synth --output=$staging_dist_dir --context use-external-pipeline-account=true
     do_cmd find $staging_dist_dir -name '*InstallerStack.template.json' -exec mv {} {}-ExternalPipeline.template.json \;
 
+    do_cmd yarn run cdk synth --output=$staging_dist_dir --context enable-set-node-version=true
+    do_cmd find $staging_dist_dir -name '*InstallerStack.template.json' -exec mv {} {}-NodeVersionPipeline.template.json \;
+
     do_cmd yarn run cdk synth --output=$staging_dist_dir
+    # Remove unnecessary output files
+    do_cmd cd $staging_dist_dir
+    # ignore return code - can be non-zero if any of these does not exist
+    rm tree.json manifest.json cdk.out
+
+    # Move outputs from staging to template_dist_dir
+    echo "Move outputs from staging to template_dist_dir"
+    do_cmd mv $staging_dist_dir/*.template.json $template_dist_dir/
+
+    # Rename all *.template.json files to *.template
+    echo "Rename all *.template.json*.template.json to **.template"
+    echo "copy templates and rename"
+    for f in $template_dist_dir/*.template.json*.template.json; do
+        newname=$(echo "$f" | sed -E 's/\.template\.json-/-/; s/\.json$//')
+        mv -- "$f" "$newname"
+    done
+}
+create_template_installer_container_json()
+{
+    # Run 'cdk synth' to generate raw solution outputs
+    do_cmd yarn run cdk synth --output=$staging_dist_dir --context use-external-pipeline-account=true
+    
     # Remove unnecessary output files
     do_cmd cd $staging_dist_dir
     # ignore return code - can be non-zero if any of these does not exist
@@ -149,6 +174,58 @@ create_template_yaml()
             maxrc=$?
         fi
     done
+}
+
+## Copy static files to the deployment dir for container building
+copy_container_files()
+{
+    IMAGE_PATH=$template_dir/ecr/landing-zone-accelerator-on-aws
+    do_cmd mkdir -p $IMAGE_PATH
+    do_cmd cp -r $container_dir/build/* $IMAGE_PATH/
+    do_cmd cp -r $container_dir/images/* $IMAGE_PATH/
+    do_cmd cp -r $container_dir/scripts $IMAGE_PATH/
+    do_cmd cp $container_dir/README.md $IMAGE_PATH/
+
+    # Create source tarball to avoid SBOM scanner OOM issues
+    # The tarball is a single file, so cdxgen won't scan thousands of source files
+    echo "Creating source tarball (excluding build artifacts and test files)"
+    (cd $source_dir && tar \
+        --exclude='node_modules' \
+        --exclude='dist' \
+        --exclude='cdk.out' \
+        --exclude='test-reports' \
+        --exclude='coverage' \
+        --exclude='mkdocs/site' \
+        --exclude='*.test.ts' \
+        --exclude='*.test.js' \
+        --exclude='__snapshots__' \
+        --exclude='.vitest-cache' \
+        --exclude='*.tar' \
+        --exclude='*.tar.gz' \
+        --exclude='*.js.map' \
+        -czf $IMAGE_PATH/source.tar.gz .)
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to create source tarball"
+        exit 1
+    fi
+    echo "Source tarball created: $(ls -lh $IMAGE_PATH/source.tar.gz)"
+}
+
+## Copy the synthesized container template after CDK synth has produced it
+copy_container_template()
+{
+    IMAGE_PATH=$template_dir/ecr/landing-zone-accelerator-on-aws
+    echo "Copying synthesized InstallerContainerStack template to container image path"
+    # The template may have been renamed from .template.json to .template
+    # by a preceding create_template_* function, so check both names
+    if [ -f "$template_dist_dir/AWSAccelerator-InstallerContainerStack.template.json" ]; then
+        do_cmd cp $template_dist_dir/AWSAccelerator-InstallerContainerStack.template.json $IMAGE_PATH/
+    elif [ -f "$template_dist_dir/AWSAccelerator-InstallerContainerStack.template" ]; then
+        do_cmd cp $template_dist_dir/AWSAccelerator-InstallerContainerStack.template $IMAGE_PATH/
+    else
+        echo "ERROR: InstallerContainerStack template not found in $template_dist_dir"
+        exit 1
+    fi
 }
 
 cleanup_temporary_generted_files()
@@ -263,7 +340,9 @@ staging_dist_dir="$template_dir/staging"
 template_dist_dir="$template_dir/global-s3-assets"
 build_dist_dir="$template_dir/regional-s3-assets"
 source_dir="$template_dir/../source"
+container_dir="$template_dir/../container"
 installer_dir="$source_dir/packages/@aws-accelerator/installer"
+installer_container_dir="$source_dir/packages/@aws-accelerator/installer-container"
 govcloud_vending_dir="$source_dir/packages/@aws-accelerator/govcloud-account-vending"
 
 echo "------------------------------------------------------------------------------"
@@ -284,6 +363,12 @@ echo "--------------------------------------------------------------------------
 
 do_cmd cd $template_dir/cdk-solution-helper
 do_cmd npm install
+
+echo "------------------------------------------------------------------------------"
+echo "${bold}[Prep] Copy container files to deployment directory${normal}"
+echo "------------------------------------------------------------------------------"
+
+copy_container_files
 
 echo "------------------------------------------------------------------------------"
 echo "${bold}[Synth] CDK Project${normal}"
@@ -308,6 +393,8 @@ echo "--------------------------------------------------------------------------
 if fn_exists create_template_${template_format}; then
     do_cmd cd $installer_dir
     create_template_installer_${template_format}
+    do_cmd cd $installer_container_dir
+    create_template_installer_container_${template_format}
     do_cmd cd $source_dir
     do_cmd cd $govcloud_vending_dir
     create_template_${template_format}
@@ -316,6 +403,12 @@ else
     echo "Invalid setting for \$template_format: $template_format"
     exit 255
 fi
+
+echo "------------------------------------------------------------------------------"
+echo "${bold}[Post-Synth] Copy synthesized container template${normal}"
+echo "------------------------------------------------------------------------------"
+
+copy_container_template
 
 echo "------------------------------------------------------------------------------"
 echo "${bold}[Packing] Template artifacts${normal}"
@@ -332,6 +425,9 @@ echo "Run the helper to clean-up the templates and remove unnecessary CDK elemen
     fi
 } || echo "${bold}Solution Helper skipped: ${normal}run_helper=false"
 
+# Set the target bucket_name for the templates if its not in env
+TEMPLATE_OUTPUT_BUCKET="${TEMPLATE_OUTPUT_BUCKET:-solutions-reference}"
+
 # Find and replace bucket_name, solution_name, and version
 echo "Find and replace bucket_name, solution_name, and version"
 cd $template_dist_dir
@@ -339,6 +435,8 @@ do_replace "*.template" %%BUCKET_NAME%% ${SOLUTION_BUCKET}
 do_replace "*.template" %%SOLUTION_NAME%% ${SOLUTION_TRADEMARKEDNAME}
 do_replace "*.template" %%VERSION%% ${SOLUTION_VERSION}
 do_replace "*.template" %%PRODUCT_BUCKET%% ${TEMPLATE_OUTPUT_BUCKET}
+do_replace "*.template" %%PUBLIC_ECR_REGISTRY%% ${PUBLIC_ECR_REGISTRY}
+do_replace "*.template" %%PUBLIC_ECR_TAG%% ${PUBLIC_ECR_TAG}
 
 echo "------------------------------------------------------------------------------"
 echo "${bold}[Packing] Source code artifacts${normal}"

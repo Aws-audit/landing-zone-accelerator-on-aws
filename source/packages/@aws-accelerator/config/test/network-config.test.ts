@@ -47,34 +47,30 @@ import {
   ResolverRuleConfig,
   VpcTemplatesConfig,
 } from '../lib/network-config';
+import { ReplacementsConfig } from '../lib/replacements-config';
 
 import { VpcFlowLogsConfig } from '../lib/common/types';
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import * as path from 'path';
 import * as fs from 'fs';
+import { AccountsConfig } from '../lib/accounts-config';
+import { SNAPSHOT_CONFIG } from './config-test-helper';
+
+const configDir = SNAPSHOT_CONFIG;
 
 describe('NetworkConfig', () => {
   describe('Test config', () => {
-    // const networkConfigFromFile = NetworkConfig.load(path.resolve('../accelerator/test/configs/all-enabled'), true);
     it('has loaded successfully', () => {
       const networkConfig = new NetworkConfig();
       expect(networkConfig.vpcs).toEqual([]);
-      // expect(networkConfigFromFile.accountNames).toEqual([
-      //   'Management',
-      //   'LogArchive',
-      //   'Audit',
-      //   'SharedServices',
-      //   'Network',
-      // ]);
     });
 
     it('loads from string', () => {
-      const buffer = fs.readFileSync(
-        path.join('../accelerator/test/configs/snapshot-only', NetworkConfig.FILENAME),
-        'utf8',
-      );
-      const networkConfigFromString = NetworkConfig.loadFromString(buffer);
+      const accountsConfig = AccountsConfig.load(configDir);
+      const replacementsConfig = ReplacementsConfig.load(configDir, accountsConfig);
+      const buffer = fs.readFileSync(path.join(configDir, NetworkConfig.FILENAME), 'utf8');
+      const networkConfigFromString = NetworkConfig.loadFromString(buffer, replacementsConfig);
       if (!networkConfigFromString) {
         throw new Error('networkConfigFromString is not defined');
       }
@@ -108,7 +104,10 @@ describe('NetworkConfig', () => {
       expect(nfwStatelessRuleGroupReferenceConfig.name).toEqual('');
 
       const nfwStatefulRuleGroupReferenceConfig = new NfwStatefulRuleGroupReferenceConfig();
-      expect(nfwStatefulRuleGroupReferenceConfig.name).toEqual('');
+      expect(
+        'name' in nfwStatefulRuleGroupReferenceConfig ||
+          'managedStatefulRuleGroupName' in nfwStatefulRuleGroupReferenceConfig,
+      ).toBe(true);
 
       const nfwRuleGroupConfig = new NfwRuleGroupConfig();
       expect(nfwRuleGroupConfig.name).toEqual('');

@@ -15,6 +15,7 @@ import {
 import { AseaResource, AseaResourceProps } from './resource';
 import { ImportAseaResourcesStack, LogLevel } from '../stacks/import-asea-resources-stack';
 import { ImportStackResources } from '../../utils/import-stack-resources';
+import { getAseaVpcName } from '@aws-accelerator/utils';
 
 enum RESOURCE_TYPE {
   TGW_ROUTE = 'AWS::EC2::TransitGatewayRoute',
@@ -156,11 +157,22 @@ export class TransitGatewayRoutes extends AseaResource {
   private setTransitGatewayResourcesMap(tgwItem: TransitGatewayConfig, tgwStackMapping: ImportStackResources) {
     for (const routeTableItem of tgwItem.routeTables ?? []) {
       // ASEA RouteTable name includes TGW Name. No need to use TGW Id since TGW names are unique
-      const routeTableResource = tgwStackMapping.getResourceByTypeAndTag(
+      let routeTableResource = tgwStackMapping.getResourceByTypeAndTag(
         RESOURCE_TYPE.TGW_ROUTE_TABLE,
         routeTableItem.name,
       );
+
+      // If not found, try with TGW name prefix (ASEA naming convention)
       if (!routeTableResource || !routeTableResource.physicalResourceId) {
+        const aseaRouteTableName = `${tgwItem.name}_${routeTableItem.name}`;
+        routeTableResource = tgwStackMapping.getResourceByTypeAndTag(RESOURCE_TYPE.TGW_ROUTE_TABLE, aseaRouteTableName);
+      }
+
+      if (!routeTableResource || !routeTableResource.physicalResourceId) {
+        this.scope.addLogs(
+          LogLevel.WARN,
+          `Route table ${routeTableItem.name} not found for TGW ${tgwItem.name}. Skipping.`,
+        );
         continue;
       }
       this.transitGatewayRouteTables.set(
@@ -253,9 +265,11 @@ export class TransitGatewayRoutes extends AseaResource {
           LogLevel.INFO,
           `Adding route ${routeItem.destinationCidrBlock} to TGW route table ${routeTableItem.name} for TGW ${tgwItem.name} in account: ${tgwItem.account}`,
         );
+        const routeItemVpcName = getAseaVpcName(routeItem.attachment.vpcName);
+
         routeId = `${routeTableItem.name}-${routeItem.destinationCidrBlock}-${routeItem.attachment.vpcName}-${routeItem.attachment.account}`;
         transitGatewayAttachmentId = this.getTgwAttachmentId(
-          routeItem.attachment.vpcName,
+          routeItemVpcName,
           routeItem.attachment.account,
           tgwItem.region,
           mappings,
@@ -266,7 +280,7 @@ export class TransitGatewayRoutes extends AseaResource {
             `TGW attachment not found in account ${routeItem.attachment.account}, looking in ${tgwItem.account}`,
           );
           transitGatewayAttachmentId = this.getTgwAttachmentId(
-            routeItem.attachment.vpcName,
+            routeItemVpcName,
             tgwItem.account,
             tgwItem.region,
             mappings,
@@ -346,8 +360,11 @@ export class TransitGatewayRoutes extends AseaResource {
       this.transitGatewayGlobalRouteTables.get(routeTableItem.name);
 
     if (!transitGatewayRouteTableId) {
-      this.scope.addLogs(LogLevel.ERROR, `Transit Gateway route table ${routeTableKey} not found`);
-      throw new Error(`Configuration validation failed at runtime.`);
+      this.scope.addLogs(
+        LogLevel.INFO,
+        `Transit Gateway route table ${routeTableKey} not found, will create new route.`,
+      );
+      return;
     }
 
     for (const routeItem of routeTableItem.routes ?? []) {

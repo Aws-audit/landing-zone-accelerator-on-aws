@@ -14,8 +14,7 @@
 import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-
-const path = require('path');
+import * as path from 'path';
 
 /**
  * Initialized MacieSessionProps properties
@@ -70,10 +69,12 @@ export class MacieSession extends Construct {
           Sid: 'MacieEnableMacieTaskIamAction',
           Effect: 'Allow',
           Action: ['iam:CreateServiceLinkedRole'],
-          Resource: '*',
+          Resource: `arn:${
+            cdk.Stack.of(this).partition
+          }:iam::*:role/aws-service-role/macie.amazonaws.com/AWSServiceRoleForAmazonMacie`,
           Condition: {
-            StringLikeIfExists: {
-              'iam:CreateServiceLinkedRole': ['macie.amazonaws.com'],
+            StringLike: {
+              'iam:AWSServiceName': 'macie.amazonaws.com',
             },
           },
         },

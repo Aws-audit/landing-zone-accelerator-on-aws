@@ -19,9 +19,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as winston from 'winston';
-
-import { PrincipalOrgIdConditionType } from '@aws-accelerator/utils/lib/common-resources';
-
 import {
   AccountConfig,
   AccountsConfig,
@@ -38,7 +35,6 @@ import {
   LifeCycleRule,
   NetworkConfig,
   OrganizationConfig,
-  Region,
   ReplacementsConfig,
   S3EncryptionConfig,
   SecurityConfig,
@@ -49,12 +45,16 @@ import {
   VpcTemplatesConfig,
 } from '@aws-accelerator/config';
 import { KeyLookup, S3LifeCycleRule, ServiceLinkedRole } from '@aws-accelerator/constructs';
-import { createLogger } from '@aws-accelerator/utils/lib/logger';
-import { policyReplacements } from '@aws-accelerator/utils/lib/policy-replacements';
-import { SsmParameterPath, SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
-
-import { version } from '../../../../../package.json';
+import {
+  PrincipalOrgIdConditionType,
+  createLogger,
+  policyReplacements,
+  SsmParameterPath,
+  SsmResourceType,
+} from '@aws-accelerator/utils';
 import { AcceleratorResourcePrefixes } from '../../utils/app-utils';
+import { version } from '../../../../../package.json';
+
 import { AcceleratorResourceNames } from '../accelerator-resource-names';
 
 /**
@@ -196,6 +196,7 @@ export interface AcceleratorStackProps extends cdk.StackProps {
   readonly configCommitId?: string;
   readonly globalRegion: string;
   readonly centralizedLoggingRegion: string;
+  readonly installerStackName: string;
   /**
    * Accelerator resource name prefixes
    */
@@ -234,7 +235,7 @@ process.on('uncaughtException', err => {
 
 export abstract class AcceleratorStack extends cdk.Stack {
   protected logger: winston.Logger;
-  protected props: AcceleratorStackProps;
+  public props: AcceleratorStackProps;
 
   /**
    * Nag suppression input list
@@ -372,10 +373,10 @@ export abstract class AcceleratorStack extends cdk.Stack {
     return (
       inputConfig.enable &&
       (inputConfig.excludeRegions
-        ? inputConfig.excludeRegions.indexOf(this.region as Region) === -1
+        ? inputConfig.excludeRegions.indexOf(this.region) === -1
         : inputConfig.deploymentTargets?.excludedRegions
-        ? inputConfig.deploymentTargets?.excludedRegions?.indexOf(this.region as Region) === -1
-        : true)
+          ? inputConfig.deploymentTargets?.excludedRegions?.indexOf(this.region) === -1
+          : true)
     );
   }
 
@@ -551,7 +552,7 @@ export abstract class AcceleratorStack extends cdk.Stack {
    */
   protected createConfigServiceLinkedRole(key: { cloudwatch?: cdk.aws_kms.IKey; lambda?: cdk.aws_kms.IKey }) {
     const isManagementAccount = cdk.Stack.of(this).account === this.props.accountsConfig.getManagementAccountId();
-    const isControlTowerEnabled = this.props.globalConfig.controlTower;
+    const isControlTowerEnabled = this.props.globalConfig.controlTower.enable;
     const isConfigRecorderEnabled = this.props.securityConfig.awsConfig.enableConfigurationRecorder;
     const isPartitionSupported = this.serviceLinkedRoleSupportedPartitionList.includes(this.props.partition);
     const isServiceLinkedRoleEnabled = this.props.securityConfig.awsConfig.useServiceLinkedRole === true;
@@ -561,7 +562,7 @@ export abstract class AcceleratorStack extends cdk.Stack {
 
     if (
       (!isControlTowerEnabled || // If Control Tower is Disabled OR
-        (this.props.globalConfig.controlTower && isManagementAccount)) && // Control Tower is Enabled, and this is the Mgmt Acct
+        (isControlTowerEnabled && isManagementAccount)) && // Control Tower is Enabled, and this is the Mgmt Acct
       isConfigRecorderEnabled &&
       isPartitionSupported &&
       isDeploymentTarget &&
@@ -1495,8 +1496,8 @@ export abstract class AcceleratorStack extends cdk.Stack {
     return accountIds;
   }
 
-  public getRegionsFromDeploymentTarget(deploymentTargets: DeploymentTargets): Region[] {
-    const regions: Region[] = [];
+  public getRegionsFromDeploymentTarget(deploymentTargets: DeploymentTargets): string[] {
+    const regions: string[] = [];
     const enabledRegions = this.props.globalConfig.enabledRegions;
     regions.push(
       ...enabledRegions.filter(region => {
@@ -1534,13 +1535,12 @@ export abstract class AcceleratorStack extends cdk.Stack {
         item.region === cdk.Stack.of(this).region,
     );
 
-    if (this.props.partition !== 'aws' && this.props.partition !== 'aws-cn' && centralEndpointVpcs.length > 0) {
-      this.logger.error('Central Endpoint VPC is only possible in commercial regions');
-      throw new Error(`Configuration validation failed at runtime.`);
-    }
-
     if (centralEndpointVpcs.length > 1) {
-      this.logger.error(`multiple (${centralEndpointVpcs.length}) central endpoint vpcs detected, should only be one`);
+      this.logger.error(
+        `Multiple (${centralEndpointVpcs.length}) central endpoint VPCs detected in region '${
+          cdk.Stack.of(this).region
+        }', and there should only be one.`,
+      );
       throw new Error(`Configuration validation failed at runtime.`);
     }
     centralEndpointVpc = centralEndpointVpcs[0];
@@ -1681,27 +1681,31 @@ export abstract class AcceleratorStack extends cdk.Stack {
   }
 
   /**
-   * Function to get list of targets by type organization unit or account for given scp
+   * Function to get list of targets by type organization unit or account for given policy
    * @param targetName
    * @param targetType
    * @returns
    */
-  public getScpNamesForTarget(targetName: string, targetType: 'ou' | 'account'): string[] {
-    const scps: string[] = [];
+  public getPolicyNamesForTarget(targetName: string, targetType: 'ou' | 'account'): string[] {
+    const policies: string[] = [];
 
-    for (const serviceControlPolicy of this.props.organizationConfig.serviceControlPolicies) {
-      if (targetType === 'ou' && serviceControlPolicy.deploymentTargets.organizationalUnits) {
-        if (serviceControlPolicy.deploymentTargets.organizationalUnits.indexOf(targetName) !== -1) {
-          scps.push(serviceControlPolicy.name);
+    for (const policy of [
+      ...this.props.organizationConfig.serviceControlPolicies,
+      ...this.props.organizationConfig.backupPolicies,
+      ...(this.props.organizationConfig.resourceControlPolicies ?? []),
+    ]) {
+      if (targetType === 'ou' && policy.deploymentTargets.organizationalUnits) {
+        if (policy.deploymentTargets.organizationalUnits.indexOf(targetName) !== -1) {
+          policies.push(policy.name);
         }
       }
-      if (targetType === 'account' && serviceControlPolicy.deploymentTargets.accounts) {
-        if (serviceControlPolicy.deploymentTargets.accounts.indexOf(targetName) !== -1) {
-          scps.push(serviceControlPolicy.name);
+      if (targetType === 'account' && policy.deploymentTargets.accounts) {
+        if (policy.deploymentTargets.accounts.indexOf(targetName) !== -1) {
+          policies.push(policy.name);
         }
       }
     }
-    return scps;
+    return policies;
   }
 
   /**
@@ -1790,7 +1794,7 @@ export abstract class AcceleratorStack extends cdk.Stack {
     returnTempPath: boolean,
     organizationId?: string,
     tempFileName?: string,
-    parameters?: { [key: string]: string | string[] },
+    parameters?: { [key: string]: string | string[] | number },
   ): string {
     // Transform policy document
     let policyContent: string = fs.readFileSync(policyPath, 'utf8');
@@ -1799,7 +1803,7 @@ export abstract class AcceleratorStack extends cdk.Stack {
       ? acceleratorPrefix.slice(0, -1)
       : acceleratorPrefix;
 
-    const additionalReplacements: { [key: string]: string | string[] } = {
+    const additionalReplacements: { [key: string]: string | string[] | number } = {
       '\\${ACCELERATOR_DEFAULT_PREFIX_SHORTHAND}': acceleratorPrefix.substring(0, 4).toUpperCase(),
       '\\${ACCELERATOR_PREFIX_ND}': acceleratorPrefixNoDash,
       '\\${ACCELERATOR_PREFIX_LND}': acceleratorPrefixNoDash.toLowerCase(),
@@ -1818,13 +1822,14 @@ export abstract class AcceleratorStack extends cdk.Stack {
       additionalReplacements['\\${ORG_ID}'] = organizationId;
     }
 
-    const policyParams: { [key: string]: string | string[] } = {
+    const policyParams: { [key: string]: string | string[] | number } = {
       ...this.props.replacementsConfig.placeholders,
-      ...parameters,
+      ...Object.fromEntries(Object.entries(parameters || {}).map(([key, value]) => [key, value])),
     };
 
     for (const key of Object.keys(policyParams)) {
-      additionalReplacements[`\\\${${ReplacementsConfig.POLICY_PARAMETER_PREFIX}:${key}}`] = policyParams[key];
+      const value = policyParams[key];
+      additionalReplacements[`\\\${${ReplacementsConfig.POLICY_PARAMETER_PREFIX}:${key}}`] = value;
     }
 
     policyContent = policyReplacements({

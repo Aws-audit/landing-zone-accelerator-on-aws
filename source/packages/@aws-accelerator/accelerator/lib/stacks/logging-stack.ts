@@ -29,7 +29,7 @@ import {
   SnsTopicConfig,
   VpcFlowLogsConfig,
 } from '@aws-accelerator/config';
-import * as t from '@aws-accelerator/config/lib/common/types';
+import * as t from '@aws-accelerator/config';
 import {
   Bucket,
   BucketEncryption,
@@ -58,8 +58,9 @@ import {
   AwsPrincipalAccessesType,
   BucketAccessType,
   PrincipalOrgIdConditionType,
-} from '@aws-accelerator/utils/lib/common-resources';
-import { AcceleratorElbRootAccounts, OptInRegions } from '@aws-accelerator/utils/lib/regions';
+  AcceleratorElbRootAccounts,
+  OptInRegions,
+} from '@aws-accelerator/utils';
 
 import {
   AcceleratorKeyType,
@@ -253,18 +254,16 @@ export class LoggingStack extends AcceleratorStack {
    */
   private configureCloudWatchLogReplication(props: AcceleratorStackProps): void {
     if (props.globalConfig.logging.cloudwatchLogs?.enable ?? true) {
-      if (props.partition === 'aws' || props.partition === 'aws-us-gov' || props.partition === 'aws-cn') {
-        if (cdk.Stack.of(this).account === props.accountsConfig.getLogArchiveAccountId()) {
-          const receivingLogs = this.cloudwatchLogReceivingAccount(this.centralLogsBucketName, this.lambdaKey);
-          const creatingLogs = this.cloudwatchLogCreatingAccount();
+      if (cdk.Stack.of(this).account === props.accountsConfig.getLogArchiveAccountId()) {
+        const receivingLogs = this.cloudwatchLogReceivingAccount(this.centralLogsBucketName, this.lambdaKey);
+        const creatingLogs = this.cloudwatchLogCreatingAccount();
 
-          // Log receiving setup should be complete before logs creation setup can start or else there will be errors about destination not ready.
-          creatingLogs.node.addDependency(receivingLogs);
-        } else {
-          // Any account in LZA needs to setup log subscriptions for CloudWatch Logs
-          // The destination needs to be present before its setup
-          this.cloudwatchLogCreatingAccount();
-        }
+        // Log receiving setup should be complete before logs creation setup can start or else there will be errors about destination not ready.
+        creatingLogs.node.addDependency(receivingLogs);
+      } else {
+        // Any account in LZA needs to setup log subscriptions for CloudWatch Logs
+        // The destination needs to be present before its setup
+        this.cloudwatchLogCreatingAccount();
       }
     }
   }
@@ -348,6 +347,7 @@ export class LoggingStack extends AcceleratorStack {
       s3BucketName: this.getElbLogsBucketName(),
       replicationProps,
       s3LifeCycleRules: this.getS3LifeCycleRules(this.props.globalConfig.logging.elbLogBucket?.lifecycleRules),
+      s3RemovalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
     });
 
     // To make sure central log bucket created before elb access log bucket, this is required when logging stack executes in home region
@@ -510,7 +510,7 @@ export class LoggingStack extends AcceleratorStack {
       ],
     });
 
-    serverAccessLogsBucket.getS3Bucket().addToResourcePolicy(
+    const statements: cdk.aws_iam.PolicyStatement[] = [
       new iam.PolicyStatement({
         sid: 'Allow write access for logging service principal',
         effect: iam.Effect.ALLOW,
@@ -523,7 +523,25 @@ export class LoggingStack extends AcceleratorStack {
           },
         },
       }),
-    );
+    ];
+
+    for (const attachment of this.props.globalConfig.logging.accessLogBucket?.s3ResourcePolicyAttachments ?? []) {
+      const policyDocument = JSON.parse(
+        this.generatePolicyReplacements(
+          path.join(this.props.configDirPath, attachment.policy),
+          false,
+          this.organizationId,
+        ),
+      );
+
+      for (const statement of policyDocument.Statement) {
+        statements.push(cdk.aws_iam.PolicyStatement.fromJson(statement));
+      }
+    }
+
+    for (const statement of statements) {
+      serverAccessLogsBucket.getS3Bucket().addToResourcePolicy(statement);
+    }
 
     return serverAccessLogsBucket.getS3Bucket();
   }
@@ -577,7 +595,7 @@ export class LoggingStack extends AcceleratorStack {
         alias: this.acceleratorResourceNames.customerManagedKeys.cloudWatchLog.alias,
         description: this.acceleratorResourceNames.customerManagedKeys.cloudWatchLog.description,
         enableKeyRotation: true,
-        removalPolicy: cdk.RemovalPolicy.RETAIN,
+        removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
       });
 
       cloudwatchKey.addToResourcePolicy(
@@ -648,7 +666,7 @@ export class LoggingStack extends AcceleratorStack {
         alias: this.acceleratorResourceNames.customerManagedKeys.lambda.alias,
         description: this.acceleratorResourceNames.customerManagedKeys.lambda.description,
         enableKeyRotation: true,
-        removalPolicy: cdk.RemovalPolicy.RETAIN,
+        removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
       });
 
       this.ssmParameters.push({
@@ -678,7 +696,7 @@ export class LoggingStack extends AcceleratorStack {
       alias: this.acceleratorResourceNames.customerManagedKeys.sqs.alias,
       description: this.acceleratorResourceNames.customerManagedKeys.sqs.description,
       enableKeyRotation: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     this.ssmParameters.push({
@@ -739,7 +757,7 @@ export class LoggingStack extends AcceleratorStack {
     if (
       props.globalConfig.snsTopics &&
       cdk.Stack.of(this).account === props.accountsConfig.getLogArchiveAccountId() &&
-      !this.isRegionExcluded(props.globalConfig.snsTopics?.deploymentTargets.excludedRegions ?? [])
+      !this.isRegionExcluded(props.globalConfig.snsTopics?.deploymentTargets?.excludedRegions ?? [])
     ) {
       this.createCentralSnsKey();
 
@@ -975,6 +993,7 @@ export class LoggingStack extends AcceleratorStack {
         serverAccessLogsBucket,
         s3LifeCycleRules: this.getS3LifeCycleRules(vpcFlowLogsConfig.destinationsConfig?.s3?.lifecycleRules),
         replicationProps: replicationProps,
+        s3RemovalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
       });
 
       if (!serverAccessLogsBucket) {
@@ -1082,11 +1101,14 @@ export class LoggingStack extends AcceleratorStack {
       organizationId: this.organizationId,
       partition: this.props.partition,
       accountIds:
-        this.props.partition === 'aws-cn' || !this.organizationId
+        (this.props.globalConfig.logging.cloudwatchLogs?.organizationIdConditionSupported ?? undefined) === false ||
+        !this.organizationId
           ? this.props.accountsConfig.getAccountIds()
           : undefined,
       acceleratorPrefix: this.props.prefixes.accelerator,
       useExistingRoles: this.props.useExistingRoles ?? false,
+      organizationIdConditionSupported:
+        this.props.globalConfig.logging.cloudwatchLogs?.organizationIdConditionSupported ?? undefined,
     });
 
     // Setup Firehose to take records from Kinesis and place in S3
@@ -1177,6 +1199,9 @@ export class LoggingStack extends AcceleratorStack {
         });
       }
     }
+    const skipBulkUpdate = this.props.globalConfig.logging.cloudwatchLogs?.skipBulkUpdate?.enable;
+    const skipBulkUpdateTargets = this.props.globalConfig.logging.cloudwatchLogs?.skipBulkUpdate?.skipBulkUpdateTargets;
+    const noOp = skipBulkUpdate && this.isIncluded(skipBulkUpdateTargets!);
     // Run a custom resource to update subscription, KMS and retention for all existing log groups
     const customResourceExistingLogs = new CloudWatchLogsSubscriptionFilter(this, 'LogsSubscriptionFilter', {
       logDestinationArn: logsDestinationArnValue,
@@ -1193,6 +1218,7 @@ export class LoggingStack extends AcceleratorStack {
       selectionCriteria: this.props.globalConfig.logging.cloudwatchLogs?.subscription?.selectionCriteria,
       overrideExisting: this.props.globalConfig.logging.cloudwatchLogs?.subscription?.overrideExisting,
       filterPattern: this.props.globalConfig.logging.cloudwatchLogs?.subscription?.filterPattern,
+      noOp,
     });
 
     //For every new log group that is created, set up subscription, KMS and retention
@@ -2759,7 +2785,7 @@ export class LoggingStack extends AcceleratorStack {
           alias: this.acceleratorResourceNames.customerManagedKeys.assetsBucket.alias,
           description: this.acceleratorResourceNames.customerManagedKeys.assetsBucket.description,
           enableKeyRotation: true,
-          removalPolicy: cdk.RemovalPolicy.RETAIN,
+          removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
         });
         // Allow management account access
         assetsKmsKey.addToResourcePolicy(
@@ -2954,6 +2980,7 @@ export class LoggingStack extends AcceleratorStack {
       }`,
       kmsKey: assetsKmsKey,
       serverAccessLogsBucketName: serverAccessLogsBucket.getS3Bucket().bucketName,
+      s3RemovalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
     });
 
     assetsBucket.getS3Bucket().addToResourcePolicy(
@@ -3023,6 +3050,7 @@ export class LoggingStack extends AcceleratorStack {
             cdk.Stack.of(this).region
           }`,
           serverAccessLogsBucket,
+          s3RemovalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
         });
 
         const bucket = metadataBucket.getS3Bucket();

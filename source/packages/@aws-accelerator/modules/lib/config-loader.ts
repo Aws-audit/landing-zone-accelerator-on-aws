@@ -23,7 +23,6 @@ import {
 } from '@aws-accelerator/config';
 
 import * as fs from 'fs';
-import * as path from 'path';
 
 import { AcceleratorResourcePrefixes } from '../../accelerator/utils/app-utils';
 
@@ -77,12 +76,16 @@ export abstract class ConfigLoader {
     managementAccountCredentials?: IAssumeRoleCredential,
   ): Promise<AccountsConfig> {
     const accountsConfig = AccountsConfig.load(configDirPath);
+    const shouldSkipDynamoDbLookup =
+      process.env['ACCELERATOR_SKIP_DYNAMODB_LOOKUP'] === 'true' || process.env['ACCELERATOR_STAGE'] === 'prepare';
+
     await accountsConfig.loadAccountIds(
       partition,
       false,
       orgsEnabled,
       accountsConfig,
-      managementAccountCredentials as AWS.Credentials,
+      managementAccountCredentials,
+      !shouldSkipDynamoDbLookup,
     );
 
     return accountsConfig;
@@ -141,12 +144,8 @@ export abstract class ConfigLoader {
     //
     // Get replacement config
     //
-    const replacementsConfig = ConfigLoader.getReplacementsConfig(configDirPath, accountsConfig);
-    replacementsConfig.loadReplacementValues(
-      { region: homeRegion },
-      orgsEnabled,
-      managementAccountCredentials as AWS.Credentials,
-    );
+    const replacementsConfig = ReplacementsConfig.load(configDirPath, accountsConfig);
+    await replacementsConfig.loadDynamicReplacements(homeRegion, managementAccountCredentials);
 
     //
     // Get Global config
@@ -157,7 +156,7 @@ export abstract class ConfigLoader {
     // Get Organization config
     //
     const organizationConfig = OrganizationConfig.load(configDirPath, replacementsConfig);
-    await organizationConfig.loadOrganizationalUnitIds(partition, managementAccountCredentials as AWS.Credentials);
+    await organizationConfig.loadOrganizationalUnitIds(partition, managementAccountCredentials);
 
     //
     // Load global config external mapping details
@@ -201,23 +200,5 @@ export abstract class ConfigLoader {
       replacementsConfig,
       securityConfig,
     };
-  }
-
-  /**
-   * Get replacementsConfig object
-   * @param configDirPath string
-   * @param accountsConfig {@link AccountsConfig}
-   * @returns
-   */
-  private static getReplacementsConfig(configDirPath: string, accountsConfig: AccountsConfig): ReplacementsConfig {
-    let replacementsConfig: ReplacementsConfig;
-
-    // Create empty replacementsConfig if optional configuration file does not exist
-    if (fs.existsSync(path.join(configDirPath, ReplacementsConfig.FILENAME))) {
-      replacementsConfig = ReplacementsConfig.load(configDirPath, accountsConfig);
-    } else {
-      replacementsConfig = new ReplacementsConfig(undefined, accountsConfig);
-    }
-    return replacementsConfig;
   }
 }

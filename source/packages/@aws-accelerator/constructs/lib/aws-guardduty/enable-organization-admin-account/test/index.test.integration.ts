@@ -11,9 +11,20 @@
  *  and limitations under the License.
  */
 
-import { GuardDutyClient, ListOrganizationAdminAccountsCommand } from '@aws-sdk/client-guardduty';
+import {
+  EnableOrganizationAdminAccountCommand,
+  GuardDutyClient,
+  ListOrganizationAdminAccountsCommand,
+} from '@aws-sdk/client-guardduty';
 
-import { beforeAll, expect, test } from '@jest/globals';
+import {
+  OrganizationsClient,
+  ListDelegatedAdministratorsCommand,
+  DeregisterDelegatedAdministratorCommand,
+  RegisterDelegatedAdministratorCommand,
+} from '@aws-sdk/client-organizations';
+
+import { beforeAll, afterAll, expect, test, vi, describe } from 'vitest';
 
 import { throttlingBackOff } from '@aws-accelerator/utils/lib/throttle';
 import { AssertPropsType } from '@aws-accelerator/utils/lib/test-util/common/assertion';
@@ -31,7 +42,7 @@ import { handler } from '../index';
 const successStatus = { Status: 'Success', StatusCode: 200 };
 
 const minute = 60000;
-jest.setTimeout(2 * minute);
+vi.setConfig({ testTimeout: 2 * minute });
 
 //
 // Initialize integration test class
@@ -40,143 +51,209 @@ const integrationTest = new IntegrationTest({
   executorRolePolicyStatements: GuardDutyEnableOrganizationAdminAccountPolicyStatements,
 });
 
-RegionalTestSuite['sampleConfig:us-east-1']!.suite(RegionalTestSuite['sampleConfig:us-east-1']!.suiteName, () => {
-  beforeAll(async () => {
-    //
-    // Setup Integration account environment
-    //
-    await integrationTest.setup();
-  });
+RegionalTestSuite(describe)['sampleConfig:us-east-1']!.suite(
+  RegionalTestSuite(describe)['sampleConfig:us-east-1']!.suiteName,
+  () => {
+    beforeAll(async () => {
+      //
+      // Setup Integration account environment
+      //
+      await integrationTest.setup();
+    });
 
-  afterAll(async () => {
-    //
-    // Cleanup of environment
-    //
-    await cleanup();
-  });
+    afterAll(async () => {
+      //
+      // Cleanup of environment
+      //
+      await cleanup();
+    });
 
-  test('[CREATE event]: Should pass when adding Management account as delegated admin account', async () => {
-    const auditAccountId = integrationTest.getAccountId('Audit');
-    const event = CreateEvent;
-    event.ResourceProperties['region'] = integrationTest.environment.region;
-    event.ResourceProperties['adminAccountId'] = auditAccountId;
+    test('[CREATE event]: Should fail when a different delegated admin account is already set', async () => {
+      const auditAccountId = integrationTest.getAccountId('Audit');
+      const logArchiveAccountId = integrationTest.getAccountId('Log Archive');
+      const event = CreateEvent;
+      event.ResourceProperties['region'] = integrationTest.environment.region;
+      event.ResourceProperties['adminAccountId'] = auditAccountId;
 
-    expect(await handler(event)).toEqual(successStatus);
+      await setGuardDutyOrgAdmin(logArchiveAccountId);
 
-    const assertProps = await getAssertProperties();
-    expect(
-      await integrationTest.assertion.assertApiCall({
-        expectedResponse: { AdminAccounts: [{ AdminAccountId: auditAccountId, AdminStatus: 'ENABLED' }] },
-        ...assertProps,
-      }),
-    ).toBeTruthy();
-  });
+      await expect(async () => handler(event)).rejects.toThrow('GuardDuty delegated admin is already set');
 
-  test('[UPDATE event]: Should pass when trying to update delegated admin account to the same value', async () => {
-    const auditAccountId = integrationTest.getAccountId('Audit');
-    const event = UpdateEvent;
-    event.ResourceProperties['region'] = integrationTest.environment.region;
-    event.ResourceProperties['adminAccountId'] = auditAccountId;
-    event.OldResourceProperties['region'] = integrationTest.environment.region;
-    event.OldResourceProperties['adminAccountId'] = auditAccountId;
+      await unsetGuardDutyOrgAdmin();
+    });
 
-    expect(await handler(event)).toEqual(successStatus);
+    test('[CREATE event]: Should fail when a different organizations delegated admin account is already set', async () => {
+      const auditAccountId = integrationTest.getAccountId('Audit');
+      const logArchiveAccountId = integrationTest.getAccountId('Log Archive');
+      const event = CreateEvent;
+      event.ResourceProperties['region'] = integrationTest.environment.region;
+      event.ResourceProperties['adminAccountId'] = auditAccountId;
 
-    const assertProps = await getAssertProperties();
-    expect(
-      await integrationTest.assertion.assertApiCall({
-        expectedResponse: { AdminAccounts: [{ AdminAccountId: auditAccountId, AdminStatus: 'ENABLED' }] },
-        ...assertProps,
-      }),
-    ).toBeTruthy();
-  });
+      await setOrganizationsGuardDutyAdmin(logArchiveAccountId);
 
-  test('[DELETE event]: Should pass when deleting the delegated admin account', async () => {
-    const auditAccountId = integrationTest.getAccountId('Audit');
-    const event = DeleteEvent;
-    event.ResourceProperties['region'] = integrationTest.environment.region;
-    event.ResourceProperties['adminAccountId'] = auditAccountId;
+      await expect(async () => handler(event)).rejects.toThrow(
+        'Another account is already enabled as GuardDuty delegated administrator for the organization',
+      );
 
-    expect(await handler(event)).toEqual(successStatus);
+      await unsetGuardDutyOrgAdmin();
+    });
 
-    const assertProps = await getAssertProperties(1);
-    expect(
-      await integrationTest.assertion.assertApiCall({
-        expectedResponse: { AdminAccounts: [] },
-        ...assertProps,
-      }),
-    ).toBeTruthy();
-  });
-});
+    test('[CREATE event]: Should pass when adding Management account as delegated admin account', async () => {
+      const auditAccountId = integrationTest.getAccountId('Audit');
+      const event = CreateEvent;
+      event.ResourceProperties['region'] = integrationTest.environment.region;
+      event.ResourceProperties['adminAccountId'] = auditAccountId;
 
-RegionalTestSuite['sampleConfig:us-west-2']!.suite(RegionalTestSuite['sampleConfig:us-west-2']!.suiteName, () => {
-  beforeAll(async () => {
-    //
-    // Setup Integration account environment
-    //
-    await integrationTest.setup();
-  });
+      expect(await handler(event)).toEqual(successStatus);
 
-  afterAll(async () => {
-    //
-    // Cleanup of environment
-    //
-    await cleanup();
-  });
+      const assertProps = await getAssertProperties();
+      expect(
+        await integrationTest.assertion.assertApiCall({
+          expectedResponse: { AdminAccounts: [{ AdminAccountId: auditAccountId, AdminStatus: 'ENABLED' }] },
+          ...assertProps,
+        }),
+      ).toBeTruthy();
+    });
 
-  test('[CREATE event]: Should pass when adding Audit account as delegated admin account', async () => {
-    const auditAccountId = integrationTest.getAccountId('Audit');
-    const event = CreateEvent;
-    event.ResourceProperties['region'] = integrationTest.environment.region;
-    event.ResourceProperties['adminAccountId'] = auditAccountId;
+    test('[UPDATE event]: Should pass when trying to update delegated admin account to the same value', async () => {
+      const auditAccountId = integrationTest.getAccountId('Audit');
+      const event = UpdateEvent;
+      event.ResourceProperties['region'] = integrationTest.environment.region;
+      event.ResourceProperties['adminAccountId'] = auditAccountId;
+      event.OldResourceProperties['region'] = integrationTest.environment.region;
+      event.OldResourceProperties['adminAccountId'] = auditAccountId;
 
-    expect(await handler(event)).toEqual(successStatus);
+      expect(await handler(event)).toEqual(successStatus);
 
-    const assertProps = await getAssertProperties();
-    expect(
-      await integrationTest.assertion.assertApiCall({
-        expectedResponse: { AdminAccounts: [{ AdminAccountId: auditAccountId, AdminStatus: 'ENABLED' }] },
-        ...assertProps,
-      }),
-    ).toBeTruthy();
-  });
+      const assertProps = await getAssertProperties();
+      expect(
+        await integrationTest.assertion.assertApiCall({
+          expectedResponse: { AdminAccounts: [{ AdminAccountId: auditAccountId, AdminStatus: 'ENABLED' }] },
+          ...assertProps,
+        }),
+      ).toBeTruthy();
+    });
 
-  test('[UPDATE event]: Should pass when trying to update delegated admin account to the same value', async () => {
-    const auditAccountId = integrationTest.getAccountId('Audit');
-    const event = UpdateEvent;
-    event.ResourceProperties['region'] = integrationTest.environment.region;
-    event.ResourceProperties['adminAccountId'] = auditAccountId;
-    event.OldResourceProperties['region'] = integrationTest.environment.region;
-    event.OldResourceProperties['adminAccountId'] = auditAccountId;
+    test('[DELETE event]: Should pass when deleting the delegated admin account', async () => {
+      const auditAccountId = integrationTest.getAccountId('Audit');
+      const event = DeleteEvent;
+      event.ResourceProperties['region'] = integrationTest.environment.region;
+      event.ResourceProperties['adminAccountId'] = auditAccountId;
 
-    expect(await handler(event)).toEqual(successStatus);
+      expect(await handler(event)).toEqual(successStatus);
 
-    const assertProps = await getAssertProperties();
-    expect(
-      await integrationTest.assertion.assertApiCall({
-        expectedResponse: { AdminAccounts: [{ AdminAccountId: auditAccountId, AdminStatus: 'ENABLED' }] },
-        ...assertProps,
-      }),
-    ).toBeTruthy();
-  });
+      const assertProps = await getAssertProperties(1);
+      expect(
+        await integrationTest.assertion.assertApiCall({
+          expectedResponse: { AdminAccounts: [] },
+          ...assertProps,
+        }),
+      ).toBeTruthy();
+    });
+  },
+);
 
-  test('[DELETE event]: Should pass when deleting the delegated admin account', async () => {
-    const auditAccountId = integrationTest.getAccountId('Audit');
-    const event = DeleteEvent;
-    event.ResourceProperties['region'] = integrationTest.environment.region;
-    event.ResourceProperties['adminAccountId'] = auditAccountId;
+RegionalTestSuite(describe)['sampleConfig:us-west-2']!.suite(
+  RegionalTestSuite(describe)['sampleConfig:us-west-2']!.suiteName,
+  () => {
+    beforeAll(async () => {
+      //
+      // Setup Integration account environment
+      //
+      await integrationTest.setup();
+    });
 
-    expect(await handler(event)).toEqual(successStatus);
+    afterAll(async () => {
+      //
+      // Cleanup of environment
+      //
+      await cleanup();
+    });
 
-    const assertProps = await getAssertProperties(1);
-    expect(
-      await integrationTest.assertion.assertApiCall({
-        expectedResponse: { AdminAccounts: [] },
-        ...assertProps,
-      }),
-    ).toBeTruthy();
-  });
-});
+    test('[CREATE event]: Should fail when a different delegated admin account is already set', async () => {
+      const auditAccountId = integrationTest.getAccountId('Audit');
+      const logArchiveAccountId = integrationTest.getAccountId('Log Archive');
+      const event = CreateEvent;
+      event.ResourceProperties['region'] = integrationTest.environment.region;
+      event.ResourceProperties['adminAccountId'] = auditAccountId;
+
+      await setGuardDutyOrgAdmin(logArchiveAccountId);
+
+      await expect(async () => handler(event)).rejects.toThrow('GuardDuty delegated admin is already set');
+
+      await unsetGuardDutyOrgAdmin();
+    });
+
+    test('[CREATE event]: Should fail when a different organizations delegated admin account is already set', async () => {
+      const auditAccountId = integrationTest.getAccountId('Audit');
+      const logArchiveAccountId = integrationTest.getAccountId('Log Archive');
+      const event = CreateEvent;
+      event.ResourceProperties['region'] = integrationTest.environment.region;
+      event.ResourceProperties['adminAccountId'] = auditAccountId;
+
+      await setOrganizationsGuardDutyAdmin(logArchiveAccountId);
+
+      await expect(async () => handler(event)).rejects.toThrow(
+        'Another account is already enabled as GuardDuty delegated administrator for the organization',
+      );
+
+      await unsetGuardDutyOrgAdmin();
+    });
+
+    test('[CREATE event]: Should pass when adding Audit account as delegated admin account', async () => {
+      const auditAccountId = integrationTest.getAccountId('Audit');
+      const event = CreateEvent;
+      event.ResourceProperties['region'] = integrationTest.environment.region;
+      event.ResourceProperties['adminAccountId'] = auditAccountId;
+
+      expect(await handler(event)).toEqual(successStatus);
+
+      const assertProps = await getAssertProperties();
+      expect(
+        await integrationTest.assertion.assertApiCall({
+          expectedResponse: { AdminAccounts: [{ AdminAccountId: auditAccountId, AdminStatus: 'ENABLED' }] },
+          ...assertProps,
+        }),
+      ).toBeTruthy();
+    });
+
+    test('[UPDATE event]: Should pass when trying to update delegated admin account to the same value', async () => {
+      const auditAccountId = integrationTest.getAccountId('Audit');
+      const event = UpdateEvent;
+      event.ResourceProperties['region'] = integrationTest.environment.region;
+      event.ResourceProperties['adminAccountId'] = auditAccountId;
+      event.OldResourceProperties['region'] = integrationTest.environment.region;
+      event.OldResourceProperties['adminAccountId'] = auditAccountId;
+
+      expect(await handler(event)).toEqual(successStatus);
+
+      const assertProps = await getAssertProperties();
+      expect(
+        await integrationTest.assertion.assertApiCall({
+          expectedResponse: { AdminAccounts: [{ AdminAccountId: auditAccountId, AdminStatus: 'ENABLED' }] },
+          ...assertProps,
+        }),
+      ).toBeTruthy();
+    });
+
+    test('[DELETE event]: Should pass when deleting the delegated admin account', async () => {
+      const auditAccountId = integrationTest.getAccountId('Audit');
+      const event = DeleteEvent;
+      event.ResourceProperties['region'] = integrationTest.environment.region;
+      event.ResourceProperties['adminAccountId'] = auditAccountId;
+
+      expect(await handler(event)).toEqual(successStatus);
+
+      const assertProps = await getAssertProperties(1);
+      expect(
+        await integrationTest.assertion.assertApiCall({
+          expectedResponse: { AdminAccounts: [] },
+          ...assertProps,
+        }),
+      ).toBeTruthy();
+    });
+  },
+);
 
 /**
  * Function to perform integration test environment cleanup.
@@ -207,4 +284,86 @@ async function getAssertProperties(delayInMinutes?: number): Promise<AssertProps
     apiName: 'ListOrganizationAdminAccounts',
     actualResponse: await throttlingBackOff(() => client.send(new ListOrganizationAdminAccountsCommand({}))),
   };
+}
+
+/**
+ * Function to deregister any existing GuardDuty delegated administrators.
+ *
+ * @description
+ * This function checks if any GuardDuty delegated administrators exist using the Organizations API,
+ * and deregisters them.
+ */
+async function unsetGuardDutyOrgAdmin() {
+  const organizationsClient = new OrganizationsClient({
+    credentials: integrationTest.environment.integrationAccountStsCredentials,
+  });
+
+  const listDelegatedAdminsResponse = await organizationsClient.send(
+    new ListDelegatedAdministratorsCommand({ ServicePrincipal: 'guardduty.amazonaws.com' }),
+  );
+
+  // If delegated admins exist, deregister them
+  if (
+    listDelegatedAdminsResponse.DelegatedAdministrators &&
+    listDelegatedAdminsResponse.DelegatedAdministrators.length > 0
+  ) {
+    for (const delegatedAdmin of listDelegatedAdminsResponse.DelegatedAdministrators) {
+      if (delegatedAdmin.Id) {
+        console.log(`Deregistering existing delegated admin account: ${delegatedAdmin.Id}`);
+        await organizationsClient.send(
+          new DeregisterDelegatedAdministratorCommand({
+            AccountId: delegatedAdmin.Id,
+            ServicePrincipal: 'guardduty.amazonaws.com',
+          }),
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Function to set GuardDuty organization admin account.
+ *
+ * @description
+ * This function first deregisters any existing GuardDuty delegated administrators,
+ * and then sets the specified account as the GuardDuty delegated admin.
+ *
+ * @param region - The AWS region
+ * @param adminAccountId - The account ID to set as GuardDuty admin
+ */
+async function setGuardDutyOrgAdmin(adminAccountId: string) {
+  await unsetGuardDutyOrgAdmin();
+
+  const guardDutyClient = new GuardDutyClient({
+    credentials: integrationTest.environment.integrationAccountStsCredentials,
+  });
+
+  // Set the new GuardDuty delegated admin
+  await guardDutyClient.send(new EnableOrganizationAdminAccountCommand({ AdminAccountId: adminAccountId }));
+}
+
+/**
+ * Function to set Organizations GuardDuty delegated administrator.
+ *
+ * @description
+ * This function first deregisters any existing GuardDuty delegated administrators,
+ * and then registers the specified account as the GuardDuty delegated administrator
+ * using the Organizations API.
+ *
+ * @param adminAccountId - The account ID to set as GuardDuty delegated administrator
+ */
+async function setOrganizationsGuardDutyAdmin(adminAccountId: string) {
+  await unsetGuardDutyOrgAdmin();
+
+  const organizationsClient = new OrganizationsClient({
+    credentials: integrationTest.environment.integrationAccountStsCredentials,
+  });
+
+  // Set the new GuardDuty delegated admin
+  await organizationsClient.send(
+    new RegisterDelegatedAdministratorCommand({
+      AccountId: adminAccountId,
+      ServicePrincipal: 'guardduty.amazonaws.com',
+    }),
+  );
 }

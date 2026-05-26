@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Test 1`] = `
+exports[`SecurityResourcesStack > Construct(SecurityResourcesStack):  Snapshot Test 1`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -23,6 +23,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
   "Resources": {
     "AcceleratorAlbHttpDropInvalidHeaderEnabled699B715A": {
       "DependsOn": [
+        "AcceleratorIamNoInlinePolicyCheckAE16B56C",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -42,6 +43,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorApiGwCacheEnabledAndEncrypted090286F1": {
       "DependsOn": [
+        "AcceleratorElasticsearchNodeToNodeEncryptionCheck7F672889",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -61,6 +63,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorApiGwExecutionLoggingEnabledDA00B249": {
       "DependsOn": [
+        "AcceleratorAlbHttpDropInvalidHeaderEnabled699B715A",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -84,6 +87,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
         "AcceleratorAttachEc2InstanceProfileFunctionCustomRulePermissionBjrlLxHBU2q1eflzaT436qiq4Iu5pKu7iRO6toNI5AF7FE49",
         "AcceleratorAttachEc2InstanceProfileFunction2F25082F",
         "AcceleratorAttachEc2InstanceProfileFunctionServiceRoleF2BC24EC",
+        "AcceleratorWafLoggingEnabledC2F2415E",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -133,7 +137,13 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "AWS Config custom rule function used for "accelerator-attach-ec2-instance-profile" rule",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorAttachEc2InstanceProfileFunctionServiceRoleF2BC24EC",
@@ -525,6 +535,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorCloudtrailEnabled08B9BEEA": {
       "DependsOn": [
+        "AcceleratorIamUserGroupMembershipCheck5D2DBD69",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -539,6 +550,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorCloudtrailS3DataeventsEnabledF8E06B95": {
       "DependsOn": [
+        "AcceleratorCloudwatchAlarmActionCheckBBDDF3B7",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -553,6 +565,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorCloudtrailSecurityTrailEnabledDBDDD05E": {
       "DependsOn": [
+        "AcceleratorElbDeletionProtectionEnabled6A44EA2D",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -567,6 +580,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorCloudwatchAlarmActionCheckBBDDF3B7": {
       "DependsOn": [
+        "AcceleratorCloudtrailEnabled08B9BEEA",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -590,6 +604,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorCloudwatchLogGroupEncrypted233263DC": {
       "DependsOn": [
+        "AcceleratorApiGwExecutionLoggingEnabledDA00B249",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -604,6 +619,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorCwLoggroupRetentionPeriodCheck7A9796B7": {
       "DependsOn": [
+        "AcceleratorS3BucketReplicationEnabled54B924AB",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -618,6 +634,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorDuplicateS3RuleAFE3802F": {
       "DependsOn": [
+        "AcceleratorS3BucketDefaultLockEnabled1E1E5D5A",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -742,6 +759,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorDynamodbTableEncryptedKms3EE6CD77": {
       "DependsOn": [
+        "AcceleratorSagemakerNotebookInstanceKmsKeyConfigured98505444",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -761,6 +779,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorEc2InstanceDetailedMonitoringEnabled9F032168": {
       "DependsOn": [
+        "AcceleratorS3BucketReplicationEnabled54B924AB",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -780,6 +799,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorEc2InstanceNoPublicIpB8B5F3AD": {
       "DependsOn": [
+        "AcceleratorVpcSgOpenOnlyToAuthorizedPorts9EF29973",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -799,6 +819,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorEc2InstanceProfilePermission16FE7EFE": {
       "DependsOn": [
+        "AcceleratorAttachEc2InstanceProfile1DAEB489",
         "AcceleratorEc2InstanceProfilePermissionFunctionCustomRulePermissionBjrlLxHBU2q1eflzaT436qiq4Iu5pKu7iRO6toNI407CB1D2",
         "AcceleratorEc2InstanceProfilePermissionFunction65B8A331",
         "AcceleratorEc2InstanceProfilePermissionFunctionServiceRoleAA6A6427",
@@ -854,7 +875,13 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "AWS Config custom rule function used for "accelerator-ec2-instance-profile-permission" rule",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorEc2InstanceProfilePermissionFunctionServiceRoleAA6A6427",
@@ -1117,6 +1144,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorEc2InstancesInVpcFCB9B1B9": {
       "DependsOn": [
+        "AcceleratorLambdaInsideVpc68BE0CC7",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1136,6 +1164,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorEc2VolumeInuseCheck934E830D": {
       "DependsOn": [
+        "AcceleratorEc2InstanceDetailedMonitoringEnabled9F032168",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1157,6 +1186,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorElasticacheRedisClusterAutomaticBackupCheck7CFACFC6": {
       "DependsOn": [
+        "AcceleratorElbDeletionProtectionEnabled6A44EA2D",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1171,6 +1201,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorElasticsearchInVpcOnly1FFB209E": {
       "DependsOn": [
+        "AcceleratorVpcSgOpenOnlyToAuthorizedPorts9EF29973",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1185,6 +1216,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorElasticsearchNodeToNodeEncryptionCheck7F672889": {
       "DependsOn": [
+        "AcceleratorIamUserMfaEnabled119AE0DF",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1204,6 +1236,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorElbAcmCertificateRequired7DFF09EF": {
       "DependsOn": [
+        "AcceleratorIamNoInlinePolicyCheckAE16B56C",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1223,6 +1256,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorElbCrossZoneLoadBalancingEnabled4933AD2A": {
       "DependsOn": [
+        "AcceleratorVpcVpn2TunnelsUpBED0249E",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1242,6 +1276,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorElbDeletionProtectionEnabled6A44EA2D": {
       "DependsOn": [
+        "AcceleratorEc2InstanceDetailedMonitoringEnabled9F032168",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1261,6 +1296,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorElbLoggingEnabledD68765E9": {
       "DependsOn": [
+        "AcceleratorS3BucketServerSideEncryptionEnabledB22E11D0",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1408,6 +1444,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorElbTlsHttpsListenersOnly59A28904": {
       "DependsOn": [
+        "AcceleratorAlbHttpDropInvalidHeaderEnabled699B715A",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1427,6 +1464,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorEmrKerberosEnabled27B4E237": {
       "DependsOn": [
+        "AcceleratorCloudtrailS3DataeventsEnabledF8E06B95",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1441,6 +1479,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorGuarddutyNonArchivedFindings32ED20C9": {
       "DependsOn": [
+        "AcceleratorIamUserMfaEnabled119AE0DF",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1459,6 +1498,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorIamGroupHasUsersCheck5E15FE54": {
       "DependsOn": [
+        "AcceleratorCloudtrailS3DataeventsEnabledF8E06B95",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1478,6 +1518,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorIamNoInlinePolicyCheckAE16B56C": {
       "DependsOn": [
+        "AcceleratorElasticsearchInVpcOnly1FFB209E",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1499,6 +1540,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorIamUserGroupMembershipCheck5D2DBD69": {
       "DependsOn": [
+        "AcceleratorS3BucketServerSideEncryptionEnabledB22E11D0",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1518,6 +1560,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorIamUserMfaEnabled119AE0DF": {
       "DependsOn": [
+        "AcceleratorVpcVpn2TunnelsUpBED0249E",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1566,6 +1609,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorInternetGatewayAuthorizedVpcOnly75CCD662": {
       "DependsOn": [
+        "AcceleratorElasticsearchInVpcOnly1FFB209E",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1585,6 +1629,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorKmsCmkNotScheduledForDeletionF3796D4E": {
       "DependsOn": [
+        "AcceleratorElasticsearchNodeToNodeEncryptionCheck7F672889",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1604,6 +1649,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorLambdaInsideVpc68BE0CC7": {
       "DependsOn": [
+        "AcceleratorIamGroupHasUsersCheck5E15FE54",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1623,6 +1669,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorRdsLoggingEnabled02B0690C": {
       "DependsOn": [
+        "AcceleratorCloudtrailEnabled08B9BEEA",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1642,6 +1689,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorRedshiftClusterConfigurationCheckC9D7559D": {
       "DependsOn": [
+        "AcceleratorCloudwatchAlarmActionCheckBBDDF3B7",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1664,6 +1712,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorS3BucketDefaultLockEnabled1E1E5D5A": {
       "DependsOn": [
+        "AcceleratorSagemakerNotebookInstanceKmsKeyConfigured98505444",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1683,6 +1732,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorS3BucketPolicyGranteeCheckA238FAF4": {
       "DependsOn": [
+        "AcceleratorIamGroupHasUsersCheck5E15FE54",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1702,6 +1752,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorS3BucketReplicationEnabled54B924AB": {
       "DependsOn": [
+        "AcceleratorApiGwExecutionLoggingEnabledDA00B249",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1721,6 +1772,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorS3BucketServerSideEncryptionEnabledB22E11D0": {
       "DependsOn": [
+        "AcceleratorAttachEc2InstanceProfile1DAEB489",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1873,6 +1925,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorS3BucketVersioningEnabledA2D78DD3": {
       "DependsOn": [
+        "AcceleratorElasticacheRedisClusterAutomaticBackupCheck7CFACFC6",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1892,6 +1945,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorSagemakerEndpointConfigurationKmsKeyConfigured29A26847": {
       "DependsOn": [
+        "AcceleratorApiGwCacheEnabledAndEncrypted090286F1",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1906,6 +1960,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorSagemakerNotebookInstanceKmsKeyConfigured98505444": {
       "DependsOn": [
+        "AcceleratorApiGwCacheEnabledAndEncrypted090286F1",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1920,6 +1975,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorSecurityhubEnabled25B1DE1B": {
       "DependsOn": [
+        "AcceleratorIamUserGroupMembershipCheck5D2DBD69",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1937,6 +1993,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
         "AcceleratorTargetDocument01FunctionCustomRulePermissionBjrlLxHBU2q1eflzaT436qiq4Iu5pKu7iRO6toNI866B82A5",
         "AcceleratorTargetDocument01Function89A6815D",
         "AcceleratorTargetDocument01FunctionServiceRoleCDB753E0",
+        "AcceleratorWafLoggingEnabledC2F2415E",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -1986,7 +2043,13 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "AWS Config custom rule function used for "accelerator-target-document-01" rule",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorTargetDocument01FunctionServiceRoleCDB753E0",
@@ -2186,7 +2249,13 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Function used in Attach-IAM-Instance-Profile SSM document for "accelerator-target-document-01" custom config rule to remediation",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorTargetDocument01RemediationRoleB6FD3A5D",
@@ -2330,6 +2399,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorVpcSgOpenOnlyToAuthorizedPorts9EF29973": {
       "DependsOn": [
+        "AcceleratorLambdaInsideVpc68BE0CC7",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -2352,6 +2422,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
     },
     "AcceleratorVpcVpn2TunnelsUpBED0249E": {
       "DependsOn": [
+        "AcceleratorElasticacheRedisClusterAutomaticBackupCheck7CFACFC6",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -2439,7 +2510,13 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "AWS Config custom rule function used for "accelerator-waf-logging-enabled" rule",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorWafLoggingEnabledFunctionServiceRole3388E650",
@@ -2709,15 +2786,20 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AppTest2CustomCreateLogGroupCustomResourceProviderRole24FD6060",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2796,6 +2878,15 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
                   ],
                   "Effect": "Allow",
                   "Resource": "*",
+                },
+                {
+                  "Action": [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "arn:aws:kms:us-east-1:111111111111:key/121ac3b6-8d53-4d8a-a05c-1234567789",
                 },
               ],
               "Version": "2012-10-17",
@@ -3237,7 +3328,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
           },
         ],
         "AlarmDescription": "Alarm for S3 bucket policy changes",
-        "AlarmName": "CIS-3.8-S3BucketPolicyChanges.",
+        "AlarmName": "CIS-3.8-S3BucketPolicyChanges",
         "ComparisonOperator": "GreaterThanOrEqualToThreshold",
         "EvaluationPeriods": 1,
         "MetricName": "S3BucketPolicyChanges",
@@ -3465,15 +3556,20 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomConfigServiceTagsCustomResourceProviderRoleDC1C2A56",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3549,15 +3645,20 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSessionManagerLoggingCustomResourceProviderRole1D8EE686",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3609,8 +3710,8 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
               "Statement": [
                 {
                   "Action": [
-                    "ssm:DescribeDocument",
                     "ssm:CreateDocument",
+                    "ssm:GetDocument",
                     "ssm:UpdateDocument",
                   ],
                   "Effect": "Allow",
@@ -3634,15 +3735,20 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3884,11 +3990,27 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
         "AlarmName": "GenericMetricGreaterThanUpperThreshold",
         "ComparisonOperator": "GreaterThanUpperThreshold",
         "EvaluationPeriods": 1,
-        "MetricName": "GenericMetricForTestingGreaterThanUpperThreshold",
-        "Namespace": "LzaMetrics",
-        "Period": 300,
-        "Statistic": "Sum",
-        "Threshold": 1,
+        "Metrics": [
+          {
+            "Expression": "ANOMALY_DETECTION_BAND(m0, 2)",
+            "Id": "expr_1",
+            "Label": "Anomaly Detection Band",
+            "ReturnData": true,
+          },
+          {
+            "Id": "m0",
+            "MetricStat": {
+              "Metric": {
+                "MetricName": "GenericMetricForTestingGreaterThanUpperThreshold",
+                "Namespace": "LzaMetrics",
+              },
+              "Period": 300,
+              "Stat": "Sum",
+            },
+            "ReturnData": true,
+          },
+        ],
+        "ThresholdMetricId": "expr_1",
         "TreatMissingData": "notBreaching",
       },
       "Type": "AWS::CloudWatch::Alarm",
@@ -3913,11 +4035,27 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
         "AlarmName": "GenericMetricLessThanLowerOrGreaterThanUpperThreshold",
         "ComparisonOperator": "LessThanLowerOrGreaterThanUpperThreshold",
         "EvaluationPeriods": 1,
-        "MetricName": "GenericMetricForTestingLessThanLowerOrGreaterThanUpperThreshold",
-        "Namespace": "LzaMetrics",
-        "Period": 300,
-        "Statistic": "Sum",
-        "Threshold": 1,
+        "Metrics": [
+          {
+            "Expression": "ANOMALY_DETECTION_BAND(m0, 2)",
+            "Id": "expr_1",
+            "Label": "Anomaly Detection Band",
+            "ReturnData": true,
+          },
+          {
+            "Id": "m0",
+            "MetricStat": {
+              "Metric": {
+                "MetricName": "GenericMetricForTestingLessThanLowerOrGreaterThanUpperThreshold",
+                "Namespace": "LzaMetrics",
+              },
+              "Period": 300,
+              "Stat": "Sum",
+            },
+            "ReturnData": true,
+          },
+        ],
+        "ThresholdMetricId": "expr_1",
         "TreatMissingData": "notBreaching",
       },
       "Type": "AWS::CloudWatch::Alarm",
@@ -3942,11 +4080,27 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
         "AlarmName": "GenericMetricLessThanLowerThreshold",
         "ComparisonOperator": "LessThanLowerThreshold",
         "EvaluationPeriods": 1,
-        "MetricName": "GenericMetricForTestingLessThanLowerThreshold",
-        "Namespace": "LzaMetrics",
-        "Period": 300,
-        "Statistic": "Sum",
-        "Threshold": 1,
+        "Metrics": [
+          {
+            "Expression": "ANOMALY_DETECTION_BAND(m0, 2)",
+            "Id": "expr_1",
+            "Label": "Anomaly Detection Band",
+            "ReturnData": true,
+          },
+          {
+            "Id": "m0",
+            "MetricStat": {
+              "Metric": {
+                "MetricName": "GenericMetricForTestingLessThanLowerThreshold",
+                "Namespace": "LzaMetrics",
+              },
+              "Period": 300,
+              "Stat": "Sum",
+            },
+            "ReturnData": true,
+          },
+        ],
+        "ThresholdMetricId": "expr_1",
         "TreatMissingData": "notBreaching",
       },
       "Type": "AWS::CloudWatch::Alarm",
@@ -4156,6 +4310,11 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Creates a CloudWatch Logs Group to store SecurityHub findings and updates CW Log Group resource policy",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Ref": "SsmParameterValueacceleratorkmslambdakeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -4167,7 +4326,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 180,
       },
       "Type": "AWS::Lambda::Function",
@@ -4339,6 +4498,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-SecurityResourcesStack-111111111111-us-east-1/SecurityHubEventsLog/SecurityHubEventsFunction/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "SecurityHubEventsLogSecurityHubEventsFunction6170C5C5",
@@ -4348,13 +4508,18 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "SecurityHubEventsLogSecurityHubEventsFunctionframeworkonEventServiceRole2DBDE006",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4439,6 +4604,16 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SecurityHubEventsLogSecurityHubEventsFunction6170C5C5",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -4549,7 +4724,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SecurityResourcesStack-111111111111-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -4575,8 +4750,10 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
             "Arn",
           ],
         },
-        "cloudWatchEncryptionEnabled": false,
-        "cloudWatchLogGroupName": "",
+        "cloudWatchEncryptionEnabled": true,
+        "cloudWatchLogGroupName": {
+          "Ref": "SsmSessionManagerSettingsSessionManagerCloudWatchLogGroup15AB5AE0",
+        },
         "kmsKeyId": {
           "Ref": "SsmSessionManagerSettingsSessionManagerSessionKey23B7175C",
         },
@@ -4594,14 +4771,27 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
             ],
           ],
         },
+        "sendToS3": true,
       },
       "Type": "Custom::SsmSessionManagerSettings",
       "UpdateReplacePolicy": "Delete",
     },
+    "SsmSessionManagerSettingsSessionManagerCloudWatchLogGroup15AB5AE0": {
+      "DeletionPolicy": "RetainExceptOnCreate",
+      "Properties": {
+        "KmsKeyId": {
+          "Ref": "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+        "LogGroupName": "AWSAccelerator-sessionmanager-logs",
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
     "SsmSessionManagerSettingsSessionManagerSessionKey23B7175C": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "AWS Accelerator Session Manager Session Encryption",
+        "Description": "KMS key for encrypting SSM Session Manager session logs and data",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -4643,32 +4833,6 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
       },
       "Type": "AWS::KMS::Alias",
     },
-    "SsmSessionManagerSettingsSessionManagerUserKMSPolicyFB96BB42": {
-      "Properties": {
-        "Description": "",
-        "ManagedPolicyName": "AWSAccelerator-SessionManagerUserKMS-us-east-1",
-        "Path": "/",
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "kms:Decrypt",
-                "kms:GenerateDataKey",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "SsmSessionManagerSettingsSessionManagerSessionKey23B7175C",
-                  "Arn",
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-      },
-      "Type": "AWS::IAM::ManagedPolicy",
-    },
     "UnauthorizedApiCallsMetricFilter95DF459D": {
       "DependsOn": [
         "CloudTrailLogGroupAWSAcceleratorAccountCloudTrail9F5C56EA",
@@ -4707,7 +4871,7 @@ exports[`SecurityResourcesStack Construct(SecurityResourcesStack):  Snapshot Tes
 }
 `;
 
-exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1`] = `
+exports[`delegatedAdminStack > Construct(SecurityResourcesStack):  Snapshot Test 1`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -4730,6 +4894,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
   "Resources": {
     "AcceleratorAlbHttpDropInvalidHeaderEnabled699B715A": {
       "DependsOn": [
+        "AcceleratorIamNoInlinePolicyCheckAE16B56C",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -4749,6 +4914,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorApiGwCacheEnabledAndEncrypted090286F1": {
       "DependsOn": [
+        "AcceleratorElasticsearchNodeToNodeEncryptionCheck7F672889",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -4768,6 +4934,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorApiGwExecutionLoggingEnabledDA00B249": {
       "DependsOn": [
+        "AcceleratorAlbHttpDropInvalidHeaderEnabled699B715A",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -4840,7 +5007,13 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "AWS Config custom rule function used for "accelerator-attach-ec2-instance-profile" rule",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorAttachEc2InstanceProfileFunctionServiceRoleF2BC24EC",
@@ -5139,6 +5312,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorCloudtrailEnabled08B9BEEA": {
       "DependsOn": [
+        "AcceleratorIamUserGroupMembershipCheck5D2DBD69",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5153,6 +5327,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorCloudtrailS3DataeventsEnabledF8E06B95": {
       "DependsOn": [
+        "AcceleratorCloudwatchAlarmActionCheckBBDDF3B7",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5167,6 +5342,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorCloudtrailSecurityTrailEnabledDBDDD05E": {
       "DependsOn": [
+        "AcceleratorElbDeletionProtectionEnabled6A44EA2D",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5181,6 +5357,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorCloudwatchAlarmActionCheckBBDDF3B7": {
       "DependsOn": [
+        "AcceleratorCloudtrailEnabled08B9BEEA",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5204,6 +5381,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorCloudwatchLogGroupEncrypted233263DC": {
       "DependsOn": [
+        "AcceleratorApiGwExecutionLoggingEnabledDA00B249",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5218,6 +5396,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorCwLoggroupRetentionPeriodCheck7A9796B7": {
       "DependsOn": [
+        "AcceleratorS3BucketReplicationEnabled54B924AB",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5232,6 +5411,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorDynamodbTableEncryptedKms3EE6CD77": {
       "DependsOn": [
+        "AcceleratorSagemakerNotebookInstanceKmsKeyConfigured98505444",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5251,6 +5431,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorEc2InstanceDetailedMonitoringEnabled9F032168": {
       "DependsOn": [
+        "AcceleratorS3BucketReplicationEnabled54B924AB",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5270,6 +5451,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorEc2InstanceNoPublicIpB8B5F3AD": {
       "DependsOn": [
+        "AcceleratorVpcSgOpenOnlyToAuthorizedPorts9EF29973",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5289,6 +5471,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorEc2InstanceProfilePermission16FE7EFE": {
       "DependsOn": [
+        "AcceleratorAttachEc2InstanceProfile1DAEB489",
         "AcceleratorEc2InstanceProfilePermissionFunctionCustomRulePermissionBjrlLxHBU2q1eflzaT436qiq4Iu5pKu7iRO6toNI407CB1D2",
         "AcceleratorEc2InstanceProfilePermissionFunction65B8A331",
         "AcceleratorEc2InstanceProfilePermissionFunctionServiceRoleAA6A6427",
@@ -5344,7 +5527,13 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "AWS Config custom rule function used for "accelerator-ec2-instance-profile-permission" rule",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorEc2InstanceProfilePermissionFunctionServiceRoleAA6A6427",
@@ -5607,6 +5796,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorEc2InstancesInVpcFCB9B1B9": {
       "DependsOn": [
+        "AcceleratorLambdaInsideVpc68BE0CC7",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5626,6 +5816,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorEc2VolumeInuseCheck934E830D": {
       "DependsOn": [
+        "AcceleratorEc2InstanceDetailedMonitoringEnabled9F032168",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5647,6 +5838,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorElasticacheRedisClusterAutomaticBackupCheck7CFACFC6": {
       "DependsOn": [
+        "AcceleratorElbDeletionProtectionEnabled6A44EA2D",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5661,6 +5853,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorElasticsearchInVpcOnly1FFB209E": {
       "DependsOn": [
+        "AcceleratorVpcSgOpenOnlyToAuthorizedPorts9EF29973",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5675,6 +5868,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorElasticsearchNodeToNodeEncryptionCheck7F672889": {
       "DependsOn": [
+        "AcceleratorIamUserMfaEnabled119AE0DF",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5694,6 +5888,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorElbAcmCertificateRequired7DFF09EF": {
       "DependsOn": [
+        "AcceleratorIamNoInlinePolicyCheckAE16B56C",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5713,6 +5908,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorElbCrossZoneLoadBalancingEnabled4933AD2A": {
       "DependsOn": [
+        "AcceleratorVpcVpn2TunnelsUpBED0249E",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5732,6 +5928,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorElbDeletionProtectionEnabled6A44EA2D": {
       "DependsOn": [
+        "AcceleratorEc2InstanceDetailedMonitoringEnabled9F032168",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5751,6 +5948,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorElbLoggingEnabledD68765E9": {
       "DependsOn": [
+        "AcceleratorS3BucketServerSideEncryptionEnabledB22E11D0",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5898,6 +6096,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorElbTlsHttpsListenersOnly59A28904": {
       "DependsOn": [
+        "AcceleratorAlbHttpDropInvalidHeaderEnabled699B715A",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5917,6 +6116,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorEmrKerberosEnabled27B4E237": {
       "DependsOn": [
+        "AcceleratorCloudtrailS3DataeventsEnabledF8E06B95",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5931,6 +6131,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorGuarddutyNonArchivedFindings32ED20C9": {
       "DependsOn": [
+        "AcceleratorIamUserMfaEnabled119AE0DF",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5949,6 +6150,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorIamGroupHasUsersCheck5E15FE54": {
       "DependsOn": [
+        "AcceleratorCloudtrailS3DataeventsEnabledF8E06B95",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5968,6 +6170,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorIamNoInlinePolicyCheckAE16B56C": {
       "DependsOn": [
+        "AcceleratorElasticsearchInVpcOnly1FFB209E",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -5989,6 +6192,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorIamUserGroupMembershipCheck5D2DBD69": {
       "DependsOn": [
+        "AcceleratorS3BucketServerSideEncryptionEnabledB22E11D0",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6008,6 +6212,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorIamUserMfaEnabled119AE0DF": {
       "DependsOn": [
+        "AcceleratorVpcVpn2TunnelsUpBED0249E",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6022,6 +6227,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorInternetGatewayAuthorizedVpcOnly75CCD662": {
       "DependsOn": [
+        "AcceleratorElasticsearchInVpcOnly1FFB209E",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6041,6 +6247,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorKmsCmkNotScheduledForDeletionF3796D4E": {
       "DependsOn": [
+        "AcceleratorElasticsearchNodeToNodeEncryptionCheck7F672889",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6060,6 +6267,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorLambdaInsideVpc68BE0CC7": {
       "DependsOn": [
+        "AcceleratorIamGroupHasUsersCheck5E15FE54",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6079,6 +6287,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorRdsLoggingEnabled02B0690C": {
       "DependsOn": [
+        "AcceleratorCloudtrailEnabled08B9BEEA",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6098,6 +6307,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorRedshiftClusterConfigurationCheckC9D7559D": {
       "DependsOn": [
+        "AcceleratorCloudwatchAlarmActionCheckBBDDF3B7",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6120,6 +6330,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorS3BucketDefaultLockEnabled1E1E5D5A": {
       "DependsOn": [
+        "AcceleratorSagemakerNotebookInstanceKmsKeyConfigured98505444",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6139,6 +6350,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorS3BucketPolicyGranteeCheckA238FAF4": {
       "DependsOn": [
+        "AcceleratorIamGroupHasUsersCheck5E15FE54",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6158,6 +6370,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorS3BucketReplicationEnabled54B924AB": {
       "DependsOn": [
+        "AcceleratorApiGwExecutionLoggingEnabledDA00B249",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6177,6 +6390,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorS3BucketServerSideEncryptionEnabledB22E11D0": {
       "DependsOn": [
+        "AcceleratorAttachEc2InstanceProfile1DAEB489",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6329,6 +6543,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorS3BucketVersioningEnabledA2D78DD3": {
       "DependsOn": [
+        "AcceleratorElasticacheRedisClusterAutomaticBackupCheck7CFACFC6",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6348,6 +6563,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorSagemakerEndpointConfigurationKmsKeyConfigured29A26847": {
       "DependsOn": [
+        "AcceleratorApiGwCacheEnabledAndEncrypted090286F1",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6362,6 +6578,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorSagemakerNotebookInstanceKmsKeyConfigured98505444": {
       "DependsOn": [
+        "AcceleratorApiGwCacheEnabledAndEncrypted090286F1",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6376,6 +6593,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorSecurityhubEnabled25B1DE1B": {
       "DependsOn": [
+        "AcceleratorIamUserGroupMembershipCheck5D2DBD69",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6390,6 +6608,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorVpcSgOpenOnlyToAuthorizedPorts9EF29973": {
       "DependsOn": [
+        "AcceleratorLambdaInsideVpc68BE0CC7",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -6412,6 +6631,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     },
     "AcceleratorVpcVpn2TunnelsUpBED0249E": {
       "DependsOn": [
+        "AcceleratorElasticacheRedisClusterAutomaticBackupCheck7CFACFC6",
         "ConfigRecorder",
       ],
       "Properties": {
@@ -7044,15 +7264,20 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSessionManagerLoggingCustomResourceProviderRole1D8EE686",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -7104,8 +7329,8 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
               "Statement": [
                 {
                   "Action": [
-                    "ssm:DescribeDocument",
                     "ssm:CreateDocument",
+                    "ssm:GetDocument",
                     "ssm:UpdateDocument",
                   ],
                   "Effect": "Allow",
@@ -7129,15 +7354,20 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -7366,6 +7596,11 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Creates a CloudWatch Logs Group to store SecurityHub findings and updates CW Log Group resource policy",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Ref": "SsmParameterValueacceleratorkmslambdakeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -7377,7 +7612,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 180,
       },
       "Type": "AWS::Lambda::Function",
@@ -7549,6 +7784,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-SecurityResourcesStack-111111111111-us-east-1/SecurityHubEventsLog/SecurityHubEventsFunction/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "SecurityHubEventsLogSecurityHubEventsFunction6170C5C5",
@@ -7558,13 +7794,18 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "SecurityHubEventsLogSecurityHubEventsFunctionframeworkonEventServiceRole2DBDE006",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -7650,6 +7891,16 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SecurityHubEventsLogSecurityHubEventsFunction6170C5C5",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -7676,6 +7927,16 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
       "Properties": {
         "Description": "Sends Security Hub Findings above threshold to CloudWatch Logs",
         "EventPattern": {
+          "detail": {
+            "findings": {
+              "Severity": {
+                "Label": [
+                  "CRITICAL",
+                  "HIGH",
+                ],
+              },
+            },
+          },
           "detail-type": [
             "Security Hub Findings - Imported",
           ],
@@ -7748,7 +8009,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SecurityResourcesStack-111111111111-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -7793,6 +8054,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
             ],
           ],
         },
+        "sendToS3": true,
       },
       "Type": "Custom::SsmSessionManagerSettings",
       "UpdateReplacePolicy": "Delete",
@@ -7800,7 +8062,7 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
     "SsmSessionManagerSettingsSessionManagerSessionKey23B7175C": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "AWS Accelerator Session Manager Session Encryption",
+        "Description": "KMS key for encrypting SSM Session Manager session logs and data",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -7841,32 +8103,6 @@ exports[`delegatedAdminStack Construct(SecurityResourcesStack):  Snapshot Test 1
         },
       },
       "Type": "AWS::KMS::Alias",
-    },
-    "SsmSessionManagerSettingsSessionManagerUserKMSPolicyFB96BB42": {
-      "Properties": {
-        "Description": "",
-        "ManagedPolicyName": "AWSAccelerator-SessionManagerUserKMS-us-east-1",
-        "Path": "/",
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "kms:Decrypt",
-                "kms:GenerateDataKey",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::GetAtt": [
-                  "SsmSessionManagerSettingsSessionManagerSessionKey23B7175C",
-                  "Arn",
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-      },
-      "Type": "AWS::IAM::ManagedPolicy",
     },
     "UnauthorizedApiCallsMetricFilter95DF459D": {
       "Properties": {

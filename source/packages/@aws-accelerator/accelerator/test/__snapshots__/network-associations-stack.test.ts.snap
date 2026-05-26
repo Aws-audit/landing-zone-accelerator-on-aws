@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot Test 1`] = `
+exports[`NetworkAssociationsStack > Construct(NetworkAssociationsStack):  Snapshot Test 1`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratorkmslambdakeyarnC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -41,6 +41,18 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     },
     "SsmParameterValueacceleratornetworkroute53ResolverrulesexampleruleidC96584B6F00A464EAD1953AFF4B05118Parameter": {
       "Default": "/accelerator/network/route53Resolver/rules/example-rule/id",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+    "SsmParameterValueacceleratornetworktransitGatewaysMutlicastTgwidC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/network/transitGateways/MutlicastTgw/id",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+    "SsmParameterValueacceleratornetworktransitGatewaysMutlicastTgwrouteTablesMulticastCoreidC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/network/transitGateways/MutlicastTgw/routeTables/Multicast-Core/id",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+    "SsmParameterValueacceleratornetworktransitGatewaysMutlicastTgwrouteTablesMulticastIsolatedidC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/network/transitGateways/MutlicastTgw/routeTables/Multicast-Isolated/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
     "SsmParameterValueacceleratornetworktransitGatewaysNetworkMain2idC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -247,6 +259,10 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Default": "/accelerator/network/vpc/Network-Inspection/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
+    "SsmParameterValueacceleratornetworkvpcNetworkInspectionnlbnewsampledownstreamidC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/network/vpc/Network-Inspection/nlb/new-sample-downstream/id",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
     "SsmParameterValueacceleratornetworkvpcNetworkInspectionrouteTableNetworkInspectionAidC96584B6F00A464EAD1953AFF4B05118Parameter": {
       "Default": "/accelerator/network/vpc/Network-Inspection/routeTable/Network-Inspection-A/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
@@ -341,10 +357,71 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     },
   },
   "Resources": {
+    "AcceleratorVpnIpv6NetworkMainCoreAssociationD8C8CC10": {
+      "Properties": {
+        "TransitGatewayAttachmentId": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        "TransitGatewayRouteTableId": {
+          "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainCoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+      },
+      "Type": "AWS::EC2::TransitGatewayRouteTableAssociation",
+    },
+    "AcceleratorVpnIpv6NetworkMainCorePropagation60BBB733": {
+      "Properties": {
+        "TransitGatewayAttachmentId": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        "TransitGatewayRouteTableId": {
+          "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainCoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+      },
+      "Type": "AWS::EC2::TransitGatewayRouteTablePropagation",
+    },
     "AcceleratorVpnNetworkMainCoreAssociationEF397C51": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "AcceleratorVpnVpnTransitGatewayAttachmentFBF8EE77",
+          "Fn::Select": [
+            2,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainCoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -355,36 +432,26 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     "AcceleratorVpnNetworkMainCorePropagation585EB5AE": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "AcceleratorVpnVpnTransitGatewayAttachmentFBF8EE77",
+          "Fn::Select": [
+            2,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainCoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
         },
       },
       "Type": "AWS::EC2::TransitGatewayRouteTablePropagation",
-    },
-    "AcceleratorVpnVpnTransitGatewayAttachmentFBF8EE77": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomGetTransitGatewayAttachmentCustomResourceProviderLogGroup41699CF3",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomGetTransitGatewayAttachmentCustomResourceProviderHandler7E079354",
-            "Arn",
-          ],
-        },
-        "name": "accelerator-vpn",
-        "region": "us-east-1",
-        "transitGatewayId": {
-          "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "type": "vpn",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::GetTransitGatewayAttachment",
-      "UpdateReplacePolicy": "Delete",
     },
     "AssociateHostedZonesF0E2F0DA": {
       "DeletionPolicy": "Delete",
@@ -476,6 +543,87 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Type": "Custom::Route53AssociateHostedZones",
       "UpdateReplacePolicy": "Delete",
     },
+    "BatchTgwAttachmentLookup4DD094C3": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomGetTransitGatewayAttachmentCustomResourceProviderLogGroup41699CF3",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomGetTransitGatewayAttachmentCustomResourceProviderHandler7E079354",
+            "Arn",
+          ],
+        },
+        "attachments": [
+          {
+            "name": "SharedServices-Main",
+            "owningAccountId": "444444444444",
+            "roleArn": {
+              "Fn::Join": [
+                "",
+                [
+                  "arn:",
+                  {
+                    "Ref": "AWS::Partition",
+                  },
+                  ":iam::444444444444:role/AWSAccelerator-GetTgwAttachmentRole-us-east-1",
+                ],
+              ],
+            },
+            "transitGatewayId": {
+              "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "type": "vpc",
+          },
+          {
+            "name": "accelerator-vpn-ipv6",
+            "owningAccountId": "555555555555",
+            "transitGatewayId": {
+              "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "type": "vpn",
+          },
+          {
+            "name": "accelerator-vpn",
+            "owningAccountId": "555555555555",
+            "transitGatewayId": {
+              "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "type": "vpn",
+          },
+          {
+            "name": "enhanced-vpn",
+            "owningAccountId": "555555555555",
+            "transitGatewayId": {
+              "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "type": "vpn",
+          },
+          {
+            "isSameAccountRegionAccepter": false,
+            "name": "Network-Main-And-SharedServices-Main-Peering",
+            "owningAccountId": "555555555555",
+            "transitGatewayId": {
+              "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "type": "peering",
+          },
+          {
+            "isSameAccountRegionAccepter": true,
+            "name": "Network-Main-And-Network-Main3-Peering",
+            "owningAccountId": "555555555555",
+            "transitGatewayId": {
+              "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMain3idC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "type": "peering",
+          },
+        ],
+        "uuid": "REPLACED-UUID",
+      },
+      "Type": "Custom::GetTransitGatewayAttachment",
+      "UpdateReplacePolicy": "Delete",
+    },
     "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801": {
       "DependsOn": [
         "CrossAccountRouteFrameworkCrossAccountRouteFunctionServiceRoleDefaultPolicy2CB6E8A9",
@@ -487,14 +635,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Cross account EC2 route OnEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteFunctionServiceRole0BC7B615",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 15,
       },
       "Type": "AWS::Lambda::Function",
@@ -624,6 +778,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-555555555555-us-east-1/CrossAccountRouteFramework/CrossAccountRouteProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
@@ -633,13 +788,18 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteProviderframeworkonEventServiceRoleED507AC0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -683,6 +843,16 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -1038,15 +1208,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomDirectConnectGatewayAssociationCustomResourceProviderRole7D012188",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1150,15 +1325,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetIpamSubnetCidrCustomResourceProviderRoleADF93CF4",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1238,15 +1418,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetResourceShareCustomResourceProviderRoleBC3FCEEF",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1301,15 +1486,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetResourceShareItemCustomResourceProviderRoleA7181EBA",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1381,15 +1571,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetTransitGatewayAttachmentCustomResourceProviderRoleA6A22C3D",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1469,6 +1664,11 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
         "MemorySize": 512,
         "Role": {
@@ -1477,7 +1677,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1555,15 +1755,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomShareSubnetTagsCustomResourceProviderRole2582495C",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1687,15 +1892,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1794,15 +2004,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to put cross-account ssm parameter value",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1853,6 +2068,9 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   "Action": [
                     "ssm:DeleteParameter",
                     "ssm:PutParameter",
+                    "ssm:GetParameters",
+                    "ssm:AddTagsToResource",
+                    "ssm:RemoveTagsFromResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -1899,15 +2117,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomTransitGatewayPrefixListReferenceCustomResourceProviderRoleC5D4C080",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1976,7 +2199,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     "EnhancedVpnNetworkMainCoreAssociation2D5BE78A": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "EnhancedVpnVpnTransitGatewayAttachment579ECAAD",
+          "Fn::Select": [
+            3,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainCoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -1987,36 +2223,26 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     "EnhancedVpnNetworkMainCorePropagation47AEEE67": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "EnhancedVpnVpnTransitGatewayAttachment579ECAAD",
+          "Fn::Select": [
+            3,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainCoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
         },
       },
       "Type": "AWS::EC2::TransitGatewayRouteTablePropagation",
-    },
-    "EnhancedVpnVpnTransitGatewayAttachment579ECAAD": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomGetTransitGatewayAttachmentCustomResourceProviderLogGroup41699CF3",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomGetTransitGatewayAttachmentCustomResourceProviderHandler7E079354",
-            "Arn",
-          ],
-        },
-        "name": "enhanced-vpn",
-        "region": "us-east-1",
-        "transitGatewayId": {
-          "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "type": "vpn",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::GetTransitGatewayAttachment",
-      "UpdateReplacePolicy": "Delete",
     },
     "ListenerNetworkEndpointsappAAlb01appAListener2": {
       "Properties": {
@@ -2104,6 +2330,37 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         ],
         "LoadBalancerArn": {
           "Ref": "SsmParameterValueacceleratornetworkvpcNetworkEndpointsnlbappAnlb01idC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+        "Port": 80,
+        "Protocol": "TCP",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+    },
+    "ListenerNetworkInspectionnewSampleDownstreamhttp": {
+      "Properties": {
+        "AlpnPolicy": [],
+        "Certificates": [
+          {},
+        ],
+        "DefaultActions": [
+          {
+            "ForwardConfig": {
+              "TargetGroups": [
+                {
+                  "TargetGroupArn": {
+                    "Ref": "NetworkInspectionnewsampledownstreamhttp637C2706",
+                  },
+                },
+              ],
+            },
+            "TargetGroupArn": {
+              "Ref": "NetworkInspectionnewsampledownstreamhttp637C2706",
+            },
+            "Type": "forward",
+          },
+        ],
+        "LoadBalancerArn": {
+          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkInspectionnlbnewsampledownstreamidC96584B6F00A464EAD1953AFF4B05118Parameter",
         },
         "Port": 80,
         "Protocol": "TCP",
@@ -2473,6 +2730,26 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       },
       "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
     },
+    "NetworkInspectionnewsampledownstreamhttp637C2706": {
+      "Properties": {
+        "HealthCheckEnabled": true,
+        "Matcher": {},
+        "Name": "new-sample-downstream-http",
+        "Port": 80,
+        "Protocol": "TCP",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "new-sample-downstream-http",
+          },
+        ],
+        "TargetType": "instance",
+        "VpcId": {
+          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkInspectionidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+    },
     "NetworkInspectiontgwithouttargetip9ED227FD": {
       "Properties": {
         "HealthCheckEnabled": true,
@@ -2577,7 +2854,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Properties": {
         "DestinationCidrBlock": "10.150.0.0/28",
         "TransitGatewayAttachmentId": {
-          "Ref": "NetworkNetworkMainAndNetworkMain3Peering101500028TransitGatewayPeeringAttachment326B9914",
+          "Fn::Select": [
+            5,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMain3routeTablesNetworkMain3CoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -2589,7 +2879,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Properties": {
         "DestinationCidrBlock": "10.155.0.0/28",
         "TransitGatewayAttachmentId": {
-          "Ref": "NetworkNetworkMainAndNetworkMain3Peering101550028TransitGatewayPeeringAttachment99DC89DB",
+          "Fn::Select": [
+            5,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMain3routeTablesNetworkMain3CoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -2640,7 +2943,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Properties": {
         "DestinationCidrBlock": "10.30.0.0/16",
         "TransitGatewayAttachmentId": {
-          "Ref": "AcceleratorVpnVpnTransitGatewayAttachmentFBF8EE77",
+          "Fn::Select": [
+            2,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainCoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -2699,85 +3015,26 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Properties": {
         "DestinationCidrBlock": "10.200.0.0/16",
         "TransitGatewayAttachmentId": {
-          "Ref": "NetworkNetworkMainAndSharedServicesMainPeeringTransitGatewayPeeringAttachment6A5D4528",
+          "Fn::Select": [
+            4,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainSharedidC96584B6F00A464EAD1953AFF4B05118Parameter",
         },
       },
       "Type": "AWS::EC2::TransitGatewayRoute",
-    },
-    "NetworkNetworkMainAndNetworkMain3Peering101500028TransitGatewayPeeringAttachment326B9914": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomGetTransitGatewayAttachmentCustomResourceProviderLogGroup41699CF3",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomGetTransitGatewayAttachmentCustomResourceProviderHandler7E079354",
-            "Arn",
-          ],
-        },
-        "isSameAccountRegionAccepter": true,
-        "name": "Network-Main-And-Network-Main3-Peering",
-        "region": "us-east-1",
-        "transitGatewayId": {
-          "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMain3idC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "type": "peering",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::GetTransitGatewayAttachment",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "NetworkNetworkMainAndNetworkMain3Peering101550028TransitGatewayPeeringAttachment99DC89DB": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomGetTransitGatewayAttachmentCustomResourceProviderLogGroup41699CF3",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomGetTransitGatewayAttachmentCustomResourceProviderHandler7E079354",
-            "Arn",
-          ],
-        },
-        "isSameAccountRegionAccepter": true,
-        "name": "Network-Main-And-Network-Main3-Peering",
-        "region": "us-east-1",
-        "transitGatewayId": {
-          "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMain3idC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "type": "peering",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::GetTransitGatewayAttachment",
-      "UpdateReplacePolicy": "Delete",
-    },
-    "NetworkNetworkMainAndSharedServicesMainPeeringTransitGatewayPeeringAttachment6A5D4528": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomGetTransitGatewayAttachmentCustomResourceProviderLogGroup41699CF3",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomGetTransitGatewayAttachmentCustomResourceProviderHandler7E079354",
-            "Arn",
-          ],
-        },
-        "isSameAccountRegionAccepter": false,
-        "name": "Network-Main-And-SharedServices-Main-Peering",
-        "region": "us-east-1",
-        "transitGatewayId": {
-          "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "type": "peering",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::GetTransitGatewayAttachment",
-      "UpdateReplacePolicy": "Delete",
     },
     "NetworkSecondaryTestNacl105EgressNaclRuleA32FBE84": {
       "DeletionPolicy": "Delete",
@@ -3300,7 +3557,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     "SharedServicesMainNetworkMainCorePropagationB8A9444B": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "SharedServicesMainSharedServicesVpcTransitGatewayAttachmentE1E0A8A8",
+          "Fn::Select": [
+            0,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainCoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -3311,7 +3581,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     "SharedServicesMainNetworkMainSegregatedPropagation1734E165": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "SharedServicesMainSharedServicesVpcTransitGatewayAttachmentE1E0A8A8",
+          "Fn::Select": [
+            0,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainSegregatedidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -3322,7 +3605,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     "SharedServicesMainNetworkMainSharedAssociationFE2C7420": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "SharedServicesMainSharedServicesVpcTransitGatewayAttachmentE1E0A8A8",
+          "Fn::Select": [
+            0,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainSharedidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -3333,7 +3629,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     "SharedServicesMainNetworkMainSharedPropagationA83F55E7": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "SharedServicesMainSharedServicesVpcTransitGatewayAttachmentE1E0A8A8",
+          "Fn::Select": [
+            0,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainSharedidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -3392,42 +3701,13 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Type": "Custom::GetResourceShare",
       "UpdateReplacePolicy": "Delete",
     },
-    "SharedServicesMainSharedServicesVpcTransitGatewayAttachmentE1E0A8A8": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomGetTransitGatewayAttachmentCustomResourceProviderLogGroup41699CF3",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomGetTransitGatewayAttachmentCustomResourceProviderHandler7E079354",
-            "Arn",
-          ],
-        },
-        "name": "SharedServices-Main",
-        "region": "us-east-1",
-        "roleArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":iam::444444444444:role/AWSAccelerator-DescribeTgwAttachRole-us-east-1",
-            ],
-          ],
-        },
-        "transitGatewayId": {
-          "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "type": "vpc",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::GetTransitGatewayAttachment",
-      "UpdateReplacePolicy": "Delete",
-    },
     "SharedServicesMainVpcSharedServicesMainRsyslogSgSg82BD8A5A": {
+      "Metadata": {
+        "lzaLookup": {
+          "securityGroupName": "SharedServices-Main-Rsyslog-sg",
+          "vpcName": "SharedServices-Main",
+        },
+      },
       "Properties": {
         "GroupDescription": "Security Group for AWS Accelerator rsyslog",
         "GroupName": "SharedServices-Main-Rsyslog-sg",
@@ -3470,7 +3750,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NetworkAssociationsStack-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -4654,7 +4934,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
             "Arn",
           ],
         },
-        "assumeRoleName": "AWSAccelerator-GetNLBIPAddressLookup",
+        "assumeRoleName": "AWSAccelerator-NetworkLoadBalancerIPAddressLookup",
         "partition": {
           "Ref": "AWS::Partition",
         },
@@ -4680,14 +4960,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaServiceRole92332B48",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 15,
       },
       "Type": "AWS::Lambda::Function",
@@ -4777,7 +5063,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                     {
                       "Ref": "AWS::Partition",
                     },
-                    ":iam::*:role/AWSAccelerator-GetNLBIPAddressLookup",
+                    ":iam::*:role/AWSAccelerator-NetworkLoadBalancerIPAddressLookup",
                   ],
                 ],
               },
@@ -4808,6 +5094,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-555555555555-us-east-1/appA-nlb-tg-2-ipLookup/appA-nlb-tg-2-ipLookupProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaEF941FA2",
@@ -4817,13 +5104,18 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderframeworkonEventServiceRoleA31E553B",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4909,6 +5201,16 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "appAnlbtg2ipLookupappAnlbtg2ipLookupProviderLambdaEF941FA2",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -4925,7 +5227,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
 }
 `;
 
-exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot Test 2`] = `
+exports[`NetworkAssociationsStack > Construct(NetworkAssociationsStack):  Snapshot Test 2`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratornetworkprefixListacceleratorprefixlist001idC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -5002,6 +5304,10 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     },
     "SsmParameterValueacceleratornetworkvpcSharedServicesIpamEastidC96584B6F00A464EAD1953AFF4B05118Parameter": {
       "Default": "/accelerator/network/vpc/SharedServices-Ipam-East/id",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+    "SsmParameterValueacceleratornetworkvpcSharedServicesIpamEastnlbnlbwestdownstreamidC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/network/vpc/SharedServices-Ipam-East/nlb/nlb-west-downstream/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
     "SsmParameterValueacceleratornetworkvpcSharedServicesIpamEastrouteTableSharedServicesARtidC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -5084,6 +5390,10 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Default": "/accelerator/network/vpc/SharedServices-appVpc/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
+    "SsmParameterValueacceleratornetworkvpcSharedServicesappVpcnlbsampleupstreamidC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/network/vpc/SharedServices-appVpc/nlb/sample-upstream/id",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
     "SsmParameterValueacceleratornetworkvpcSharedServicesappVpcrouteTableSharedServicesappVpcPrivRtAidC96584B6F00A464EAD1953AFF4B05118Parameter": {
       "Default": "/accelerator/network/vpc/SharedServices-appVpc/routeTable/SharedServices-appVpc-PrivRtA/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
@@ -5155,14 +5465,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Manage active directory log subscription handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorManagedActiveDirectoryActiveDirectoryAcceleratorManagedActiveDirectoryLogSubscriptionManageActiveDirectoryLogSubscriptionFunctionServiceRoleE5897B15",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 30,
       },
       "Type": "AWS::Lambda::Function",
@@ -5276,6 +5592,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-444444444444-us-east-1/AcceleratorManagedActiveDirectoryActiveDirectory/AcceleratorManagedActiveDirectoryLogSubscription/ManageActiveDirectoryLogSubscriptionProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AcceleratorManagedActiveDirectoryActiveDirectoryAcceleratorManagedActiveDirectoryLogSubscriptionManageActiveDirectoryLogSubscriptionFunction7DAC44F8",
@@ -5285,13 +5602,18 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorManagedActiveDirectoryActiveDirectoryAcceleratorManagedActiveDirectoryLogSubscriptionManageActiveDirectoryLogSubscriptionProviderframeworkonEventServiceRole28ADC179",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -5376,6 +5698,16 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AcceleratorManagedActiveDirectoryActiveDirectoryAcceleratorManagedActiveDirectoryLogSubscriptionManageActiveDirectoryLogSubscriptionFunction7DAC44F8",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -6456,20 +6788,26 @@ catch {
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Update resolver group rule target ips",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorManagedActiveDirectoryResolverRuleUpdateResolverRuleFunctionServiceRole83EF458E",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 30,
       },
       "Type": "AWS::Lambda::Function",
     },
     "AcceleratorManagedActiveDirectoryResolverRuleUpdateResolverRuleFunctionLogGroup814E23CB": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "LogGroupName": {
           "Fn::Join": [
@@ -6593,6 +6931,7 @@ catch {
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-444444444444-us-east-1/AcceleratorManagedActiveDirectoryResolverRule/UpdateResolverRuleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AcceleratorManagedActiveDirectoryResolverRuleUpdateResolverRuleFunction177103F8",
@@ -6602,13 +6941,18 @@ catch {
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorManagedActiveDirectoryResolverRuleUpdateResolverRuleProviderframeworkonEventServiceRoleEBC7B9DF",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -6652,6 +6996,16 @@ catch {
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AcceleratorManagedActiveDirectoryResolverRuleUpdateResolverRuleFunction177103F8",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -6812,14 +7166,20 @@ catch {
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Share Manage active directory handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorManagedActiveDirectoryShareDirectoryShareManageActiveDirectoryFunctionServiceRole772D6922",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -7000,6 +7360,7 @@ catch {
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-444444444444-us-east-1/AcceleratorManagedActiveDirectoryShareDirectory/ShareManageActiveDirectoryProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AcceleratorManagedActiveDirectoryShareDirectoryShareManageActiveDirectoryFunctionF5252A97",
@@ -7009,13 +7370,18 @@ catch {
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorManagedActiveDirectoryShareDirectoryShareManageActiveDirectoryProviderframeworkonEventServiceRoleD7FD8283",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -7127,6 +7493,16 @@ catch {
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AcceleratorManagedActiveDirectoryShareDirectoryShareManageActiveDirectoryFunctionF5252A97",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -7170,20 +7546,26 @@ catch {
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Lookup subnet id from account",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorManagedActiveDirectorySharedServicesAppASubnetLookupSubnetIdLookupFunctionServiceRoleEB14A5A3",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
     },
     "AcceleratorManagedActiveDirectorySharedServicesAppASubnetLookupSubnetIdLookupFunctionLogGroupC866019A": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "LogGroupName": {
           "Fn::Join": [
@@ -7287,6 +7669,7 @@ catch {
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-444444444444-us-east-1/AcceleratorManagedActiveDirectorySharedServicesAppASubnetLookup/SubnetIdLookupProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AcceleratorManagedActiveDirectorySharedServicesAppASubnetLookupSubnetIdLookupFunctionF062DAE0",
@@ -7296,13 +7679,18 @@ catch {
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorManagedActiveDirectorySharedServicesAppASubnetLookupSubnetIdLookupProviderframeworkonEventServiceRoleA4FEBDEC",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -7388,6 +7776,16 @@ catch {
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AcceleratorManagedActiveDirectorySharedServicesAppASubnetLookupSubnetIdLookupFunctionF062DAE0",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -7431,20 +7829,26 @@ catch {
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Lookup subnet id from account",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorManagedActiveDirectorySharedServicesAppBSubnetLookupSubnetIdLookupFunctionServiceRoleDF7E4CD5",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
     },
     "AcceleratorManagedActiveDirectorySharedServicesAppBSubnetLookupSubnetIdLookupFunctionLogGroup705D6238": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "LogGroupName": {
           "Fn::Join": [
@@ -7548,6 +7952,7 @@ catch {
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-444444444444-us-east-1/AcceleratorManagedActiveDirectorySharedServicesAppBSubnetLookup/SubnetIdLookupProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AcceleratorManagedActiveDirectorySharedServicesAppBSubnetLookupSubnetIdLookupFunction8383C6C9",
@@ -7557,13 +7962,18 @@ catch {
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorManagedActiveDirectorySharedServicesAppBSubnetLookupSubnetIdLookupProviderframeworkonEventServiceRoleD9B17EC7",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -7649,6 +8059,16 @@ catch {
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AcceleratorManagedActiveDirectorySharedServicesAppBSubnetLookupSubnetIdLookupFunction8383C6C9",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -7689,14 +8109,20 @@ catch {
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Lookup vpc id from account",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorManagedActiveDirectoryVpcLookupVpcIdLookupFunctionServiceRoleDCBF26B1",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -7806,6 +8232,7 @@ catch {
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-444444444444-us-east-1/AcceleratorManagedActiveDirectoryVpcLookup/VpcIdLookupProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AcceleratorManagedActiveDirectoryVpcLookupVpcIdLookupFunction53EFBF78",
@@ -7815,13 +8242,18 @@ catch {
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorManagedActiveDirectoryVpcLookupVpcIdLookupProviderframeworkonEventServiceRole2DA585BD",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -7907,6 +8339,16 @@ catch {
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AcceleratorManagedActiveDirectoryVpcLookupVpcIdLookupFunction53EFBF78",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -7930,14 +8372,20 @@ catch {
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Cross account EC2 route OnEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteFunctionServiceRole0BC7B615",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 15,
       },
       "Type": "AWS::Lambda::Function",
@@ -8067,6 +8515,7 @@ catch {
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-444444444444-us-east-1/CrossAccountRouteFramework/CrossAccountRouteProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
@@ -8076,13 +8525,18 @@ catch {
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteProviderframeworkonEventServiceRoleED507AC0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -8126,6 +8580,16 @@ catch {
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -8685,15 +9149,20 @@ catch {
           "S3Bucket": "cdk-hnb659fds-assets-444444444444-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetIpamSubnetCidrCustomResourceProviderRoleADF93CF4",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -8773,15 +9242,20 @@ catch {
           "S3Bucket": "cdk-hnb659fds-assets-444444444444-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetResourceShareCustomResourceProviderRoleBC3FCEEF",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -8836,15 +9310,20 @@ catch {
           "S3Bucket": "cdk-hnb659fds-assets-444444444444-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetResourceShareItemCustomResourceProviderRoleA7181EBA",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -8916,15 +9395,20 @@ catch {
           "S3Bucket": "cdk-hnb659fds-assets-444444444444-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomShareSubnetTagsCustomResourceProviderRole2582495C",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -9048,15 +9532,20 @@ catch {
           "S3Bucket": "cdk-hnb659fds-assets-444444444444-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -9155,15 +9644,20 @@ catch {
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to put cross-account ssm parameter value",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -9214,6 +9708,9 @@ catch {
                   "Action": [
                     "ssm:DeleteParameter",
                     "ssm:PutParameter",
+                    "ssm:GetParameters",
+                    "ssm:AddTagsToResource",
+                    "ssm:RemoveTagsFromResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -9260,15 +9757,20 @@ catch {
           "S3Bucket": "cdk-hnb659fds-assets-444444444444-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomTransitGatewayPrefixListReferenceCustomResourceProviderRoleC5D4C080",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -9333,6 +9835,68 @@ catch {
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "ListenerSharedServicesAppVpcsampleUpstreamhttp": {
+      "Properties": {
+        "AlpnPolicy": [],
+        "Certificates": [
+          {},
+        ],
+        "DefaultActions": [
+          {
+            "ForwardConfig": {
+              "TargetGroups": [
+                {
+                  "TargetGroupArn": {
+                    "Ref": "SharedServicesappVpcsampleupstreamhttp40DDFD6F",
+                  },
+                },
+              ],
+            },
+            "TargetGroupArn": {
+              "Ref": "SharedServicesappVpcsampleupstreamhttp40DDFD6F",
+            },
+            "Type": "forward",
+          },
+        ],
+        "LoadBalancerArn": {
+          "Ref": "SsmParameterValueacceleratornetworkvpcSharedServicesappVpcnlbsampleupstreamidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+        "Port": 80,
+        "Protocol": "TCP",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+    },
+    "ListenerSharedServicesIpamEastnlbWestDownstreamhttp": {
+      "Properties": {
+        "AlpnPolicy": [],
+        "Certificates": [
+          {},
+        ],
+        "DefaultActions": [
+          {
+            "ForwardConfig": {
+              "TargetGroups": [
+                {
+                  "TargetGroupArn": {
+                    "Ref": "SharedServicesIpamEasttgdownstreamhttp6FFFECB0",
+                  },
+                },
+              ],
+            },
+            "TargetGroupArn": {
+              "Ref": "SharedServicesIpamEasttgdownstreamhttp6FFFECB0",
+            },
+            "Type": "forward",
+          },
+        ],
+        "LoadBalancerArn": {
+          "Ref": "SsmParameterValueacceleratornetworkvpcSharedServicesIpamEastnlbnlbwestdownstreamidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+        "Port": 80,
+        "Protocol": "TCP",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
     },
     "NetworkEndpointsNetworkEndpointsASubnetA733F49A": {
       "DeletionPolicy": "Delete",
@@ -9448,6 +10012,12 @@ catch {
       "UpdateReplacePolicy": "Delete",
     },
     "NetworkEndpointsVpcManagementSg2B8F9418": {
+      "Metadata": {
+        "lzaLookup": {
+          "securityGroupName": "Management",
+          "vpcName": "Network-Endpoints",
+        },
+      },
       "Properties": {
         "GroupDescription": "Management Security Group",
         "GroupName": "Management",
@@ -9722,64 +10292,6 @@ catch {
       },
       "Type": "AWS::EC2::SecurityGroup",
     },
-    "NetworkEndpointsVpcManagementSgManagementEgress00D58058BF": {
-      "Properties": {
-        "Description": "All Outbound",
-        "DestinationSecurityGroupId": {
-          "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
-        },
-        "GroupId": {
-          "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
-        },
-        "IpProtocol": "-1",
-      },
-      "Type": "AWS::EC2::SecurityGroupEgress",
-    },
-    "NetworkEndpointsVpcManagementSgManagementIngress008FD972B5": {
-      "Properties": {
-        "Description": "Management RDP Traffic Inbound",
-        "FromPort": 3389,
-        "GroupId": {
-          "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
-        },
-        "IpProtocol": "tcp",
-        "SourceSecurityGroupId": {
-          "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
-        },
-        "ToPort": 3389,
-      },
-      "Type": "AWS::EC2::SecurityGroupIngress",
-    },
-    "NetworkEndpointsVpcManagementSgManagementIngress105119E927": {
-      "Properties": {
-        "Description": "Management SSH Traffic Inbound",
-        "FromPort": 22,
-        "GroupId": {
-          "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
-        },
-        "IpProtocol": "tcp",
-        "SourceSecurityGroupId": {
-          "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
-        },
-        "ToPort": 22,
-      },
-      "Type": "AWS::EC2::SecurityGroupIngress",
-    },
-    "NetworkEndpointsVpcManagementSgManagementIngress1135D6C2DD": {
-      "Properties": {
-        "Description": "Management SSH Traffic Inbound",
-        "FromPort": 22,
-        "GroupId": {
-          "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
-        },
-        "IpProtocol": "udp",
-        "SourceSecurityGroupId": {
-          "Ref": "NetworkEndpointsVpcManagementSg2B8F9418",
-        },
-        "ToPort": 22,
-      },
-      "Type": "AWS::EC2::SecurityGroupIngress",
-    },
     "NetworkEndpointsVpcNetworkEndpointsCustomEndpointSgSg4BB9279D": {
       "Metadata": {
         "cdk_nag": {
@@ -9789,6 +10301,10 @@ catch {
               "reason": "User defined an all ingress rule in configuration.",
             },
           ],
+        },
+        "lzaLookup": {
+          "securityGroupName": "Network-Endpoints-CustomEndpointSg",
+          "vpcName": "Network-Endpoints",
         },
       },
       "Properties": {
@@ -10075,6 +10591,26 @@ catch {
       "Type": "Custom::ShareSubnetTags",
       "UpdateReplacePolicy": "Delete",
     },
+    "SharedServicesIpamEasttgdownstreamhttp6FFFECB0": {
+      "Properties": {
+        "HealthCheckEnabled": true,
+        "Matcher": {},
+        "Name": "tg-downstream-http",
+        "Port": 80,
+        "Protocol": "TCP",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "tg-downstream-http",
+          },
+        ],
+        "TargetType": "instance",
+        "VpcId": {
+          "Ref": "SsmParameterValueacceleratornetworkvpcSharedServicesIpamEastidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+    },
     "SharedServicesMainShared101000016NetworkMainAndSharedServicesMainPeeringStaticRouteA3EACCC2": {
       "Properties": {
         "DestinationCidrBlock": "10.100.0.0/16",
@@ -10112,11 +10648,37 @@ catch {
       "Type": "Custom::TransitGatewayPrefixListReference",
       "UpdateReplacePolicy": "Delete",
     },
+    "SharedServicesappVpcsampleupstreamhttp40DDFD6F": {
+      "Properties": {
+        "HealthCheckEnabled": true,
+        "Matcher": {},
+        "Name": "sample-upstream-http",
+        "Port": 80,
+        "Protocol": "TCP",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "sample-upstream-http",
+          },
+        ],
+        "TargetType": "ip",
+        "Targets": {
+          "Fn::GetAtt": [
+            "sampleupstreamhttpipLookupC9F9F79F",
+            "ipAddresses",
+          ],
+        },
+        "VpcId": {
+          "Ref": "SsmParameterValueacceleratornetworkvpcSharedServicesappVpcidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+    },
     "SsmParamAcceleratorVersionFF83282D": {
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NetworkAssociationsStack-444444444444-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -12999,11 +13561,312 @@ catch {
       },
       "Type": "AWS::EC2::Route",
     },
+    "sampleupstreamhttpipLookupC9F9F79F": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambdaLogGroup8163EA3E",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderframeworkonEventEAF8F767",
+            "Arn",
+          ],
+        },
+        "assumeRoleName": "AWSAccelerator-NetworkLoadBalancerIPAddressLookup",
+        "partition": {
+          "Ref": "AWS::Partition",
+        },
+        "region": "us-east-1",
+        "targets": [
+          {
+            "account": "555555555555",
+            "nlbName": "new-sample-downstream",
+            "region": "us-east-1",
+          },
+        ],
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambda04D9071C": {
+      "DependsOn": [
+        "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambdaServiceRoleDefaultPolicy24B00113",
+        "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambdaServiceRole49B2A531",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-444444444444-us-east-1",
+          "S3Key": "REPLACED-GENERATED-NAME.zip",
+        },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
+        "Handler": "index.handler",
+        "MemorySize": 512,
+        "Role": {
+          "Fn::GetAtt": [
+            "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambdaServiceRole49B2A531",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Timeout": 15,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambdaLogGroup8163EA3E": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambda04D9071C",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambdaServiceRole49B2A531": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-IAM4",
+              "reason": "AWS Custom resource provider framework-role created by cdk.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambdaServiceRoleDefaultPolicy24B00113": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-IAM5",
+              "reason": "Allows only specific policy.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iam::*:role/AWSAccelerator-NetworkLoadBalancerIPAddressLookup",
+                  ],
+                ],
+              },
+              "Sid": "StsAssumeRole",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambdaServiceRoleDefaultPolicy24B00113",
+        "Roles": [
+          {
+            "Ref": "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambdaServiceRole49B2A531",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderframeworkonEventEAF8F767": {
+      "DependsOn": [
+        "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderframeworkonEventServiceRoleDefaultPolicyE9F1CED8",
+        "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderframeworkonEventServiceRoleCFC7AEFC",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-444444444444-us-east-1",
+          "S3Key": "REPLACED-GENERATED-NAME.zip",
+        },
+        "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-444444444444-us-east-1/sample-upstream-http-ipLookup/sample-upstream-http-ipLookupProvider)",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+            "USER_ON_EVENT_FUNCTION_ARN": {
+              "Fn::GetAtt": [
+                "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambda04D9071C",
+                "Arn",
+              ],
+            },
+          },
+        },
+        "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
+        "Role": {
+          "Fn::GetAtt": [
+            "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderframeworkonEventServiceRoleCFC7AEFC",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderframeworkonEventServiceRoleCFC7AEFC": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-IAM4",
+              "reason": "AWS Custom resource provider framework-role created by cdk.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderframeworkonEventServiceRoleDefaultPolicyE9F1CED8": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-IAM5",
+              "reason": "Allows only specific policy.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambda04D9071C",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambda04D9071C",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderLambda04D9071C",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderframeworkonEventServiceRoleDefaultPolicyE9F1CED8",
+        "Roles": [
+          {
+            "Ref": "sampleupstreamhttpipLookupsampleupstreamhttpipLookupProviderframeworkonEventServiceRoleCFC7AEFC",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
   },
 }
 `;
 
-exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot Test 3`] = `
+exports[`NetworkAssociationsStack > Construct(NetworkAssociationsStack):  Snapshot Test 3`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratornetworkprefixListacceleratorprefixlistipv6idC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -13012,6 +13875,10 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
     },
     "SsmParameterValueacceleratornetworkvpcNetworkIpamWestidC96584B6F00A464EAD1953AFF4B05118Parameter": {
       "Default": "/accelerator/network/vpc/Network-Ipam-West/id",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+    "SsmParameterValueacceleratornetworkvpcNetworkIpamWestnlbnlbwestupstreamidC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/accelerator/network/vpc/Network-Ipam-West/nlb/nlb-west-upstream/id",
       "Type": "AWS::SSM::Parameter::Value<String>",
     },
     "SsmParameterValueacceleratornetworkvpcNetworkIpamWestrouteTableNetworkWestARtidC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -13055,14 +13922,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Cross account EC2 route OnEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteFunctionServiceRole0BC7B615",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 15,
       },
       "Type": "AWS::Lambda::Function",
@@ -13192,6 +14065,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-555555555555-us-west-2/CrossAccountRouteFramework/CrossAccountRouteProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
@@ -13201,13 +14075,18 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteProviderframeworkonEventServiceRoleED507AC0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -13251,6 +14130,16 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -13345,15 +14234,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-west-2",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -13452,15 +14346,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to put cross-account ssm parameter value",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -13511,6 +14410,9 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   "Action": [
                     "ssm:DeleteParameter",
                     "ssm:PutParameter",
+                    "ssm:GetParameters",
+                    "ssm:AddTagsToResource",
+                    "ssm:RemoveTagsFromResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -13547,6 +14449,63 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "ListenerNetworkIpamWestnlbWestUpstreamhttp": {
+      "Properties": {
+        "AlpnPolicy": [],
+        "Certificates": [
+          {},
+        ],
+        "DefaultActions": [
+          {
+            "ForwardConfig": {
+              "TargetGroups": [
+                {
+                  "TargetGroupArn": {
+                    "Ref": "NetworkIpamWesttgwestupstreamBF511652",
+                  },
+                },
+              ],
+            },
+            "TargetGroupArn": {
+              "Ref": "NetworkIpamWesttgwestupstreamBF511652",
+            },
+            "Type": "forward",
+          },
+        ],
+        "LoadBalancerArn": {
+          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkIpamWestnlbnlbwestupstreamidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+        "Port": 80,
+        "Protocol": "TCP",
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+    },
+    "NetworkIpamWesttgwestupstreamBF511652": {
+      "Properties": {
+        "HealthCheckEnabled": true,
+        "Matcher": {},
+        "Name": "tg-west-upstream",
+        "Port": 80,
+        "Protocol": "TCP",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "tg-west-upstream",
+          },
+        ],
+        "TargetType": "ip",
+        "Targets": {
+          "Fn::GetAtt": [
+            "tgwestupstreamipLookup53D5FBAE",
+            "ipAddresses",
+          ],
+        },
+        "VpcId": {
+          "Ref": "SsmParameterValueacceleratornetworkvpcNetworkIpamWestidC96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+      },
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
     },
     "NonTemplateIpamCrossRegionCrossAccountVpcPeering807C9F34": {
       "Properties": {
@@ -13623,7 +14582,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NetworkAssociationsStack-555555555555-us-west-2/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -13749,11 +14708,312 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       },
       "Type": "AWS::SSM::Parameter",
     },
+    "tgwestupstreamipLookup53D5FBAE": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaLogGroup41A0617D",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "tgwestupstreamipLookuptgwestupstreamipLookupProviderframeworkonEvent465E4BD6",
+            "Arn",
+          ],
+        },
+        "assumeRoleName": "AWSAccelerator-NetworkLoadBalancerIPAddressLookup",
+        "partition": {
+          "Ref": "AWS::Partition",
+        },
+        "region": "us-west-2",
+        "targets": [
+          {
+            "account": "555555555555",
+            "nlbName": "nlb-west-downstream",
+            "region": "us-west-2",
+          },
+        ],
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaE0545210": {
+      "DependsOn": [
+        "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaServiceRoleDefaultPolicy81A69532",
+        "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaServiceRoleB127B48A",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-west-2",
+          "S3Key": "REPLACED-GENERATED-NAME.zip",
+        },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
+        "Handler": "index.handler",
+        "MemorySize": 512,
+        "Role": {
+          "Fn::GetAtt": [
+            "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaServiceRoleB127B48A",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Timeout": 15,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaLogGroup41A0617D": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaE0545210",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaServiceRoleB127B48A": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-IAM4",
+              "reason": "AWS Custom resource provider framework-role created by cdk.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaServiceRoleDefaultPolicy81A69532": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-IAM5",
+              "reason": "Allows only specific policy.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":iam::*:role/AWSAccelerator-NetworkLoadBalancerIPAddressLookup",
+                  ],
+                ],
+              },
+              "Sid": "StsAssumeRole",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaServiceRoleDefaultPolicy81A69532",
+        "Roles": [
+          {
+            "Ref": "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaServiceRoleB127B48A",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "tgwestupstreamipLookuptgwestupstreamipLookupProviderframeworkonEvent465E4BD6": {
+      "DependsOn": [
+        "tgwestupstreamipLookuptgwestupstreamipLookupProviderframeworkonEventServiceRoleDefaultPolicy0C7A1004",
+        "tgwestupstreamipLookuptgwestupstreamipLookupProviderframeworkonEventServiceRoleACAE9312",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-west-2",
+          "S3Key": "REPLACED-GENERATED-NAME.zip",
+        },
+        "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-555555555555-us-west-2/tg-west-upstream-ipLookup/tg-west-upstream-ipLookupProvider)",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+            "USER_ON_EVENT_FUNCTION_ARN": {
+              "Fn::GetAtt": [
+                "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaE0545210",
+                "Arn",
+              ],
+            },
+          },
+        },
+        "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
+        "Role": {
+          "Fn::GetAtt": [
+            "tgwestupstreamipLookuptgwestupstreamipLookupProviderframeworkonEventServiceRoleACAE9312",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "tgwestupstreamipLookuptgwestupstreamipLookupProviderframeworkonEventServiceRoleACAE9312": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-IAM4",
+              "reason": "AWS Custom resource provider framework-role created by cdk.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "tgwestupstreamipLookuptgwestupstreamipLookupProviderframeworkonEventServiceRoleDefaultPolicy0C7A1004": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-IAM5",
+              "reason": "Allows only specific policy.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaE0545210",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaE0545210",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "tgwestupstreamipLookuptgwestupstreamipLookupProviderLambdaE0545210",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "tgwestupstreamipLookuptgwestupstreamipLookupProviderframeworkonEventServiceRoleDefaultPolicy0C7A1004",
+        "Roles": [
+          {
+            "Ref": "tgwestupstreamipLookuptgwestupstreamipLookupProviderframeworkonEventServiceRoleACAE9312",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
   },
 }
 `;
 
-exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot Test 4`] = `
+exports[`NetworkAssociationsStack > Construct(NetworkAssociationsStack):  Snapshot Test 4`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratornetworkprefixListacceleratorprefixlistipv6idC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -13821,14 +15081,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Cross account EC2 route OnEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteFunctionServiceRole0BC7B615",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 15,
       },
       "Type": "AWS::Lambda::Function",
@@ -13958,6 +15224,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-444444444444-us-west-2/CrossAccountRouteFramework/CrossAccountRouteProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
@@ -13967,13 +15234,18 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteProviderframeworkonEventServiceRoleED507AC0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -14017,6 +15289,16 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -14142,15 +15424,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-444444444444-us-west-2",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -14249,15 +15536,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to put cross-account ssm parameter value",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -14308,6 +15600,9 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   "Action": [
                     "ssm:DeleteParameter",
                     "ssm:PutParameter",
+                    "ssm:GetParameters",
+                    "ssm:AddTagsToResource",
+                    "ssm:RemoveTagsFromResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -14349,7 +15644,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NetworkAssociationsStack-444444444444-us-west-2/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -14962,7 +16257,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
 }
 `;
 
-exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot Test 5`] = `
+exports[`NetworkAssociationsStack > Construct(NetworkAssociationsStack):  Snapshot Test 5`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -15014,14 +16309,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Cross account EC2 route OnEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteFunctionServiceRole0BC7B615",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 15,
       },
       "Type": "AWS::Lambda::Function",
@@ -15154,6 +16455,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-222222222222-us-east-1/CrossAccountRouteFramework/CrossAccountRouteProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
@@ -15163,13 +16465,18 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteProviderframeworkonEventServiceRoleED507AC0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -15213,6 +16520,16 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -15338,15 +16655,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-222222222222-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetResourceShareCustomResourceProviderRoleBC3FCEEF",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -15401,15 +16723,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-222222222222-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetResourceShareItemCustomResourceProviderRoleA7181EBA",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -15484,15 +16811,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-222222222222-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomShareSubnetTagsCustomResourceProviderRole2582495C",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -15619,15 +16951,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-222222222222-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -15729,15 +17066,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to put cross-account ssm parameter value",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -15791,6 +17133,9 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   "Action": [
                     "ssm:DeleteParameter",
                     "ssm:PutParameter",
+                    "ssm:GetParameters",
+                    "ssm:AddTagsToResource",
+                    "ssm:RemoveTagsFromResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -15934,6 +17279,12 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "UpdateReplacePolicy": "Delete",
     },
     "SharedServicesMainVpcSharedServicesMainRsyslogSgSg82BD8A5A": {
+      "Metadata": {
+        "lzaLookup": {
+          "securityGroupName": "SharedServices-Main-Rsyslog-sg",
+          "vpcName": "SharedServices-Main",
+        },
+      },
       "Properties": {
         "GroupDescription": "Security Group for AWS Accelerator rsyslog",
         "GroupName": "SharedServices-Main-Rsyslog-sg",
@@ -15976,7 +17327,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NetworkAssociationsStack-222222222222-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -16274,7 +17625,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
 }
 `;
 
-exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot Test 6`] = `
+exports[`NetworkAssociationsStack > Construct(NetworkAssociationsStack):  Snapshot Test 6`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratornetworkvpcSecurityTemplateFullIpamWestcidripv4C96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -16310,14 +17661,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Cross account EC2 route OnEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteFunctionServiceRole0BC7B615",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 15,
       },
       "Type": "AWS::Lambda::Function",
@@ -16447,6 +17804,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-222222222222-us-west-2/CrossAccountRouteFramework/CrossAccountRouteProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
@@ -16456,13 +17814,18 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteProviderframeworkonEventServiceRoleED507AC0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -16506,6 +17869,16 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -16631,15 +18004,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-222222222222-us-west-2",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -16738,15 +18116,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to put cross-account ssm parameter value",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -16797,6 +18180,9 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   "Action": [
                     "ssm:DeleteParameter",
                     "ssm:PutParameter",
+                    "ssm:GetParameters",
+                    "ssm:AddTagsToResource",
+                    "ssm:RemoveTagsFromResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -16838,7 +18224,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NetworkAssociationsStack-222222222222-us-west-2/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -17126,7 +18512,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
 }
 `;
 
-exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot Test 7`] = `
+exports[`NetworkAssociationsStack > Construct(NetworkAssociationsStack):  Snapshot Test 7`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -17178,14 +18564,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Cross account EC2 route OnEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteFunctionServiceRole0BC7B615",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 15,
       },
       "Type": "AWS::Lambda::Function",
@@ -17318,6 +18710,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-333333333333-us-east-1/CrossAccountRouteFramework/CrossAccountRouteProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
@@ -17327,13 +18720,18 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteProviderframeworkonEventServiceRoleED507AC0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -17377,6 +18775,16 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -17502,15 +18910,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetResourceShareCustomResourceProviderRoleBC3FCEEF",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -17565,15 +18978,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetResourceShareItemCustomResourceProviderRoleA7181EBA",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -17648,15 +19066,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomShareSubnetTagsCustomResourceProviderRole2582495C",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -17783,15 +19206,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -17893,15 +19321,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to put cross-account ssm parameter value",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -17955,6 +19388,9 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   "Action": [
                     "ssm:DeleteParameter",
                     "ssm:PutParameter",
+                    "ssm:GetParameters",
+                    "ssm:AddTagsToResource",
+                    "ssm:RemoveTagsFromResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -18098,6 +19534,12 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "UpdateReplacePolicy": "Delete",
     },
     "SharedServicesMainVpcSharedServicesMainRsyslogSgSg82BD8A5A": {
+      "Metadata": {
+        "lzaLookup": {
+          "securityGroupName": "SharedServices-Main-Rsyslog-sg",
+          "vpcName": "SharedServices-Main",
+        },
+      },
       "Properties": {
         "GroupDescription": "Security Group for AWS Accelerator rsyslog",
         "GroupName": "SharedServices-Main-Rsyslog-sg",
@@ -18140,7 +19582,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NetworkAssociationsStack-333333333333-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -18438,7 +19880,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
 }
 `;
 
-exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot Test 8`] = `
+exports[`NetworkAssociationsStack > Construct(NetworkAssociationsStack):  Snapshot Test 8`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratornetworkvpcSecurityTemplateFullIpamWestcidripv4C96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -18474,14 +19916,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Cross account EC2 route OnEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteFunctionServiceRole0BC7B615",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 15,
       },
       "Type": "AWS::Lambda::Function",
@@ -18611,6 +20059,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-333333333333-us-west-2/CrossAccountRouteFramework/CrossAccountRouteProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
@@ -18620,13 +20069,18 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteProviderframeworkonEventServiceRoleED507AC0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -18670,6 +20124,16 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -18795,15 +20259,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-west-2",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -18902,15 +20371,20 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to put cross-account ssm parameter value",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -18961,6 +20435,9 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
                   "Action": [
                     "ssm:DeleteParameter",
                     "ssm:PutParameter",
+                    "ssm:GetParameters",
+                    "ssm:AddTagsToResource",
+                    "ssm:RemoveTagsFromResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -19002,7 +20479,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NetworkAssociationsStack-333333333333-us-west-2/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -19290,7 +20767,7 @@ exports[`NetworkAssociationsStack Construct(NetworkAssociationsStack):  Snapshot
 }
 `;
 
-exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1`] = `
+exports[`NoVpcFlowLogStack > Construct(NetworkAssociationsStack):  Snapshot Test 1`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -19438,7 +20915,20 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
     "AcceleratorVpnNetworkMainCoreAssociationEF397C51": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "AcceleratorVpnVpnTransitGatewayAttachmentFBF8EE77",
+          "Fn::Select": [
+            1,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainCoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -19449,36 +20939,26 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
     "AcceleratorVpnNetworkMainCorePropagation585EB5AE": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "AcceleratorVpnVpnTransitGatewayAttachmentFBF8EE77",
+          "Fn::Select": [
+            1,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainCoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
         },
       },
       "Type": "AWS::EC2::TransitGatewayRouteTablePropagation",
-    },
-    "AcceleratorVpnVpnTransitGatewayAttachmentFBF8EE77": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomGetTransitGatewayAttachmentCustomResourceProviderLogGroup41699CF3",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomGetTransitGatewayAttachmentCustomResourceProviderHandler7E079354",
-            "Arn",
-          ],
-        },
-        "name": "accelerator-vpn",
-        "region": "us-east-1",
-        "transitGatewayId": {
-          "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "type": "vpn",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::GetTransitGatewayAttachment",
-      "UpdateReplacePolicy": "Delete",
     },
     "AssociateHostedZonesF0E2F0DA": {
       "DeletionPolicy": "Delete",
@@ -19537,6 +21017,62 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
       "Type": "Custom::Route53AssociateHostedZones",
       "UpdateReplacePolicy": "Delete",
     },
+    "BatchTgwAttachmentLookup4DD094C3": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomGetTransitGatewayAttachmentCustomResourceProviderLogGroup41699CF3",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomGetTransitGatewayAttachmentCustomResourceProviderHandler7E079354",
+            "Arn",
+          ],
+        },
+        "attachments": [
+          {
+            "name": "SharedServices-Main",
+            "owningAccountId": "444444444444",
+            "roleArn": {
+              "Fn::Join": [
+                "",
+                [
+                  "arn:",
+                  {
+                    "Ref": "AWS::Partition",
+                  },
+                  ":iam::444444444444:role/AWSAccelerator-GetTgwAttachmentRole-us-east-1",
+                ],
+              ],
+            },
+            "transitGatewayId": {
+              "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "type": "vpc",
+          },
+          {
+            "name": "accelerator-vpn",
+            "owningAccountId": "555555555555",
+            "transitGatewayId": {
+              "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "type": "vpn",
+          },
+          {
+            "isSameAccountRegionAccepter": false,
+            "name": "Network-Main-And-SharedServices-Main-Peering",
+            "owningAccountId": "555555555555",
+            "transitGatewayId": {
+              "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+            "type": "peering",
+          },
+        ],
+        "uuid": "REPLACED-UUID",
+      },
+      "Type": "Custom::GetTransitGatewayAttachment",
+      "UpdateReplacePolicy": "Delete",
+    },
     "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801": {
       "DependsOn": [
         "CrossAccountRouteFrameworkCrossAccountRouteFunctionServiceRoleDefaultPolicy2CB6E8A9",
@@ -19548,14 +21084,20 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Cross account EC2 route OnEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteFunctionServiceRole0BC7B615",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 15,
       },
       "Type": "AWS::Lambda::Function",
@@ -19688,6 +21230,7 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkAssociationsStack-555555555555-us-east-1/CrossAccountRouteFramework/CrossAccountRouteProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
@@ -19697,13 +21240,18 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CrossAccountRouteFrameworkCrossAccountRouteProviderframeworkonEventServiceRoleED507AC0",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -19747,6 +21295,16 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CrossAccountRouteFrameworkCrossAccountRouteFunctionAFDC4801",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -19944,15 +21502,20 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomDirectConnectGatewayAssociationCustomResourceProviderRole7D012188",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -20059,15 +21622,20 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetTransitGatewayAttachmentCustomResourceProviderRoleA6A22C3D",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -20150,6 +21718,11 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
         "MemorySize": 512,
         "Role": {
@@ -20158,7 +21731,7 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -20239,15 +21812,20 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -20349,15 +21927,20 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to put cross-account ssm parameter value",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -20411,6 +21994,9 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
                   "Action": [
                     "ssm:DeleteParameter",
                     "ssm:PutParameter",
+                    "ssm:GetParameters",
+                    "ssm:AddTagsToResource",
+                    "ssm:RemoveTagsFromResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -20457,15 +22043,20 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomTransitGatewayPrefixListReferenceCustomResourceProviderRoleC5D4C080",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -20876,7 +22467,20 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
       "Properties": {
         "DestinationCidrBlock": "10.300.0.0/16",
         "TransitGatewayAttachmentId": {
-          "Ref": "AcceleratorVpnVpnTransitGatewayAttachmentFBF8EE77",
+          "Fn::Select": [
+            1,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainCoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -20925,7 +22529,20 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
       "Properties": {
         "DestinationCidrBlock": "10.200.0.0/16",
         "TransitGatewayAttachmentId": {
-          "Ref": "NetworkNetworkMainAndSharedServicesMainPeeringTransitGatewayPeeringAttachment6A5D4528",
+          "Fn::Select": [
+            2,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainSharedidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -20933,34 +22550,23 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
       },
       "Type": "AWS::EC2::TransitGatewayRoute",
     },
-    "NetworkNetworkMainAndSharedServicesMainPeeringTransitGatewayPeeringAttachment6A5D4528": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomGetTransitGatewayAttachmentCustomResourceProviderLogGroup41699CF3",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomGetTransitGatewayAttachmentCustomResourceProviderHandler7E079354",
-            "Arn",
-          ],
-        },
-        "isSameAccountRegionAccepter": false,
-        "name": "Network-Main-And-SharedServices-Main-Peering",
-        "region": "us-east-1",
-        "transitGatewayId": {
-          "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "type": "peering",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::GetTransitGatewayAttachment",
-      "UpdateReplacePolicy": "Delete",
-    },
     "SharedServicesMainNetworkMainCorePropagationB8A9444B": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "SharedServicesMainSharedServicesVpcTransitGatewayAttachmentE1E0A8A8",
+          "Fn::Select": [
+            0,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainCoreidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -20971,7 +22577,20 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
     "SharedServicesMainNetworkMainSegregatedPropagation1734E165": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "SharedServicesMainSharedServicesVpcTransitGatewayAttachmentE1E0A8A8",
+          "Fn::Select": [
+            0,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainSegregatedidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -20982,7 +22601,20 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
     "SharedServicesMainNetworkMainSharedAssociationFE2C7420": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "SharedServicesMainSharedServicesVpcTransitGatewayAttachmentE1E0A8A8",
+          "Fn::Select": [
+            0,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainSharedidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -20993,7 +22625,20 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
     "SharedServicesMainNetworkMainSharedPropagationA83F55E7": {
       "Properties": {
         "TransitGatewayAttachmentId": {
-          "Ref": "SharedServicesMainSharedServicesVpcTransitGatewayAttachmentE1E0A8A8",
+          "Fn::Select": [
+            0,
+            {
+              "Fn::Split": [
+                ",",
+                {
+                  "Fn::GetAtt": [
+                    "BatchTgwAttachmentLookup4DD094C3",
+                    "attachmentIds",
+                  ],
+                },
+              ],
+            },
+          ],
         },
         "TransitGatewayRouteTableId": {
           "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainrouteTablesNetworkMainSharedidC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -21001,46 +22646,11 @@ exports[`NoVpcFlowLogStack Construct(NetworkAssociationsStack):  Snapshot Test 1
       },
       "Type": "AWS::EC2::TransitGatewayRouteTablePropagation",
     },
-    "SharedServicesMainSharedServicesVpcTransitGatewayAttachmentE1E0A8A8": {
-      "DeletionPolicy": "Delete",
-      "DependsOn": [
-        "CustomGetTransitGatewayAttachmentCustomResourceProviderLogGroup41699CF3",
-      ],
-      "Properties": {
-        "ServiceToken": {
-          "Fn::GetAtt": [
-            "CustomGetTransitGatewayAttachmentCustomResourceProviderHandler7E079354",
-            "Arn",
-          ],
-        },
-        "name": "SharedServices-Main",
-        "region": "us-east-1",
-        "roleArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":iam::444444444444:role/AWSAccelerator-DescribeTgwAttachRole-us-east-1",
-            ],
-          ],
-        },
-        "transitGatewayId": {
-          "Ref": "SsmParameterValueacceleratornetworktransitGatewaysNetworkMainidC96584B6F00A464EAD1953AFF4B05118Parameter",
-        },
-        "type": "vpc",
-        "uuid": "REPLACED-UUID",
-      },
-      "Type": "Custom::GetTransitGatewayAttachment",
-      "UpdateReplacePolicy": "Delete",
-    },
     "SsmParamAcceleratorVersionFF83282D": {
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NetworkAssociationsStack-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },

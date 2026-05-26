@@ -13,6 +13,11 @@ nav:
       - Services, Features, and Configuration References: user-guide/config.md
       - Centralized Logging: user-guide/logging.md
       - SecurityHub Findings: user-guide/securityhub-findings.md
+      - Replacement Variables: user-guide/replacement-variables.md
+      - Configuration File Includes: user-guide/configuration-include.md
+      - CloudFormation Stack Policy Protection: user-guide/stack-policy.md
+      - V2 Network Stack Usage: user-guide/v2-stacks.md
+      - AFT Integration: user-guide/aft-integration.md
   - Developer Guide:
       - developer-guide/index.md
       - Development Dependencies: developer-guide/dependencies.md
@@ -22,7 +27,7 @@ nav:
       - Feature Development: developer-guide/features.md
       - Documentation Guidelines: developer-guide/doc-guidelines.md
       - JSON Schema: developer-guide/json-schema.md
-      - Module Development: developer-guide/module-development/index.md      
+      - Module Development: developer-guide/module-development/index.md
   - Sample Configurations:
       - sample-configurations/index.md
       - Standard:

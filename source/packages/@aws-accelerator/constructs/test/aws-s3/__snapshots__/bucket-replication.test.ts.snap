@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`BucketReplication Construct(BucketReplication):  Snapshot Test 1`] = `
+exports[`BucketReplication > Construct(BucketReplication):  Snapshot Test 1`] = `
 {
   "Resources": {
     "BucketReplicationAwsAcceleratorCentralLogsBucketReplicationRole184AC22C": {
@@ -343,15 +343,20 @@ exports[`BucketReplication Construct(BucketReplication):  Snapshot Test 1`] = `
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomS3PutBucketReplicationCustomResourceProviderRole1C378488",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",

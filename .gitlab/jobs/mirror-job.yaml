@@ -1,0 +1,85 @@
+# GitLab Repo Mirror Jobs
+# Mirrors LZA repository to CodeCommit in replicator accounts
+# ==============================
+
+variables:
+  GIT_STRATEGY: fetch
+  PARTITION: aws
+  AWS_DEFAULT_REGION: "us-east-1"
+  LZA_REPO_NAME: landing-zone-accelerator-on-aws-mirror
+
+# Template for mirror jobs
+.mirror_template: &mirror_template
+  stage: mirror
+  before_script:
+    - rm -rf /var/lib/apt/lists/*
+    - apt-get update
+    - apt-cache gencaches
+    - wget --progress=dot:mega -O /tmp/awscliv2.zip https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+    - unzip -q /tmp/awscliv2.zip -d /tmp
+    - /tmp/aws/install
+    - git config --global credential.helper '!aws codecommit credential-helper $@'
+    - git config --global credential.UseHttpPath true
+  script:
+    - echo "Starting mirror to ${LZA_REPO_NAME} in account ${ACCOUNT_ID}"
+    - git clone --mirror ${CI_REPOSITORY_URL} /tmp/repo-mirror
+    - cd /tmp/repo-mirror
+    - git remote add codecommit https://git-codecommit.${AWS_DEFAULT_REGION}.amazonaws.com/v1/repos/${LZA_REPO_NAME}
+    - git push codecommit --mirror --force
+    - echo "Successfully mirrored to ${LZA_REPO_NAME}"
+
+# Account 1: LZA CICD Integ Replicator Account
+# Mirrors only when changes are merged to 'integ' branch
+lza:cicd-integ-replicator:
+  <<: *mirror_template
+  variables:
+    ACCOUNT_ID: "${LZA_CICD_INTEG_REPLICATOR_ACCOUNT_ID}"    
+    AWS_CREDS_TARGET_ROLE: "arn:${PARTITION}:iam::${ACCOUNT_ID}:role/${GITLAB_RUNNER_ROLE_NAME}"
+  rules:
+    - if: $SKIP_MIRROR_JOBS == "yes"
+      when: never
+    - if: $CI_PROJECT_ID == "11925" && $CI_COMMIT_BRANCH == "integ" && $CI_MERGE_REQUEST_IID == null
+      when: always
+    - when: never
+
+# Account 2: LZA CICD Release Config Change Replicator Account
+# Mirrors only when new release tags are created (e.g., v1.0.0)
+lza:cicd-release-config-change-replicator:
+  <<: *mirror_template
+  variables:
+    ACCOUNT_ID: "${LZA_CICD_MAIN_REPLICATOR_ACCOUNT_ID}"
+    AWS_CREDS_TARGET_ROLE: "arn:${PARTITION}:iam::${ACCOUNT_ID}:role/${GITLAB_RUNNER_ROLE_NAME}"
+  rules:
+    - if: $SKIP_MIRROR_JOBS == "yes"
+      when: never
+    - if: $CI_PROJECT_ID == "11925" && $CI_COMMIT_TAG =~ /v(\d.+){2}\d/
+      when: always
+    - when: never
+
+# Account 3: LZA Release Replicator Account
+# Mirrors only when new release tags are created (e.g., v1.0.0)
+lza:release-replicator:
+  <<: *mirror_template
+  variables:
+    ACCOUNT_ID: "${LZA_RELEASE_REPLICATOR_ACCOUNT_ID}"
+    AWS_CREDS_TARGET_ROLE: "arn:${PARTITION}:iam::${ACCOUNT_ID}:role/${GITLAB_RUNNER_ROLE_NAME}"
+  rules:
+    - if: $SKIP_MIRROR_JOBS == "yes"
+      when: never
+    - if: $CI_PROJECT_ID == "11925" && $CI_COMMIT_TAG =~ /v(\d.+){2}\d/
+      when: always
+    - when: never
+
+# Account 4: LZA Development Team Replicator Account
+# Mirrors for all branch commits (any branch, any commit after merge)
+lza:dev-team-replicator:
+  <<: *mirror_template
+  variables:
+    ACCOUNT_ID: "${LZA_DEV_TEAM_REPLICATOR_ACCOUNT_ID}"
+    AWS_CREDS_TARGET_ROLE: "arn:${PARTITION}:iam::${ACCOUNT_ID}:role/${GITLAB_RUNNER_ROLE_NAME}"
+  rules:
+    - if: $SKIP_MIRROR_JOBS == "yes"
+      when: never
+    - if: $CI_PROJECT_ID == "11925" && $CI_MERGE_REQUEST_IID == null
+      when: always
+    - when: never

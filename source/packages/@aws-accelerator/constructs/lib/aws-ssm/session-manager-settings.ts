@@ -14,7 +14,7 @@
 import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-const path = require('path');
+import * as path from 'path';
 
 /**
  * Construction properties for an S3 Bucket object.
@@ -59,6 +59,7 @@ export class SsmSessionManagerSettings extends Construct {
         retention: props.logRetentionInDays,
         logGroupName: logGroupName,
         encryptionKey: props.cloudWatchEncryptionKey,
+        removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
       });
       sessionManagerLogGroupName = sessionManagerLogGroup.logGroupName;
     }
@@ -70,22 +71,6 @@ export class SsmSessionManagerSettings extends Construct {
       alias: props.ssmKeyDetails.alias,
     });
 
-    const sessionManagerUserPolicyDocument = new cdk.aws_iam.PolicyDocument({
-      statements: [
-        new cdk.aws_iam.PolicyStatement({
-          effect: cdk.aws_iam.Effect.ALLOW,
-          actions: ['kms:Decrypt', 'kms:GenerateDataKey'],
-          resources: [sessionManagerSessionCmk.keyArn],
-        }),
-      ],
-    });
-
-    // Create an IAM Policy for users to be able to use Session Manager with KMS encryption
-    new cdk.aws_iam.ManagedPolicy(this, 'SessionManagerUserKMSPolicy', {
-      document: sessionManagerUserPolicyDocument,
-      managedPolicyName: `${props.prefixes.accelerator}-SessionManagerUserKMS-${props.region}`,
-    });
-
     //
     // Function definition for the custom resource
     //
@@ -95,7 +80,7 @@ export class SsmSessionManagerSettings extends Construct {
       policyStatements: [
         {
           Effect: 'Allow',
-          Action: ['ssm:DescribeDocument', 'ssm:CreateDocument', 'ssm:UpdateDocument'],
+          Action: ['ssm:CreateDocument', 'ssm:GetDocument', 'ssm:UpdateDocument'],
           Resource: '*',
         },
       ],
@@ -105,6 +90,7 @@ export class SsmSessionManagerSettings extends Construct {
       resourceType: 'Custom::SsmSessionManagerSettings',
       serviceToken: provider.serviceToken,
       properties: {
+        sendToS3: props.sendToS3,
         s3BucketName: props.s3BucketName,
         s3KeyPrefix: props.s3KeyPrefix,
         s3EncryptionEnabled: props.sendToS3, //set to true if sending to S3

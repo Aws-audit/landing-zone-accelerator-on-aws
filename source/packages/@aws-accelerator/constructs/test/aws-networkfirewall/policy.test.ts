@@ -14,7 +14,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { FirewallPolicyProperty, NetworkFirewallPolicy } from '../../lib/aws-networkfirewall/policy';
 import { snapShotTest } from '../snapshot-test';
-import { describe, it } from '@jest/globals';
+import { describe, it } from 'vitest';
 
 const testNamePrefix = 'Construct(NetworkFirewallPolicy): ';
 
@@ -36,6 +36,15 @@ describe('Network Firewall Policy', () => {
         {
           priority: 123,
           resourceArn: 'arn:aws:network-firewall:us-east-1:222222222222:stateful-rulegroup/TestGroup',
+        },
+        {
+          priority: 20,
+          resourceArn:
+            'arn:aws:network-firewall:us-east-1:aws-managed:stateful-rulegroup/ThreatSignaturesBotnetStrictOrder',
+        },
+        {
+          resourceArn:
+            'arn:aws:network-firewall:us-east-1:aws-managed:stateful-rulegroup/AbusedLegitBotNetCommandAndControlDomainsActionOrder',
         },
       ],
     };

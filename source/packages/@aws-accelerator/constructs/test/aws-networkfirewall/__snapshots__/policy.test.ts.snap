@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Network Firewall Policy Construct(NetworkFirewallPolicy):  Snapshot Test 1`] = `
+exports[`Network Firewall Policy > Construct(NetworkFirewallPolicy):  Snapshot Test 1`] = `
 {
   "Resources": {
     "TestPolicy14DF854C3": {
@@ -65,6 +65,13 @@ exports[`Network Firewall Policy Construct(NetworkFirewallPolicy):  Snapshot Tes
             {
               "Priority": 123,
               "ResourceArn": "arn:aws:network-firewall:us-east-1:222222222222:stateful-rulegroup/TestGroup",
+            },
+            {
+              "Priority": 20,
+              "ResourceArn": "arn:aws:network-firewall:us-east-1:aws-managed:stateful-rulegroup/ThreatSignaturesBotnetStrictOrder",
+            },
+            {
+              "ResourceArn": "arn:aws:network-firewall:us-east-1:aws-managed:stateful-rulegroup/AbusedLegitBotNetCommandAndControlDomainsActionOrder",
             },
           ],
           "StatelessDefaultActions": [

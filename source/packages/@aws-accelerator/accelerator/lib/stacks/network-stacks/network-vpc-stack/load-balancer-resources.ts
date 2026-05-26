@@ -27,20 +27,28 @@ import {
   SsmParameterProps,
   Subnet,
 } from '@aws-accelerator/constructs';
-import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
+import { SsmResourceType, MetadataKeys } from '@aws-accelerator/utils';
 import * as cdk from 'aws-cdk-lib';
 import { NagSuppressions } from 'cdk-nag';
 import { pascalCase } from 'pascal-case';
 import { AcceleratorStackProps } from '../../accelerator-stack';
 import { LogLevel } from '../network-stack';
-import { getSubnet } from '../utils/getter-utils';
+import { getSubnet, getSecurityGroup } from '../utils/getter-utils';
 import { NetworkVpcStack } from './network-vpc-stack';
+import { LZAResourceLookup, LZAResourceLookupType } from '../../../../utils/lza-resource-lookup';
+
+enum LoadBalancerType {
+  ALB = 'alb',
+  GWLB = 'gwlb',
+  NLB = 'nlb',
+}
 
 export class LoadBalancerResources {
   public readonly albMap: Map<string, ApplicationLoadBalancer>;
   public readonly gwlbMap: Map<string, GatewayLoadBalancer>;
   public readonly nlbMap: Map<string, NetworkLoadBalancer>;
   private stack: NetworkVpcStack;
+  private lzaLookup: LZAResourceLookup;
 
   constructor(
     networkVpcStack: NetworkVpcStack,
@@ -49,6 +57,16 @@ export class LoadBalancerResources {
     props: AcceleratorStackProps,
   ) {
     this.stack = networkVpcStack;
+
+    this.lzaLookup = new LZAResourceLookup({
+      accountId: this.stack.account,
+      region: this.stack.region,
+      aseaResourceList: this.stack.props.globalConfig.externalLandingZoneResources?.resourceList ?? [],
+      enableV2Stacks: this.stack.props.globalConfig.useV2Stacks,
+      externalLandingZoneResources:
+        this.stack.props.globalConfig.externalLandingZoneResources?.importExternalLandingZoneResources,
+      stackName: this.stack.stackName,
+    });
 
     // Create GWLB resources
     this.gwlbMap = this.createGwlbs(this.stack.vpcsInScope, subnetMap, props);
@@ -96,6 +114,15 @@ export class LoadBalancerResources {
     for (const vpcItem of vpcResources) {
       for (const loadBalancerItem of props.networkConfig.centralNetworkServices?.gatewayLoadBalancers ?? []) {
         if (vpcItem.name === loadBalancerItem.vpc) {
+          if (
+            !this.lzaLookup.resourceExists({
+              resourceType: LZAResourceLookupType.LOAD_BALANCER,
+              lookupValues: { vpcName: vpcItem.name, gwlbName: loadBalancerItem.name },
+            })
+          ) {
+            continue;
+          }
+
           const allowedPrincipals = this.setGwlbAllowedPrincipals(loadBalancerItem, props);
           const gwlb = this.createGwlb(vpcItem, loadBalancerItem, subnetMap, allowedPrincipals);
           gwlbMap.set(loadBalancerItem.name, gwlb);
@@ -123,7 +150,13 @@ export class LoadBalancerResources {
     // Set subnets
     const subnets: string[] = [];
     for (const subnetItem of loadBalancerItem.subnets) {
-      const subnet = getSubnet(subnetMap, vpcItem.name, subnetItem) as Subnet;
+      const subnet = getSubnet(
+        subnetMap,
+        vpcItem.name,
+        subnetItem,
+        undefined,
+        this.stack.props.globalConfig.useV2Stacks,
+      ) as Subnet;
 
       if (!subnets.includes(subnet.subnetId)) {
         subnets.push(subnet.subnetId);
@@ -147,6 +180,8 @@ export class LoadBalancerResources {
         tags: loadBalancerItem.tags,
       },
     );
+
+    this.addLzaLookupMetadata(loadBalancer, vpcItem.name, loadBalancerItem.name, LoadBalancerType.GWLB);
 
     // Add SSM parameters
     this.stack.addSsmParameter({
@@ -257,6 +292,8 @@ export class LoadBalancerResources {
       accessLogsBucket: options.accessLogsBucketName,
       attributes: options.albItem.attributes ?? undefined,
     });
+
+    this.addLzaLookupMetadata(alb, options.vpcName, options.albItem.name, LoadBalancerType.ALB);
     options.albMap.set(`${options.vpcName}_${options.albItem.name}`, alb);
 
     for (const subnet of options.albItem.subnets || []) {
@@ -307,13 +344,36 @@ export class LoadBalancerResources {
         if (this.stack.isManagedByAsea(AseaResourceType.APPLICATION_LOAD_BALANCER, `${albItem.name}`)) {
           continue;
         }
+        if (
+          !this.lzaLookup.resourceExists({
+            resourceType: LZAResourceLookupType.LOAD_BALANCER,
+            lookupValues: { vpcName: vpcItem.name, albName: albItem.name },
+          })
+        ) {
+          continue;
+        }
         // Logic to only create Application Load Balancers that don't include the shareTargets property
         if (!albItem.shareTargets) {
-          const subnetLookups = albItem.subnets.map(subnetName => subnetMap.get(`${vpcItem.name}_${subnetName}`));
+          const subnetLookups = albItem.subnets.map(
+            subnetName =>
+              getSubnet(
+                subnetMap,
+                vpcItem.name,
+                subnetName,
+                undefined,
+                this.stack.props.globalConfig.useV2Stacks,
+              ) as Subnet,
+          );
           const nonNullsubnets = subnetLookups.filter(subnet => subnet) as Subnet[];
           const subnetIds = nonNullsubnets.map(subnet => subnet.subnetId);
-          const securityGroupLookups = albItem.securityGroups.map(securityGroupName =>
-            securityGroupMap.get(`${vpcItem.name}_${securityGroupName}`),
+          const securityGroupLookups = albItem.securityGroups.map(
+            securityGroupName =>
+              getSecurityGroup(
+                securityGroupMap,
+                vpcItem.name,
+                securityGroupName,
+                this.stack.props.globalConfig.useV2Stacks,
+              ) as SecurityGroup,
           );
           const nonNullSecurityGroups = securityGroupLookups.filter(group => group) as SecurityGroup[];
           const securityGroupIds = nonNullSecurityGroups.map(securityGroup => securityGroup.securityGroupId);
@@ -355,6 +415,15 @@ export class LoadBalancerResources {
     props: AcceleratorStackProps,
   ) {
     for (const nlbItem of vpcItem.loadBalancers?.networkLoadBalancers || []) {
+      if (
+        !this.lzaLookup.resourceExists({
+          resourceType: LZAResourceLookupType.LOAD_BALANCER,
+          lookupValues: { vpcName: vpcItem.name, albName: nlbItem.name },
+        })
+      ) {
+        continue;
+      }
+
       const subnetLookups = nlbItem.subnets.map(subnetName => subnetMap.get(`${vpcItem.name}_${subnetName}`));
       const nonNullsubnets = subnetLookups.filter(subnet => subnet) as Subnet[];
       const subnetIds = nonNullsubnets.map(subnet => subnet.subnetId);
@@ -373,6 +442,7 @@ export class LoadBalancerResources {
         crossZoneLoadBalancing: nlbItem.crossZoneLoadBalancing,
         accessLogsBucket: accessLogsBucketName,
       });
+      this.addLzaLookupMetadata(nlb, vpcItem.name, nlbItem.name, LoadBalancerType.NLB);
       nlbMap.set(`${vpcItem.name}_${nlbItem.name}`, nlb);
 
       for (const subnet of nlbItem.subnets || []) {
@@ -403,76 +473,25 @@ export class LoadBalancerResources {
     props: AcceleratorStackProps,
   ) {
     const nlbMap = new Map<string, NetworkLoadBalancer>();
-
     const accessLogsBucketName = this.stack.getElbAccessLogBucketName();
     for (const vpcItem of vpcResources) {
-      // Set account IDs
-      const principals = this.setNlbPrincipalIds(vpcItem, props);
-
       this.createNetworkLoadBalancer(vpcItem, accessLogsBucketName, nlbMap, subnetMap, props);
-
-      if (
-        cdk.Stack.of(this.stack).region === props.globalConfig.homeRegion &&
-        vpcItem.loadBalancers?.networkLoadBalancers &&
-        vpcItem.loadBalancers?.networkLoadBalancers.length > 0
-      ) {
-        new cdk.aws_iam.Role(this.stack, `GetNLBIPAddressLookup`, {
-          roleName: `${props.prefixes.accelerator}-GetNLBIPAddressLookup`,
-          assumedBy: new cdk.aws_iam.CompositePrincipal(...principals!),
-          inlinePolicies: {
-            default: new cdk.aws_iam.PolicyDocument({
-              statements: [
-                new cdk.aws_iam.PolicyStatement({
-                  effect: cdk.aws_iam.Effect.ALLOW,
-                  actions: ['ec2:DescribeNetworkInterfaces'],
-                  resources: ['*'],
-                }),
-              ],
-            }),
-          },
-        });
-
-        NagSuppressions.addResourceSuppressionsByPath(this.stack, `/${this.stack.stackName}/GetNLBIPAddressLookup`, [
-          {
-            id: 'AwsSolutions-IAM5',
-            reason: 'Allows only specific role arns.',
-          },
-        ]);
-      }
     }
     return nlbMap;
   }
 
   /**
-   * Set principal account IDs for a given VPC item
-   * @param vpcItem
-   * @param props
+   * Add LZA Lookup metadata to a given resource
+   * @param node
+   * @param vpcName
+   * @param loadBalancerName
    * @returns
    */
-  private setNlbPrincipalIds(
-    vpcItem: VpcConfig | VpcTemplatesConfig,
-    props: AcceleratorStackProps,
-  ): cdk.aws_iam.AccountPrincipal[] | void {
-    if (!vpcItem.loadBalancers?.networkLoadBalancers || vpcItem.loadBalancers.networkLoadBalancers.length === 0) {
-      return;
-    }
-    const vpcItemsWithTargetGroups = props.networkConfig.vpcs.filter(
-      vpcItem => vpcItem.targetGroups && vpcItem.targetGroups.length > 0,
-    );
-    const vpcTemplatesWithTargetGroups =
-      props.networkConfig.vpcTemplates?.filter(vpcItem => vpcItem.targetGroups && vpcItem.targetGroups.length > 0) ??
-      [];
-    const accountIdTargetsForVpcs = vpcItemsWithTargetGroups.map(vpcItem =>
-      props.accountsConfig.getAccountId(vpcItem.account),
-    );
-    const accountIdTargetsForVpcTemplates =
-      vpcTemplatesWithTargetGroups?.map(vpcTemplate =>
-        this.stack.getAccountIdsFromDeploymentTargets(vpcTemplate.deploymentTargets),
-      ) ?? [];
-    const principalAccountIds = [...accountIdTargetsForVpcs, ...accountIdTargetsForVpcTemplates];
-    principalAccountIds.push(cdk.Stack.of(this.stack).account);
-    const principalIds = [...new Set(principalAccountIds)];
-
-    return principalIds.map(accountId => new cdk.aws_iam.AccountPrincipal(accountId)) ?? undefined;
+  private addLzaLookupMetadata(node: cdk.Resource, vpcName: string, loadBalancerName: string, type: LoadBalancerType) {
+    const resource = node.node.findChild('Resource') as cdk.CfnResource;
+    resource.addMetadata(MetadataKeys.LZA_LOOKUP, {
+      vpcName: vpcName,
+      [`${type}Name`]: loadBalancerName,
+    });
   }
 }

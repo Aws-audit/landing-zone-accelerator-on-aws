@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`VirtualInterface Construct(VirtualInterface):  Snapshot Test 1`] = `
+exports[`VirtualInterface > Construct(VirtualInterface):  Snapshot Test 1`] = `
 {
   "Resources": {
     "CustomDirectConnectVirtualInterfaceAllocationCustomResourceProviderHandler58CF9005": {
@@ -14,15 +14,20 @@ exports[`VirtualInterface Construct(VirtualInterface):  Snapshot Test 1`] = `
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomDirectConnectVirtualInterfaceAllocationCustomResourceProviderRoleBC904CA4",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -107,15 +112,20 @@ exports[`VirtualInterface Construct(VirtualInterface):  Snapshot Test 1`] = `
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomDirectConnectVirtualInterfaceCustomResourceProviderRoleD8C9D582",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",

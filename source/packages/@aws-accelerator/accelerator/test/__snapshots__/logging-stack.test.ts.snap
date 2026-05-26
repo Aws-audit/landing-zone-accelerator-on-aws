@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
+exports[`LoggingStack > Construct(LoggingStack):  Snapshot Test 1`] = `
 {
   "Resources": {
     "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleFunction78452922": {
@@ -14,6 +14,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to create service linked role",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -28,7 +33,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -147,6 +152,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-east-1/AWSServiceRoleForAWSCloud9/CreateServiceLinkedRoleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleFunction78452922",
@@ -156,13 +162,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleProviderframeworkonEventServiceRole8AB21249",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -248,6 +259,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleFunction78452922",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -295,7 +316,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
     "Accelerator3KeyBF43FCD9": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "AWS Accelerator S3 Kms Key",
+        "Description": "KMS key for encrypting general-purpose S3 buckets created by LZA",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -417,6 +438,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed CloudWatchDataProtection custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -431,7 +457,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -574,6 +600,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-east-1/AcceleratorCloudWatchDataProtection/CloudWatchDataProtection/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AcceleratorCloudWatchDataProtectionFunctionAB6284FB",
@@ -583,13 +610,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorCloudWatchDataProtectionframeworkonEventServiceRole37B79FF9",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -675,6 +707,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AcceleratorCloudWatchDataProtectionFunctionAB6284FB",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -700,9 +742,9 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
       "Type": "AWS::KMS::Alias",
     },
     "AcceleratorCloudWatchKeyF93B6E17": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
-        "Description": "AWS Accelerator CloudWatch Kms Key",
+        "Description": "KMS key for encrypting CloudWatch Log Groups created by LZA",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -1018,9 +1060,9 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
       "Type": "AWS::KMS::Alias",
     },
     "AcceleratorLambdaKeyD279839E": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
-        "Description": "AWS Accelerator Lambda Kms Key",
+        "Description": "KMS key for encrypting Lambda function environment variables",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -1064,7 +1106,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "AcceleratorMetadataBucket1A53514B": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "BucketEncryption": {
           "ServerSideEncryptionConfiguration": [
@@ -1149,7 +1191,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
     "AcceleratorMetadataBucketCmkC5190F6D": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "The s3 bucket key for accelerator metadata collection",
+        "Description": "KMS key for encrypting S3 bucket storing LZA metadata and configuration in the log archive account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -1488,7 +1530,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
     "AcceleratorSnsTopicKey4E909F1D": {
       "DeletionPolicy": "Delete",
       "Properties": {
-        "Description": "AWS Accelerator SNS Topic Kms Key",
+        "Description": "KMS key for encrypting SNS topics for notifications and alerts in the log archive account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -1579,6 +1621,55 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
               "Resource": "*",
               "Sid": "crossaccount",
             },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudwatch.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:PrincipalOrgID": "o-asdf123456",
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": "*",
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -1611,9 +1702,9 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
       "Type": "AWS::KMS::Alias",
     },
     "AcceleratorSqsKeyB0193AC3": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "Delete",
       "Properties": {
-        "Description": "AWS Accelerator SQS Kms Key",
+        "Description": "KMS key for encrypting SQS queues created by LZA",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -1654,7 +1745,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
         },
       },
       "Type": "AWS::KMS::Key",
-      "UpdateReplacePolicy": "Retain",
+      "UpdateReplacePolicy": "Delete",
     },
     "AcceleratorSqsKmsArnParameter3DE59258": {
       "Properties": {
@@ -1851,7 +1942,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "AcceleratorVpcFlowLogsBucketC222BC85": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "BucketEncryption": {
           "ServerSideEncryptionConfiguration": [
@@ -1997,6 +2088,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to create service linked role",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -2011,7 +2107,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2130,6 +2226,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-east-1/AutoScalingServiceLinkedRole/CreateServiceLinkedRoleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AutoScalingServiceLinkedRoleCreateServiceLinkedRoleFunction56E83FD3",
@@ -2139,13 +2236,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AutoScalingServiceLinkedRoleCreateServiceLinkedRoleProviderframeworkonEventServiceRoleF8C91A0A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2189,6 +2291,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AutoScalingServiceLinkedRoleCreateServiceLinkedRoleFunction56E83FD3",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -2397,15 +2509,20 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomS3PutBucketReplicationCustomResourceProviderRole1C378488",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2487,15 +2604,20 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomS3PutPublicAccessBlockCustomResourceProviderRole656EB36E",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2573,15 +2695,20 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2685,15 +2812,22 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "AWS_STS_REGIONAL_ENDPOINTS": "regional",
+            "NO_OP": "false",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomUpdateSubscriptionFilterCustomResourceProviderRole81A1751E",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2989,6 +3123,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
                 "Arn",
               ],
             },
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "FunctionName": "AWSAccelerator-FirehoseRecordsProcessor",
@@ -3006,7 +3141,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -3426,6 +3561,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed BucketPolicy custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -3440,7 +3580,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -3566,6 +3706,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-east-1/ImportedaccessLogsBucketPolicy/BucketPolicy/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ImportedaccessLogsBucketPolicyFunctionE108A801",
@@ -3575,13 +3716,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ImportedaccessLogsBucketPolicyframeworkonEventServiceRole7593A466",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3667,6 +3813,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ImportedaccessLogsBucketPolicyFunctionE108A801",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -3731,6 +3887,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed BucketPolicy custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -3745,7 +3906,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -3871,6 +4032,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-east-1/ImportedelbLogsBucketPolicy/BucketPolicy/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ImportedelbLogsBucketPolicyFunction0F7A82C4",
@@ -3880,13 +4042,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ImportedelbLogsBucketPolicyframeworkonEventServiceRole18BD877A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3971,6 +4138,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ImportedelbLogsBucketPolicyFunction0F7A82C4",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -4114,7 +4291,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
     "LogsReplicationKeyAE749486": {
       "DeletionPolicy": "Delete",
       "Properties": {
-        "Description": "AWS Accelerator CloudWatch Logs Replication Kms Key",
+        "Description": "KMS key for encrypting Kinesis Data Streams used for CloudWatch Logs replication in the log archive account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -4202,6 +4379,10 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
         "cdk_nag": {
           "rules_to_suppress": [
             {
+              "id": "AwsSolutions-SQS2",
+              "reason": "The SQS queue uses server side encryption if user makes the choice to do so",
+            },
+            {
               "id": "AwsSolutions-SQS3",
               "reason": "The SQS queue does not have a dead-letter queue (DLQ) enabled or have a cdk_nag rule suppression indicating it is a DLQ.",
             },
@@ -4265,6 +4446,10 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
         "cdk_nag": {
           "rules_to_suppress": [
             {
+              "id": "AwsSolutions-SQS2",
+              "reason": "The SQS queue uses server side encryption if user makes the choice to do so",
+            },
+            {
               "id": "AwsSolutions-SQS3",
               "reason": "The SQS queue does not have a dead-letter queue (DLQ) enabled or have a cdk_nag rule suppression indicating it is a DLQ.",
             },
@@ -4325,6 +4510,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
       "DependsOn": [
         "LogsSubscriptionFilter58C57C6B",
       ],
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-SQS2",
+              "reason": "The SQS queue uses server side encryption if user makes the choice to do so",
+            },
+          ],
+        },
+      },
       "Properties": {
         "ContentBasedDeduplication": true,
         "DelaySeconds": 600,
@@ -4409,6 +4604,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
       "Properties": {
         "EventPattern": {
           "detail": {
+            "errorCode": [
+              {
+                "exists": false,
+              },
+            ],
+            "errorMessage": [
+              {
+                "exists": false,
+              },
+            ],
             "eventName": [
               "CreateLogGroup",
             ],
@@ -4482,6 +4687,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
               ],
             },
             "LogSubscriptionType": "ACCOUNT",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "Handler": "index.handler",
@@ -4491,13 +4697,14 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "NewCloudWatchLogsCreateEventSetLogRetentionSubscriptionFunctionServiceRoleF408E8D2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -4582,6 +4789,21 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
                   "Arn",
                 ],
               },
+            },
+            {
+              "Action": [
+                "kms:Encrypt",
+                "kms:Decrypt",
+                "kms:GenerateDataKey",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AcceleratorCloudWatchKeyF93B6E17",
+                  "Arn",
+                ],
+              },
+              "Sid": "Kms",
             },
             {
               "Action": [
@@ -4795,7 +5017,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-LoggingStack-333333333333-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -4863,6 +5085,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed ValidateBucket custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -4877,7 +5104,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -5025,6 +5252,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-east-1/ValidateImportedaccessLogsBucket/ValidateBucket/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ValidateImportedaccessLogsBucketValidateBucketFunction67AF64AE",
@@ -5034,13 +5262,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ValidateImportedaccessLogsBucketValidateBucketframeworkonEventServiceRole90079A8B",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -5126,6 +5359,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ValidateImportedaccessLogsBucketValidateBucketFunction67AF64AE",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -5149,6 +5392,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed ValidateBucket custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -5163,7 +5411,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -5311,6 +5559,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-east-1/ValidateImportedelbLogsBucket/ValidateBucket/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ValidateImportedelbLogsBucketValidateBucketFunction9D3CDC99",
@@ -5320,13 +5569,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ValidateImportedelbLogsBucketValidateBucketframeworkonEventServiceRole3CAD21DD",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -5412,6 +5666,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ValidateImportedelbLogsBucketValidateBucketFunction9D3CDC99",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -5428,7 +5692,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 1`] = `
 }
 `;
 
-exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
+exports[`LoggingStack > Construct(LoggingStack):  Snapshot Test 2`] = `
 {
   "Resources": {
     "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleFunction78452922": {
@@ -5442,6 +5706,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to create service linked role",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "MemorySize": 512,
         "Role": {
@@ -5450,7 +5719,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -5563,6 +5832,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/AWSServiceRoleForAWSCloud9/CreateServiceLinkedRoleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleFunction78452922",
@@ -5572,13 +5842,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleProviderframeworkonEventServiceRole8AB21249",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -5663,6 +5938,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleFunction78452922",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -5895,7 +6180,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
     "AcceleratorSnsTopicKey4E909F1D": {
       "DeletionPolicy": "Delete",
       "Properties": {
-        "Description": "AWS Accelerator SNS Topic Kms Key",
+        "Description": "KMS key for encrypting SNS topics for notifications and alerts in the log archive account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -5986,6 +6271,55 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
               "Resource": "*",
               "Sid": "crossaccount",
             },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudwatch.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:PrincipalOrgID": "o-asdf123456",
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": "*",
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -6018,9 +6352,9 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
       "Type": "AWS::KMS::Alias",
     },
     "AcceleratorSqsKeyB0193AC3": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "Delete",
       "Properties": {
-        "Description": "AWS Accelerator SQS Kms Key",
+        "Description": "KMS key for encrypting SQS queues created by LZA",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -6061,7 +6395,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         },
       },
       "Type": "AWS::KMS::Key",
-      "UpdateReplacePolicy": "Retain",
+      "UpdateReplacePolicy": "Delete",
     },
     "AcceleratorSqsKmsArnParameter3DE59258": {
       "Properties": {
@@ -6251,7 +6585,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
       "Type": "AWS::SSM::Parameter",
     },
     "AcceleratorVpcFlowLogsBucketC222BC85": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "BucketEncryption": {
           "ServerSideEncryptionConfiguration": [
@@ -6391,6 +6725,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to create service linked role",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "MemorySize": 512,
         "Role": {
@@ -6399,7 +6738,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -6512,6 +6851,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/AutoScalingServiceLinkedRole/CreateServiceLinkedRoleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AutoScalingServiceLinkedRoleCreateServiceLinkedRoleFunction56E83FD3",
@@ -6521,13 +6861,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AutoScalingServiceLinkedRoleCreateServiceLinkedRoleProviderframeworkonEventServiceRoleF8C91A0A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -6571,6 +6916,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AutoScalingServiceLinkedRoleCreateServiceLinkedRoleFunction56E83FD3",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -6654,15 +7009,20 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-west-2",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomS3PutBucketReplicationCustomResourceProviderRole1C378488",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -6739,15 +7099,20 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to put cross-account ssm parameter value",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -6798,6 +7163,9 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
                   "Action": [
                     "ssm:DeleteParameter",
                     "ssm:PutParameter",
+                    "ssm:GetParameters",
+                    "ssm:AddTagsToResource",
+                    "ssm:RemoveTagsFromResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -6844,15 +7212,22 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-west-2",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "AWS_STS_REGIONAL_ENDPOINTS": "regional",
+            "NO_OP": "false",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomUpdateSubscriptionFilterCustomResourceProviderRole81A1751E",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -7120,6 +7495,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
                 "Arn",
               ],
             },
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "FunctionName": "AWSAccelerator-FirehoseRecordsProcessor",
@@ -7131,7 +7507,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -7508,6 +7884,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed S3CreateBucketPrefix custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "MemorySize": 512,
         "Role": {
@@ -7516,7 +7897,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -7650,6 +8031,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/ImportedLogBucketPrefix/S3CreateBucketPrefix/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ImportedLogBucketPrefixS3CreateBucketPrefixFunction72196444",
@@ -7659,13 +8041,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ImportedLogBucketPrefixS3CreateBucketPrefixframeworkonEventServiceRole1C1704DF",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -7751,6 +8138,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ImportedLogBucketPrefixS3CreateBucketPrefixFunction72196444",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -7810,6 +8207,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed BucketPolicy custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "MemorySize": 512,
         "Role": {
@@ -7818,7 +8220,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -7938,6 +8340,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/ImportedaccessLogsBucketPolicy/BucketPolicy/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ImportedaccessLogsBucketPolicyFunctionE108A801",
@@ -7947,13 +8350,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ImportedaccessLogsBucketPolicyframeworkonEventServiceRole7593A466",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -8039,6 +8447,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ImportedaccessLogsBucketPolicyFunctionE108A801",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -8085,6 +8503,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed BucketEncryption custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "MemorySize": 512,
         "Role": {
@@ -8093,7 +8516,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -8213,6 +8636,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/ImportedcentralLogsBucketEncryption/BucketEncryption/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ImportedcentralLogsBucketEncryptionFunction1213293C",
@@ -8222,13 +8646,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ImportedcentralLogsBucketEncryptionframeworkonEventServiceRoleBBC0F3CB",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -8314,6 +8743,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ImportedcentralLogsBucketEncryptionFunction1213293C",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -8329,7 +8768,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
     "ImportedcentralLogsBucketKey7AB36134": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "AWS Accelerator Imported Central Logs Bucket CMK",
+        "Description": "KMS key for encrypting imported centralized S3 logging bucket in the log archive account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -8631,6 +9070,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed BucketPolicy custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "MemorySize": 512,
         "Role": {
@@ -8639,7 +9083,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -8759,6 +9203,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/ImportedcentralLogsBucketPolicy/BucketPolicy/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ImportedcentralLogsBucketPolicyFunction52BB88BE",
@@ -8768,13 +9213,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ImportedcentralLogsBucketPolicyframeworkonEventServiceRoleA85CAD5F",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -8860,6 +9310,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ImportedcentralLogsBucketPolicyFunction52BB88BE",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -8924,6 +9384,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed BucketPolicy custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "MemorySize": 512,
         "Role": {
@@ -8932,7 +9397,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -9052,6 +9517,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/ImportedelbLogsBucketPolicy/BucketPolicy/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ImportedelbLogsBucketPolicyFunction0F7A82C4",
@@ -9061,13 +9527,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ImportedelbLogsBucketPolicyframeworkonEventServiceRole18BD877A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -9152,6 +9623,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ImportedelbLogsBucketPolicyFunction0F7A82C4",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -9295,7 +9776,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
     "LogsReplicationKeyAE749486": {
       "DeletionPolicy": "Delete",
       "Properties": {
-        "Description": "AWS Accelerator CloudWatch Logs Replication Kms Key",
+        "Description": "KMS key for encrypting Kinesis Data Streams used for CloudWatch Logs replication in the log archive account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -9377,6 +9858,10 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         "cdk_nag": {
           "rules_to_suppress": [
             {
+              "id": "AwsSolutions-SQS2",
+              "reason": "The SQS queue uses server side encryption if user makes the choice to do so",
+            },
+            {
               "id": "AwsSolutions-SQS3",
               "reason": "The SQS queue does not have a dead-letter queue (DLQ) enabled or have a cdk_nag rule suppression indicating it is a DLQ.",
             },
@@ -9440,6 +9925,10 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         "cdk_nag": {
           "rules_to_suppress": [
             {
+              "id": "AwsSolutions-SQS2",
+              "reason": "The SQS queue uses server side encryption if user makes the choice to do so",
+            },
+            {
               "id": "AwsSolutions-SQS3",
               "reason": "The SQS queue does not have a dead-letter queue (DLQ) enabled or have a cdk_nag rule suppression indicating it is a DLQ.",
             },
@@ -9500,6 +9989,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
       "DependsOn": [
         "LogsSubscriptionFilter58C57C6B",
       ],
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-SQS2",
+              "reason": "The SQS queue uses server side encryption if user makes the choice to do so",
+            },
+          ],
+        },
+      },
       "Properties": {
         "ContentBasedDeduplication": true,
         "DelaySeconds": 600,
@@ -9584,6 +10083,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
       "Properties": {
         "EventPattern": {
           "detail": {
+            "errorCode": [
+              {
+                "exists": false,
+              },
+            ],
+            "errorMessage": [
+              {
+                "exists": false,
+              },
+            ],
             "eventName": [
               "CreateLogGroup",
             ],
@@ -9651,16 +10160,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
               ],
             },
             "LogSubscriptionType": "ACCOUNT",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "NewCloudWatchLogsCreateEventSetLogRetentionSubscriptionFunctionServiceRoleF408E8D2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -9971,7 +10482,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-LoggingStack-333333333333-us-west-2/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -10039,6 +10550,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed ValidateBucket custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "MemorySize": 512,
         "Role": {
@@ -10047,7 +10563,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -10189,6 +10705,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/ValidateImportedaccessLogsBucket/ValidateBucket/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ValidateImportedaccessLogsBucketValidateBucketFunction67AF64AE",
@@ -10198,13 +10715,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ValidateImportedaccessLogsBucketValidateBucketframeworkonEventServiceRole90079A8B",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -10290,6 +10812,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ValidateImportedaccessLogsBucketValidateBucketFunction67AF64AE",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -10313,6 +10845,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed ValidateBucket custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "MemorySize": 512,
         "Role": {
@@ -10321,7 +10858,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -10463,6 +11000,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/ValidateImportedcentralLogsBucket/ValidateBucket/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ValidateImportedcentralLogsBucketValidateBucketFunctionA46C1293",
@@ -10472,13 +11010,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ValidateImportedcentralLogsBucketValidateBucketframeworkonEventServiceRoleDD88BC27",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -10564,6 +11107,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ValidateImportedcentralLogsBucketValidateBucketFunctionA46C1293",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -10587,6 +11140,11 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed ValidateBucket custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "MemorySize": 512,
         "Role": {
@@ -10595,7 +11153,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -10737,6 +11295,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/ValidateImportedelbLogsBucket/ValidateBucket/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "ValidateImportedelbLogsBucketValidateBucketFunction9D3CDC99",
@@ -10746,13 +11305,18 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ValidateImportedelbLogsBucketValidateBucketframeworkonEventServiceRole3CAD21DD",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -10838,6 +11402,16 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "ValidateImportedelbLogsBucketValidateBucketFunction9D3CDC99",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -10854,7 +11428,7 @@ exports[`LoggingStack Construct(LoggingStack):  Snapshot Test 2`] = `
 }
 `;
 
-exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snapshot Test 1`] = `
+exports[`LoggingStackDelegatedAdmin > Construct(LoggingStacKDelegatedAdmin):  Snapshot Test 1`] = `
 {
   "Resources": {
     "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleFunction78452922": {
@@ -10868,6 +11442,11 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to create service linked role",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -10882,7 +11461,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -11001,6 +11580,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/AWSServiceRoleForAWSCloud9/CreateServiceLinkedRoleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleFunction78452922",
@@ -11010,13 +11590,18 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleProviderframeworkonEventServiceRole8AB21249",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -11102,6 +11687,16 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleFunction78452922",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -11149,7 +11744,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
     "Accelerator3KeyBF43FCD9": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "AWS Accelerator S3 Kms Key",
+        "Description": "KMS key for encrypting general-purpose S3 buckets created by LZA",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -11245,9 +11840,9 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
       "Type": "AWS::KMS::Alias",
     },
     "AcceleratorCloudWatchKeyF93B6E17": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
-        "Description": "AWS Accelerator CloudWatch Kms Key",
+        "Description": "KMS key for encrypting CloudWatch Log Groups created by LZA",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -11425,9 +12020,9 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
       "Type": "AWS::KMS::Alias",
     },
     "AcceleratorLambdaKeyD279839E": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
-        "Description": "AWS Accelerator Lambda Kms Key",
+        "Description": "KMS key for encrypting Lambda function environment variables",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -11486,7 +12081,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
     "AcceleratorSnsTopicKey4E909F1D": {
       "DeletionPolicy": "Delete",
       "Properties": {
-        "Description": "AWS Accelerator SNS Topic Kms Key",
+        "Description": "KMS key for encrypting SNS topics for notifications and alerts in the log archive account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -11577,6 +12172,55 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
               "Resource": "*",
               "Sid": "crossaccount",
             },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudwatch.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:PrincipalOrgID": "o-asdf123456",
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": "*",
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -11609,9 +12253,9 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
       "Type": "AWS::KMS::Alias",
     },
     "AcceleratorSqsKeyB0193AC3": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "Delete",
       "Properties": {
-        "Description": "AWS Accelerator SQS Kms Key",
+        "Description": "KMS key for encrypting SQS queues created by LZA",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -11652,7 +12296,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
         },
       },
       "Type": "AWS::KMS::Key",
-      "UpdateReplacePolicy": "Retain",
+      "UpdateReplacePolicy": "Delete",
     },
     "AcceleratorSqsKmsArnParameter3DE59258": {
       "Properties": {
@@ -11797,6 +12441,11 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to create service linked role",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -11811,7 +12460,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -11930,6 +12579,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/AutoScalingServiceLinkedRole/CreateServiceLinkedRoleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AutoScalingServiceLinkedRoleCreateServiceLinkedRoleFunction56E83FD3",
@@ -11939,13 +12589,18 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AutoScalingServiceLinkedRoleCreateServiceLinkedRoleProviderframeworkonEventServiceRoleF8C91A0A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -11989,6 +12644,16 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AutoScalingServiceLinkedRoleCreateServiceLinkedRoleFunction56E83FD3",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -12137,7 +12802,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
     "CentralLogsBucketCmkBA0AB2FC": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "AWS Accelerator Central Logs Bucket CMK",
+        "Description": "KMS key for encrypting centralized S3 logging bucket in log archive account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -12900,6 +13565,11 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Accelerator deployed S3CreateBucketPrefix custom resource lambda function.",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -12914,7 +13584,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -13062,6 +13732,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-west-2/CentralLogsBucket/Resource/ResourcePrefix/S3CreateBucketPrefix/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "CentralLogsBucketResourcePrefixS3CreateBucketPrefixFunction67F48788",
@@ -13071,13 +13742,18 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CentralLogsBucketResourcePrefixS3CreateBucketPrefixframeworkonEventServiceRoleD85E2686",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -13163,6 +13839,16 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "CentralLogsBucketResourcePrefixS3CreateBucketPrefixFunction67F48788",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -13197,15 +13883,20 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-west-2",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomS3PutBucketReplicationCustomResourceProviderRole1C378488",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -13287,15 +13978,22 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-west-2",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "AWS_STS_REGIONAL_ENDPOINTS": "regional",
+            "NO_OP": "false",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomUpdateSubscriptionFilterCustomResourceProviderRole81A1751E",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -13451,7 +14149,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
       "Type": "AWS::IAM::Role",
     },
     "ElbAccessLogsBucketD6CD6A5D": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "DependsOn": [
         "CentralLogsBucketCrossAccountCentralBucketKMSArnSsmParamAccessRole83E55C59",
         "CentralLogsBucketCmkAlias286EB783",
@@ -14109,6 +14807,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
                 "Arn",
               ],
             },
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "FunctionName": "AWSAccelerator-FirehoseRecordsProcessor",
@@ -14126,7 +14825,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -14698,7 +15397,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
     "LogsReplicationKeyAE749486": {
       "DeletionPolicy": "Delete",
       "Properties": {
-        "Description": "AWS Accelerator CloudWatch Logs Replication Kms Key",
+        "Description": "KMS key for encrypting Kinesis Data Streams used for CloudWatch Logs replication in the log archive account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -14783,6 +15482,10 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
         "cdk_nag": {
           "rules_to_suppress": [
             {
+              "id": "AwsSolutions-SQS2",
+              "reason": "The SQS queue uses server side encryption if user makes the choice to do so",
+            },
+            {
               "id": "AwsSolutions-SQS3",
               "reason": "The SQS queue does not have a dead-letter queue (DLQ) enabled or have a cdk_nag rule suppression indicating it is a DLQ.",
             },
@@ -14846,6 +15549,10 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
         "cdk_nag": {
           "rules_to_suppress": [
             {
+              "id": "AwsSolutions-SQS2",
+              "reason": "The SQS queue uses server side encryption if user makes the choice to do so",
+            },
+            {
               "id": "AwsSolutions-SQS3",
               "reason": "The SQS queue does not have a dead-letter queue (DLQ) enabled or have a cdk_nag rule suppression indicating it is a DLQ.",
             },
@@ -14906,6 +15613,16 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
       "DependsOn": [
         "LogsSubscriptionFilter58C57C6B",
       ],
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-SQS2",
+              "reason": "The SQS queue uses server side encryption if user makes the choice to do so",
+            },
+          ],
+        },
+      },
       "Properties": {
         "ContentBasedDeduplication": true,
         "DelaySeconds": 600,
@@ -14990,6 +15707,16 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
       "Properties": {
         "EventPattern": {
           "detail": {
+            "errorCode": [
+              {
+                "exists": false,
+              },
+            ],
+            "errorMessage": [
+              {
+                "exists": false,
+              },
+            ],
             "eventName": [
               "CreateLogGroup",
             ],
@@ -15063,6 +15790,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
               ],
             },
             "LogSubscriptionType": "LOG_GROUP",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "Handler": "index.handler",
@@ -15072,13 +15800,14 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
             "Arn",
           ],
         },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "NewCloudWatchLogsCreateEventSetLogRetentionSubscriptionFunctionServiceRoleF408E8D2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -15163,6 +15892,21 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
                   "Arn",
                 ],
               },
+            },
+            {
+              "Action": [
+                "kms:Encrypt",
+                "kms:Decrypt",
+                "kms:GenerateDataKey",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AcceleratorCloudWatchKeyF93B6E17",
+                  "Arn",
+                ],
+              },
+              "Sid": "Kms",
             },
             {
               "Action": [
@@ -15355,7 +16099,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-LoggingStack-333333333333-us-west-2/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -15416,7 +16160,7 @@ exports[`LoggingStackDelegatedAdmin Construct(LoggingStacKDelegatedAdmin):  Snap
 }
 `;
 
-exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 1`] = `
+exports[`LoggingStackOuTargets > Construct(LoggingStackOuTargets):  Snapshot Test 1`] = `
 {
   "Resources": {
     "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleFunction78452922": {
@@ -15430,6 +16174,11 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to create service linked role",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -15444,7 +16193,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -15563,6 +16312,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-east-1/AWSServiceRoleForAWSCloud9/CreateServiceLinkedRoleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleFunction78452922",
@@ -15572,13 +16322,18 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleProviderframeworkonEventServiceRole8AB21249",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -15664,6 +16419,16 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AWSServiceRoleForAWSCloud9CreateServiceLinkedRoleFunction78452922",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -15711,7 +16476,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
     "Accelerator3KeyBF43FCD9": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "AWS Accelerator S3 Kms Key",
+        "Description": "KMS key for encrypting general-purpose S3 buckets created by LZA",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -15841,9 +16606,9 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
       "Type": "AWS::KMS::Alias",
     },
     "AcceleratorCloudWatchKeyF93B6E17": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
-        "Description": "AWS Accelerator CloudWatch Kms Key",
+        "Description": "KMS key for encrypting CloudWatch Log Groups created by LZA",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -16037,9 +16802,9 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
       "Type": "AWS::KMS::Alias",
     },
     "AcceleratorLambdaKeyD279839E": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
-        "Description": "AWS Accelerator Lambda Kms Key",
+        "Description": "KMS key for encrypting Lambda function environment variables",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -16083,7 +16848,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
       "Type": "AWS::SSM::Parameter",
     },
     "AcceleratorMetadataBucket1A53514B": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "BucketEncryption": {
           "ServerSideEncryptionConfiguration": [
@@ -16170,7 +16935,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
     "AcceleratorMetadataBucketCmkC5190F6D": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "The s3 bucket key for accelerator metadata collection",
+        "Description": "KMS key for encrypting S3 bucket storing LZA metadata and configuration in the log archive account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -16509,7 +17274,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
     "AcceleratorSnsTopicKey4E909F1D": {
       "DeletionPolicy": "Delete",
       "Properties": {
-        "Description": "AWS Accelerator SNS Topic Kms Key",
+        "Description": "KMS key for encrypting SNS topics for notifications and alerts in the log archive account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -16600,6 +17365,55 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
               "Resource": "*",
               "Sid": "crossaccount",
             },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudwatch.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com",
+              },
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*",
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:PrincipalOrgID": "o-asdf123456",
+                },
+              },
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": "*",
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -16632,9 +17446,9 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
       "Type": "AWS::KMS::Alias",
     },
     "AcceleratorSqsKeyB0193AC3": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "Delete",
       "Properties": {
-        "Description": "AWS Accelerator SQS Kms Key",
+        "Description": "KMS key for encrypting SQS queues created by LZA",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -16675,7 +17489,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
         },
       },
       "Type": "AWS::KMS::Key",
-      "UpdateReplacePolicy": "Retain",
+      "UpdateReplacePolicy": "Delete",
     },
     "AcceleratorSqsKmsArnParameter3DE59258": {
       "Properties": {
@@ -16820,6 +17634,11 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to create service linked role",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Fn::GetAtt": [
@@ -16834,7 +17653,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -16953,6 +17772,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-LoggingStack-333333333333-us-east-1/AutoScalingServiceLinkedRole/CreateServiceLinkedRoleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AutoScalingServiceLinkedRoleCreateServiceLinkedRoleFunction56E83FD3",
@@ -16962,13 +17782,18 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AutoScalingServiceLinkedRoleCreateServiceLinkedRoleProviderframeworkonEventServiceRoleF8C91A0A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -17012,6 +17837,16 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AutoScalingServiceLinkedRoleCreateServiceLinkedRoleFunction56E83FD3",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -17220,15 +18055,20 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomS3PutBucketReplicationCustomResourceProviderRole1C378488",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -17310,15 +18150,20 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomS3PutPublicAccessBlockCustomResourceProviderRole656EB36E",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -17396,15 +18241,20 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -17508,15 +18358,22 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
           "S3Bucket": "cdk-hnb659fds-assets-333333333333-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "AWS_STS_REGIONAL_ENDPOINTS": "regional",
+            "NO_OP": "false",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomUpdateSubscriptionFilterCustomResourceProviderRole81A1751E",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -17672,7 +18529,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
       "Type": "AWS::IAM::Role",
     },
     "ElbAccessLogsBucketD6CD6A5D": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Metadata": {
         "cdk_nag": {
           "rules_to_suppress": [
@@ -18184,6 +19041,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
                 "Arn",
               ],
             },
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "FunctionName": "AWSAccelerator-FirehoseRecordsProcessor",
@@ -18201,7 +19059,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -18702,7 +19560,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
     "LogsReplicationKeyAE749486": {
       "DeletionPolicy": "Delete",
       "Properties": {
-        "Description": "AWS Accelerator CloudWatch Logs Replication Kms Key",
+        "Description": "KMS key for encrypting Kinesis Data Streams used for CloudWatch Logs replication in the log archive account",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -18787,6 +19645,10 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
         "cdk_nag": {
           "rules_to_suppress": [
             {
+              "id": "AwsSolutions-SQS2",
+              "reason": "The SQS queue uses server side encryption if user makes the choice to do so",
+            },
+            {
               "id": "AwsSolutions-SQS3",
               "reason": "The SQS queue does not have a dead-letter queue (DLQ) enabled or have a cdk_nag rule suppression indicating it is a DLQ.",
             },
@@ -18850,6 +19712,10 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
         "cdk_nag": {
           "rules_to_suppress": [
             {
+              "id": "AwsSolutions-SQS2",
+              "reason": "The SQS queue uses server side encryption if user makes the choice to do so",
+            },
+            {
               "id": "AwsSolutions-SQS3",
               "reason": "The SQS queue does not have a dead-letter queue (DLQ) enabled or have a cdk_nag rule suppression indicating it is a DLQ.",
             },
@@ -18910,6 +19776,16 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
       "DependsOn": [
         "LogsSubscriptionFilter58C57C6B",
       ],
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-SQS2",
+              "reason": "The SQS queue uses server side encryption if user makes the choice to do so",
+            },
+          ],
+        },
+      },
       "Properties": {
         "ContentBasedDeduplication": true,
         "DelaySeconds": 600,
@@ -18994,6 +19870,16 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
       "Properties": {
         "EventPattern": {
           "detail": {
+            "errorCode": [
+              {
+                "exists": false,
+              },
+            ],
+            "errorMessage": [
+              {
+                "exists": false,
+              },
+            ],
             "eventName": [
               "CreateLogGroup",
             ],
@@ -19067,6 +19953,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
               ],
             },
             "LogSubscriptionType": "LOG_GROUP",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "Handler": "index.handler",
@@ -19076,13 +19963,14 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
             "Arn",
           ],
         },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "NewCloudWatchLogsCreateEventSetLogRetentionSubscriptionFunctionServiceRoleF408E8D2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -19167,6 +20055,21 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
                   "Arn",
                 ],
               },
+            },
+            {
+              "Action": [
+                "kms:Encrypt",
+                "kms:Decrypt",
+                "kms:GenerateDataKey",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AcceleratorCloudWatchKeyF93B6E17",
+                  "Arn",
+                ],
+              },
+              "Sid": "Kms",
             },
             {
               "Action": [
@@ -19380,7 +20283,7 @@ exports[`LoggingStackOuTargets Construct(LoggingStackOuTargets):  Snapshot Test 
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-LoggingStack-333333333333-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },

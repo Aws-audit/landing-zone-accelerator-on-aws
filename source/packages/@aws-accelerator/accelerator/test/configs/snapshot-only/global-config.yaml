@@ -2,6 +2,7 @@ homeRegion: &HOME_REGION us-east-1
 enabledRegions:
   - *HOME_REGION
   - us-west-2
+useV2Stacks: true
 managementAccountAccessRole: AWSControlTowerExecution
 cloudwatchLogRetentionInDays: 3653
 acceleratorMetadata:
@@ -35,37 +36,7 @@ lambda:
         - Security
       excludedRegions:
         - us-west-2  
-controlTower:
-  enable: true
-  landingZone:
-    version: '3.3'
-    logging:
-      loggingBucketRetentionDays: 365
-      accessLoggingBucketRetentionDays: 3650
-      organizationTrail: true
-    security:
-      enableIdentityCenterAccess: true
-  controls:
-    - identifier: AWS-GR_RESTRICT_ROOT_USER_ACCESS_KEYS
-      enable: true
-      deploymentTargets:
-        organizationalUnits:
-          - SecureWorkloads
-    - identifier: AWS-GR_EBS_OPTIMIZED_INSTANCE
-      enable: true
-      deploymentTargets:
-        organizationalUnits:
-          - SecureWorkloads
-    - identifier: AWS-GR_RESTRICTED_COMMON_PORTS
-      enable: false
-      deploymentTargets:
-        organizationalUnits:
-          - SecureWorkloads
-    - identifier: AWS-GR_RDS_SNAPSHOTS_PUBLIC_PROHIBITED
-      enable: false
-      deploymentTargets:
-        organizationalUnits:
-          - SecureWorkloads
+controlTower: !include include/global-config-control-tower.yaml
 cdkOptions:
   centralizeBuckets: true
   useManagementAccessRole: true
@@ -181,7 +152,7 @@ logging:
           apiCallRateInsight: false
 
   sessionManager:
-    sendToCloudWatchLogs: false
+    sendToCloudWatchLogs: true
     sendToS3: true
   cloudwatchLogs:
     encryption:
@@ -214,6 +185,7 @@ logging:
     enable: true
     replaceLogDestinationArn: arn:aws:logs:us-east-1:111111111111:destination/log-destination
     dynamicPartitioning: dynamic-partitioning/log-filters.json
+    organizationIdConditionSupported: true
     kinesis: 
       streamingMode: PROVISIONED
       shardCount: 4

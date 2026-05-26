@@ -12,6 +12,7 @@
  */
 
 import * as cdk from 'aws-cdk-lib';
+import { describe } from 'vitest';
 
 import { PutSsmParameter } from '../../lib/aws-ssm/put-ssm-parameter';
 import { snapShotTest } from '../snapshot-test';
@@ -29,6 +30,9 @@ new PutSsmParameter(stack, 'SsmParameter', {
     {
       name: `/accelerator/network/vpcPeering/name/id`,
       value: 'vp-123123123',
+      tags: {
+        key2: 'value2',
+      },
     },
   ],
   kmsKey: new cdk.aws_kms.Key(stack, 'key'),

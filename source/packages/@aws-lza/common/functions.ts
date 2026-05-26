@@ -12,7 +12,10 @@
  */
 import {
   Account,
+  AWSOrganizationsNotInUseException,
   DescribeOrganizationCommand,
+  DisableAWSServiceAccessCommand,
+  EnableAWSServiceAccessCommand,
   InvalidInputException,
   ListRootsCommand,
   OrganizationalUnit,
@@ -22,8 +25,10 @@ import {
 } from '@aws-sdk/client-organizations';
 import {
   ControlTowerClient,
+  EnabledBaselineSummary,
   GetLandingZoneCommand,
   ListLandingZonesCommand,
+  paginateListEnabledBaselines,
   ResourceNotFoundException,
 } from '@aws-sdk/client-controltower';
 import { AssumeRoleCommand, GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
@@ -39,6 +44,7 @@ import {
 } from './resources';
 import { createLogger } from './logger';
 import { throttlingBackOff } from './throttle';
+import { MaxConcurrentModuleExecutionLimit } from './constants';
 
 /**
  * Logger
@@ -77,7 +83,6 @@ export function setRetryStrategy() {
   const numberOfRetries = Number(process.env['ACCELERATOR_SDK_MAX_ATTEMPTS'] ?? 800);
   return new ConfiguredRetryStrategy(numberOfRetries, (attempt: number) => 100 + attempt * 1000);
 }
-
 /**
  * Function to get list of organization for given parent
  * @param client {@link OrganizationsClient}
@@ -122,16 +127,20 @@ export async function getLandingZoneIdentifier(client: ControlTowerClient): Prom
   const response = await throttlingBackOff(() => client.send(new ListLandingZonesCommand({})));
 
   if (!response.landingZones) {
-    throw new Error(`Internal error: ListLandingZonesCommand did not return landingZones object`);
+    throw new Error(
+      `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: ListLandingZonesCommand did not return landingZones object`,
+    );
   }
 
   if (response.landingZones.length > 1) {
     logger.warn(
-      `Internal error: ListLandingZonesCommand returned multiple landing zones, list of Landing Zone arns are - ${response.landingZones.join(
+      `${
+        MODULE_EXCEPTIONS.SERVICE_EXCEPTION
+      }: ListLandingZonesCommand returned multiple landing zones, list of Landing Zone arns are - ${response.landingZones.join(
         ',',
       )}`,
     );
-    throw new Error(`Internal error: ListLandingZonesCommand returned multiple landing zones`);
+    throw new Error(`${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: ListLandingZonesCommand returned multiple landing zones`);
   }
 
   if (response.landingZones.length === 1 && response.landingZones[0].arn) {
@@ -174,16 +183,28 @@ export async function getLandingZoneDetails(
             landingZoneDetails.enableIdentityCenterAccess = value['enabled'];
             break;
           case 'organizationStructure':
-            landingZoneDetails.securityOuName = value['security']['name'];
+            landingZoneDetails.securityOuName = value['security']?.['name'];
             if (value['sandbox']) {
-              landingZoneDetails.sandboxOuName = value['sandbox']['name'];
+              landingZoneDetails.sandboxOuName = value['sandbox']?.['name'];
             }
             break;
           case 'centralizedLogging':
-            landingZoneDetails.loggingBucketRetentionDays = value['configurations']['loggingBucket']['retentionDays'];
-            landingZoneDetails.accessLoggingBucketRetentionDays =
-              value['configurations']['accessLoggingBucket']['retentionDays'];
-            landingZoneDetails.kmsKeyArn = value['configurations']['kmsKeyArn'];
+            landingZoneDetails.centralizedLoggingConfig = {
+              enabled: value['enabled'],
+              loggingBucketRetentionDays: value['configurations']?.['loggingBucket']?.['retentionDays'],
+              accessLoggingBucketRetentionDays: value['configurations']?.['accessLoggingBucket']?.['retentionDays'],
+              kmsKeyArn: value['configurations']?.['kmsKeyArn'],
+              accountId: value['accountId'],
+            };
+            break;
+          case 'config':
+            landingZoneDetails.configHubConfig = {
+              enabled: value['enabled'],
+              loggingBucketRetentionDays: value['configurations']?.['loggingBucket']?.['retentionDays'],
+              accessLoggingBucketRetentionDays: value['configurations']?.['accessLoggingBucket']?.['retentionDays'],
+              kmsKeyArn: value['configurations']?.['kmsKeyArn'],
+              accountId: value['accountId'],
+            };
             break;
         }
       }
@@ -192,12 +213,14 @@ export async function getLandingZoneDetails(
       landingZoneDetails.version = response.landingZone.version!;
       landingZoneDetails.latestAvailableVersion = response.landingZone.latestAvailableVersion!;
       landingZoneDetails.driftStatus = response.landingZone.driftStatus!.status!;
+      landingZoneDetails.manifest = response.landingZone.manifest;
+
+      if (response.landingZone.remediationTypes?.includes('INHERITANCE_DRIFT')) {
+        landingZoneDetails.accountAutoEnrollment = true;
+      }
     }
-  } catch (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    e: any
-  ) {
-    if (e instanceof ResourceNotFoundException && landingZoneIdentifier) {
+  } catch (e: unknown) {
+    if (e instanceof ResourceNotFoundException) {
       throw new Error(
         `Existing AWS Control Tower Landing Zone home region differs from the executing environment region ${region}. Existing Landing Zone identifier is ${landingZoneIdentifier}`,
       );
@@ -270,17 +293,17 @@ export async function getCredentials(options: {
   //
   // Validate response
   if (!response.Credentials) {
-    throw new Error(`Internal error: AssumeRoleCommand did not return Credentials`);
+    throw new Error(`${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: AssumeRoleCommand did not return Credentials`);
   }
 
   if (!response.Credentials.AccessKeyId) {
-    throw new Error(`Internal error: AssumeRoleCommand did not return AccessKeyId`);
+    throw new Error(`${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: AssumeRoleCommand did not return AccessKeyId`);
   }
   if (!response.Credentials.SecretAccessKey) {
-    throw new Error(`Internal error: AssumeRoleCommand did not return SecretAccessKey`);
+    throw new Error(`${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: AssumeRoleCommand did not return SecretAccessKey`);
   }
   if (!response.Credentials.SessionToken) {
-    throw new Error(`Internal error: AssumeRoleCommand did not return SessionToken`);
+    throw new Error(`${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: AssumeRoleCommand did not return SessionToken`);
   }
 
   return {
@@ -322,14 +345,17 @@ export async function getOrganizationRootId(client: OrganizationsClient): Promis
  * Function to get Organizational unit id by path
  * @param client {@link OrganizationsClient}
  * @param ouPath string
+ * @param rootId string | undefined
  * @returns string
  */
 export async function getOrganizationalUnitIdByPath(
   client: OrganizationsClient,
   ouPath: string,
+  rootId?: string,
 ): Promise<string | undefined> {
+  const organizationRootId = rootId ?? (await getOrganizationRootId(client));
   if (ouPath.replace(/\/+$/, '').toLowerCase() === 'root') {
-    return await getOrganizationRootId(client);
+    return organizationRootId;
   }
 
   const ouNames = ouPath.replace(/\/+$/, '').split('/');
@@ -338,7 +364,7 @@ export async function getOrganizationalUnitIdByPath(
   if (ouPath.length === 0) {
     emptyPathId = undefined;
   } else {
-    let currentParentId = await getOrganizationRootId(client);
+    let currentParentId = organizationRootId;
     const isTopLevelOuNameRoot = ouNames[0].toLowerCase() === 'root';
     const startIndex = isTopLevelOuNameRoot ? 1 : 0;
 
@@ -398,13 +424,15 @@ export async function getOrganizationAccounts(client: OrganizationsClient): Prom
  * Function to get Account details from AWS Organizations by email
  * @param client {@link OrganizationsClient}
  * @param accountEmail string
+ * @param organizationAccounts {@link Account}[] | undefined
  * @returns Account | undefined
  */
-export async function getAccountDetailsFromOrganizations(
+export async function getAccountDetailsFromOrganizationsByEmail(
   client: OrganizationsClient,
   accountEmail: string,
+  organizationAccounts?: Account[],
 ): Promise<Account | undefined> {
-  const accounts = await getOrganizationAccounts(client);
+  const accounts = organizationAccounts ?? (await getOrganizationAccounts(client));
 
   for (const account of accounts) {
     if (account.Email && account.Email.toLowerCase() === accountEmail.toLowerCase()) {
@@ -422,7 +450,7 @@ export async function getAccountDetailsFromOrganizations(
  * @returns string
  */
 export async function getAccountId(client: OrganizationsClient, email: string): Promise<string> {
-  const accountDetailsFromOrganizations = await getAccountDetailsFromOrganizations(client, email);
+  const accountDetailsFromOrganizations = await getAccountDetailsFromOrganizationsByEmail(client, email);
   if (!accountDetailsFromOrganizations) {
     throw new Error(
       `${MODULE_EXCEPTIONS.INVALID_INPUT}: Account with email "${email}" not found in AWS Organizations.`,
@@ -436,6 +464,31 @@ export async function getAccountId(client: OrganizationsClient, email: string): 
   }
 
   return accountDetailsFromOrganizations.Id;
+}
+
+/**
+ * Function to check if AWS Organizations is configured
+ * @param client {@link OrganizationsClient}
+ * @returns
+ */
+export async function isOrganizationsConfigured(client: OrganizationsClient): Promise<boolean> {
+  try {
+    const response = await throttlingBackOff(() => client.send(new DescribeOrganizationCommand({})));
+
+    if (response.Organization?.Id) {
+      logger.info(`AWS Organizations already configured`);
+      return true;
+    }
+    return false;
+  } catch (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    e: any
+  ) {
+    if (e instanceof AWSOrganizationsNotInUseException) {
+      return false;
+    }
+    throw e;
+  }
 }
 
 /**
@@ -497,5 +550,140 @@ export async function getOrganizationalUnitArn(
   const organizationAccountId = await getCurrentAccountId(stsClient);
   const orgId = organizationId ?? (await getOrganizationId(organizationClient));
 
-  return `arn:${partition}:organizations::${organizationAccountId}:ou/${orgId}/${ouId.toLowerCase()}`;
+  return `arn:${partition}:organizations::${organizationAccountId}:ou/${orgId}/${ouId}`;
+}
+
+/**
+ * Function to process module promises by batches
+ * @param moduleName
+ * @param promises
+ * @param statuses
+ */
+export async function processModulePromises(
+  moduleName: string,
+  promises: Promise<string>[],
+  statuses: string[],
+  maxConcurrentExecution?: number,
+) {
+  const batchSize = maxConcurrentExecution ?? MaxConcurrentModuleExecutionLimit;
+  let batchNumber = 1;
+  for (let i = 0; i < promises.length; i += batchSize) {
+    const batchedPromises = promises.slice(i, i + batchSize);
+    logger.info(
+      `Executing batch number ${batchNumber} of ${moduleName} module. Batch contains ${batchedPromises.length} executions.`,
+    );
+    statuses.push(...(await Promise.all(batchedPromises)));
+    batchNumber++;
+  }
+}
+
+/**
+ * Function to get enabled baselines
+ * @param client {@link ControlTowerClient}
+ * @returns enabledBaselines {@link EnabledBaselineSummary}[]
+ */
+export async function getEnabledBaselines(client: ControlTowerClient): Promise<EnabledBaselineSummary[]> {
+  const enabledBaselines: EnabledBaselineSummary[] = [];
+  const paginator = paginateListEnabledBaselines({ client }, {});
+  for await (const page of paginator) {
+    for (const enabledBaseline of page.enabledBaselines ?? []) {
+      enabledBaselines.push(enabledBaseline);
+    }
+  }
+
+  return enabledBaselines;
+}
+
+export async function enableServiceAccess(client: OrganizationsClient, servicePrincipal: string): Promise<boolean> {
+  try {
+    const result = await throttlingBackOff(() =>
+      client.send(
+        new EnableAWSServiceAccessCommand({
+          ServicePrincipal: servicePrincipal,
+        }),
+      ),
+    );
+    logger.debug(result);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (e: any) {
+    logger.error(e.message);
+    throw new Error(
+      `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: Unable to enable access for service principal ${servicePrincipal}.`,
+    );
+  }
+  return true;
+}
+
+export async function disableServiceAccess(client: OrganizationsClient, servicePrincipal: string): Promise<boolean> {
+  try {
+    const result = await throttlingBackOff(() =>
+      client.send(
+        new DisableAWSServiceAccessCommand({
+          ServicePrincipal: servicePrincipal,
+        }),
+      ),
+    );
+    logger.debug(result);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (e: any) {
+    logger.error(e.message);
+    throw new Error(
+      `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: Unable to disable access for service principal ${servicePrincipal}.`,
+    );
+  }
+  return true;
+}
+
+/**
+ * Utility function to wait until a predicate condition is met with retry logic
+ * @param predicate - Async function that returns true when the desired condition is met
+ * @param error - Error message to throw if retry limit is exceeded
+ * @param retryLimit - Maximum number of retries (default: 5)
+ * @param queryIntervalMinutes - Delay between retries in minutes (default: 1)
+ * @throws Error with SERVICE_EXCEPTION if retry limit is exceeded
+ */
+export async function waitUntil(
+  predicate: () => Promise<boolean>,
+  error: string,
+  retryLimit = 5,
+  queryIntervalMinutes = 1,
+  delayFn: (minutes: number) => Promise<unknown> = delay, // Use Promise<any> for flexibility
+): Promise<void> {
+  let retryCount = 0;
+  while (retryCount <= retryLimit) {
+    if (await predicate()) {
+      return;
+    }
+    if (retryCount < retryLimit) {
+      await delayFn(queryIntervalMinutes);
+    }
+    retryCount += 1;
+    if (retryCount > retryLimit) {
+      throw new Error(`${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: ${error}`);
+    }
+  }
+}
+/**
+ * Function to get current account ID and role ARN
+ * @param client {@link STSClient}
+ * @returns Promise containing accountId and roleArn
+ */
+export async function getCurrentAccountDetails(client: STSClient): Promise<{ accountId: string; roleArn: string }> {
+  const response = await throttlingBackOff(() => client.send(new GetCallerIdentityCommand({})));
+
+  if (!response.Account) {
+    throw new Error(
+      `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: GetCallerIdentityCommand api did not return Account property.`,
+    );
+  }
+
+  if (!response.Arn) {
+    throw new Error(
+      `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: GetCallerIdentityCommand api did not return Arn property.`,
+    );
+  }
+  return {
+    accountId: response.Account,
+    roleArn: response.Arn,
+  };
 }

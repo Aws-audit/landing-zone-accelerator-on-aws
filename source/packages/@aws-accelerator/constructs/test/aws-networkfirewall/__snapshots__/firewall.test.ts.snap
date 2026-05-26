@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Network Firewall Construct(NetworkFirewall):  Snapshot Test 1`] = `
+exports[`Network Firewall > Construct(NetworkFirewall):  Snapshot Test 1`] = `
 {
   "Resources": {
     "CloudWatchKey9B181885": {
@@ -49,15 +49,20 @@ exports[`Network Firewall Construct(NetworkFirewall):  Snapshot Test 1`] = `
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetNetworkFirewallEndpointCustomResourceProviderRole540B9917",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -267,7 +272,7 @@ exports[`Network Firewall Construct(NetworkFirewall):  Snapshot Test 1`] = `
 }
 `;
 
-exports[`Network Firewall Construct(NetworkFirewall):  Snapshot Test 2`] = `
+exports[`Network Firewall > Construct(NetworkFirewall):  Snapshot Test 2`] = `
 {
   "Resources": {
     "firewallLogicalId": {

@@ -20,11 +20,12 @@ import {
   OrganizationsClient,
 } from '@aws-sdk/client-organizations';
 
-import { delay, setRetryStrategy } from '../../../../common/functions';
+import { delay, getOrganizationAccounts, setRetryStrategy } from '../../../../common/functions';
 import { IAssumeRoleCredential } from '../../../../common/resources';
 import { createLogger } from '../../../../common/logger';
 import { throttlingBackOff } from '../../../../common/throttle';
 import { ISharedAccountDetails } from '../resources';
+import { MODULE_EXCEPTIONS } from '../../../../common/enums';
 
 type AccountCreationStatusType = { name: string; status: string; reason: string; id?: string };
 
@@ -59,7 +60,7 @@ export abstract class SharedAccount {
 
     if (!response.CreateAccountStatus) {
       throw new Error(
-        `Internal error: account creation failed, CreateAccountCommand didn't return CreateAccountStatus object for ${accountDetails.name} account`,
+        `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: account creation failed, CreateAccountCommand didn't return CreateAccountStatus object for ${accountDetails.name} account`,
       );
     }
 
@@ -108,7 +109,7 @@ export abstract class SharedAccount {
       );
       if (!response.CreateAccountStatus) {
         throw new Error(
-          `Internal error: account creation failed, DescribeCreateAccountStatusCommand didn't return CreateAccountStatus object for ${createAccountStatus.AccountName} account`,
+          `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: account creation failed, DescribeCreateAccountStatusCommand didn't return CreateAccountStatus object for ${createAccountStatus.AccountName} account`,
         );
       }
 
@@ -156,11 +157,46 @@ export abstract class SharedAccount {
       credentials: credentials,
     });
 
+    // Get existing organization accounts
+    SharedAccount.logger.info('Retrieving existing organization accounts...');
+    const existingAccounts = await getOrganizationAccounts(client);
+
     const errors: string[] = [];
     const promises: Promise<AccountCreationStatusType>[] = [];
 
-    promises.push(SharedAccount.createAccount(client, logArchiveAccountItem));
-    promises.push(SharedAccount.createAccount(client, auditAccountItem));
+    // Check if LogArchive account already exists
+    const existingLogArchiveAccount = existingAccounts.find(
+      account => account.Email?.toLowerCase() === logArchiveAccountItem.email.toLowerCase(),
+    );
+
+    if (existingLogArchiveAccount) {
+      SharedAccount.logger.info(
+        `LogArchive account with email ${logArchiveAccountItem.email} already exists (Account ID: ${existingLogArchiveAccount.Id}). Skipping creation.`,
+      );
+    } else {
+      SharedAccount.logger.info(`Creating LogArchive account with email ${logArchiveAccountItem.email}...`);
+      promises.push(SharedAccount.createAccount(client, logArchiveAccountItem));
+    }
+
+    // Check if Audit account already exists
+    const existingAuditAccount = existingAccounts.find(
+      account => account.Email?.toLowerCase() === auditAccountItem.email.toLowerCase(),
+    );
+
+    if (existingAuditAccount) {
+      SharedAccount.logger.info(
+        `Audit account with email ${auditAccountItem.email} already exists (Account ID: ${existingAuditAccount.Id}). Skipping creation.`,
+      );
+    } else {
+      SharedAccount.logger.info(`Creating Audit account with email ${auditAccountItem.email}...`);
+      promises.push(SharedAccount.createAccount(client, auditAccountItem));
+    }
+
+    // If no accounts need to be created, return early
+    if (promises.length === 0) {
+      SharedAccount.logger.info('All shared accounts already exist. No accounts to create.');
+      return;
+    }
 
     const accountCreationStatuses = await Promise.all(promises);
 

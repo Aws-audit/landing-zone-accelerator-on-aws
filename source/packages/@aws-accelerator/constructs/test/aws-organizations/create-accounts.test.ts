@@ -12,6 +12,7 @@
  */
 
 import * as cdk from 'aws-cdk-lib';
+import { describe } from 'vitest';
 import { CreateOrganizationAccounts } from '../../lib/aws-organizations/create-accounts';
 import { snapShotTest } from '../snapshot-test';
 
@@ -45,6 +46,7 @@ new CreateOrganizationAccounts(stack, 'CreateOrganizationAccounts', {
   accountRoleName: 'managementAccountAccessRole',
   kmsKey: new cdk.aws_kms.Key(stack, 'CustomKey', {}),
   logRetentionInDays: 3653,
+  configTable: newOrgAccountsTable,
 });
 
 /**

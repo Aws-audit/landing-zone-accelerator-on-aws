@@ -14,12 +14,113 @@
 import * as t from '../common/types';
 
 /**
+ * *{@link SecurityConfig}*
+ *
+ * @description
+ * Root configuration for the Landing Zone Accelerator security services and controls.
+ * This configuration enables comprehensive security governance across your AWS Organization through
+ * centralized security services, compliance monitoring, access controls, encryption management,
+ * and automated monitoring and alerting capabilities.
+ *
+ * @example
+ * ```
+ * homeRegion: us-east-1
+ * centralSecurityServices:
+ *   delegatedAdminAccount: SecurityAudit
+ *   ebsDefaultVolumeEncryption:
+ *     enable: true
+ *   s3PublicAccessBlock:
+ *     enable: true
+ *   scpRevertChangesConfig:
+ *     enable: true
+ *   macie:
+ *     enable: true
+ *   guardduty:
+ *     enable: true
+ *   securityHub:
+ *     enable: true
+ *   ssmAutomation:
+ *     documentSets: []
+ * accessAnalyzer:
+ *   enable: true
+ * iamPasswordPolicy:
+ *   allowUsersToChangePassword: true
+ *   requireUppercaseCharacters: true
+ *   requireLowercaseCharacters: true
+ *   requireSymbols: true
+ *   requireNumbers: true
+ *   minimumPasswordLength: 14
+ *   passwordReusePrevention: 24
+ *   maxPasswordAge: 90
+ * awsConfig:
+ *   enableConfigurationRecorder: true
+ *   useServiceLinkedRole: true
+ * cloudWatch:
+ *   metricSets: []
+ *   alarmSets: []
+ * ```
+ *
+ * @category Security Configuration
+ *
+ * @see https://docs.aws.amazon.com/solutions/latest/landing-zone-accelerator-on-aws/security-reference.html
+ */
+export interface ISecurityConfig {
+  /**
+   * The primary AWS region where the Landing Zone Accelerator is deployed and managed.
+   *
+   * @example
+   * ```
+   * homeRegion: &HOME_REGION us-east-1
+   * ```
+   */
+  readonly homeRegion?: string;
+  /**
+   * Configuration for centralized security services that provide organization-wide security controls.
+   */
+  readonly centralSecurityServices: ICentralSecurityServicesConfig;
+  /**
+   * Configuration for AWS IAM Access Analyzer that identifies resources with external access
+   * and helps implement least privilege by analyzing resource policies for security risks.
+   */
+  readonly accessAnalyzer: IAccessAnalyzerConfig;
+  /**
+   * Configuration for organization-wide IAM password policy that enforces password complexity
+   * and security requirements for IAM users across all accounts in your organization.
+   */
+  readonly iamPasswordPolicy: IIamPasswordPolicyConfig;
+  /**
+   * Configuration for AWS Config service that enables continuous monitoring and assessment
+   * of AWS resource configurations for compliance, security, and governance across your organization.
+   */
+  readonly awsConfig: IAwsConfig;
+  /**
+   * Configuration for AWS CloudWatch monitoring and logging services that provide comprehensive
+   * observability through metric filters, automated alerting, and centralized log management.
+   */
+  readonly cloudWatch: ICloudWatchConfig;
+  /**
+   * Configuration for AWS Key Management Service (KMS) that enables centralized management
+   * of encryption keys across your organization for data protection and compliance requirements.
+   */
+  readonly keyManagementService?: IKeyManagementServiceConfig;
+  /**
+   * Configuration for automated resource policy enforcement that uses AWS Config rules
+   * to automatically apply and maintain consistent resource-based policies across your organization,
+   * ensuring continuous compliance with security standards.
+   */
+  readonly resourcePolicyEnforcement?: IResourcePolicyEnforcementConfig;
+}
+
+/**
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SnsSubscriptionConfig}*
  *
  * @description
- * AWS SNS Notification subscription configuration
- * ***Deprecated***
- * Replaced by snsTopics in global config
+ * This interface is deprecated and has been replaced by the snsTopics configuration in the global config.
+ * Organizations should migrate to the new SNS topic configuration.
+ *
+ * Configuration for legacy SNS notification subscriptions that send security alerts to email addresses.
+ *
+ * @deprecated
  *
  * @example
  * ```
@@ -34,11 +135,13 @@ import * as t from '../common/types';
  */
 export interface ISnsSubscriptionConfig {
   /**
-   * Notification level high, medium or low
+   * Defines the severity level for security notifications that will trigger email alerts.
+   * Higher levels indicate more critical security events requiring immediate attention.
+   * Notification level can be high, medium or low.
    */
   readonly level: t.NonEmptyString;
   /**
-   * Subscribing email address
+   * Email address that will receive the security notifications for the specified severity level.
    */
   readonly email: t.NonEmptyString;
 }
@@ -46,14 +149,15 @@ export interface ISnsSubscriptionConfig {
 /**
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link S3PublicAccessBlockConfig}*
  *
- * {@link https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html} | AWS S3 block public access configuration.
- *
  * @description
- * This will create the Public Access Block configuration for the AWS account.
+ * Configuration for preventing accidental public exposure of S3 buckets and objects across your organization.
+ * When enabled, this setting applies organization-wide security guardrails that prevent users from accidentally making S3 buckets or objects publicly accessible.
  *
  * @remarks
  * If the `PublicAccessBlock` configurations are different between the bucket and the account, Amazon S3 will align with
  * the most restrictive combination between the bucket-level and account-level settings.
+ *
+ * @see https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html
  *
  * @example
  * ```
@@ -64,20 +168,90 @@ export interface ISnsSubscriptionConfig {
  */
 export interface IS3PublicAccessBlockConfig {
   /**
-   * Indicates whether AWS S3 block public access is enabled.
+   * Indicates whether S3 public access blocking is enforced across all accounts in your organization.
    */
   readonly enable: boolean;
   /**
-   * List of AWS Account names to be excluded from configuring S3 PublicAccessBlock
+   * List of AWS account names that should be exempted from S3 public access blocking requirements.
    */
   readonly excludeAccounts?: string[];
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SsmSettingsConfig} / {@link BlockPublicDocumentSharingConfig}*
+ *
+ * @description
+ * This interface defines the SSM Block Public Document Sharing configuration for organization accounts.
+ * SSM Block Public Document Sharing prevents AWS Systems Manager documents from being shared publicly,
+ * providing an additional layer of security for organizations. The feature operates on a per-region basis
+ * and is applied across all enabled regions for comprehensive protection.
+ *
+ * @see https://docs.aws.amazon.com/systems-manager/latest/userguide/documents-ssm-sharing.html#block-public-access
+ *
+ * @example
+ * ```
+ * blockPublicDocumentSharing:
+ *     enable: true
+ *     excludeAccounts: []
+ * ```
+ */
+export interface IBlockPublicDocumentSharingConfig {
+  /**
+   * Indicates whether SSM Block Public Document Sharing is enabled across the organization.
+   * When true, blocks public document sharing on all accounts except those in excludeAccounts.
+   * When false, allows public document sharing on all accounts.
+   * This setting is applied in all enabled regions for comprehensive security coverage.
+   */
+  readonly enable: boolean;
+  /**
+   * List of AWS Account names to be excluded from SSM Block Public Document Sharing configuration.
+   * Accounts in this list will have public document sharing allowed regardless of the enable setting.
+   * Account names must match those defined in the accounts configuration.
+   * Exclusions are applied across all enabled regions.
+   */
+  readonly excludeAccounts?: string[];
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SsmSettingsConfig}*
+ *
+ * @description
+ * Configuration for AWS Systems Manager (SSM) security settings and controls across your organization.
+ * This enables centralized management of SSM security features to ensure secure and governed access
+ * to your managed resources while preventing unauthorized sharing of sensitive automation documents.
+ *
+ * @see https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-systems-manager.html
+ *
+ * @example
+ * ```
+ * ssmSettings:
+ *   blockPublicDocumentSharing:
+ *     enable: true
+ *     excludeAccounts: []
+ * ```
+ */
+export interface ISsmSettingsConfig {
+  /**
+   * Configuration for preventing AWS Systems Manager documents from being shared publicly.
+   * This security control helps protect sensitive automation scripts and operational procedures
+   * from unauthorized access by blocking public document sharing across your organization.
+   *
+   * @remarks
+   * When not specified, the SSM Block Public Document Sharing feature is disabled by default.
+   * This provides flexibility for organizations to opt-in to this security control as needed.
+   * The setting is applied across all enabled regions for comprehensive security coverage.
+   */
+  readonly blockPublicDocumentSharing?: IBlockPublicDocumentSharingConfig;
 }
 
 /**
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link ScpRevertChangesConfig}*
  *
  * @description
- * AWS Service Control Policies Revert Manual Changes configuration
+ * Configuration for automatically detecting and reverting manual changes to Service Control Policies (SCPs).
+ * This securty control helps maintain governance by ensuring that security policies cannot be modified
+ * outside of your approved change management process. When enabled, any manual changes to SCPs will be
+ * automatically reverted and security teams will be notified of the attempted modification.
  *
  * @example
  * ```
@@ -88,11 +262,11 @@ export interface IS3PublicAccessBlockConfig {
  */
 export interface IScpRevertChangesConfig {
   /**
-   * Indicates whether manual changes to Service Control Policies are automatically reverted.
+   * Indicates whether manual changes to Service Control Policies are automatically detected and reverted.
    */
   readonly enable: boolean;
   /**
-   * (OPTIONAL) The name of the SNS Topic to send alerts to when SCPs are changed manually
+   * Name of the SNS topic that will receive alerts when unauthorized SCP changes are detected and reverted.
    */
   readonly snsTopicName?: t.NonEmptyString;
 }
@@ -100,11 +274,13 @@ export interface IScpRevertChangesConfig {
 /**
  * *{@link SecurityConfig} / {@link KeyManagementServiceConfig} / {@link KeyConfig}*
  *
- * {@link https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-mgmt} | AWS KMS Key configuration.
- *
  * @description
- * Use this configuration to define your customer managed key (CMK) and where it's deployed to along with
- * it's management properties.
+ * Configuration for creating and managing customer-managed keys (CMKs.
+ * These keys provide enhanced security control compared to AWS-managed keys, allowing you to define custom access policies,
+ * enable automatic key rotation, and maintain compliance with data protection regulations. Customer-managed keys are essential
+ * for organizations that need granular control over encryption operations and key lifecycle management.
+ *
+ * @see https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-mgmt | AWS KMS Key configuration.
  *
  * @example
  * ```
@@ -122,44 +298,45 @@ export interface IScpRevertChangesConfig {
  */
 export interface IKeyConfig {
   /**
-   * Unique Key name for logical reference
+   * Unique identifier for the customer-managed key.
    */
   readonly name: t.NonEmptyString;
   /**
-   * (OPTIONAL) Initial alias to add to the key
+   * Human-readable alias that provides an easy way to identify and use the encryption key.
    *
    * @remarks
-   *
    * Note: If changing this value, a new CMK with the new alias will be created.
    */
   readonly alias?: t.NonEmptyString;
   /**
-   * (OPTIONAL)Key policy file path. This file must be available in accelerator config repository.
+   * Path to the file containing the key policy. The policy file must exist in your
+   * configuration repository.
    */
   readonly policy?: t.NonEmptyString;
   /**
-   * (OPTIONAL) A description of the key.
+   * Human-readable description explaining the purpose and intended use of this encryption key.
    */
   readonly description?: t.NonEmptyString;
   /**
-   * (OPTIONAL) Indicates whether AWS KMS rotates the key.
+   * Controls whether AWS Key Management Service (KMS) automatially rotates the encryption key material.
    * @default true
    */
   readonly enableKeyRotation?: boolean;
   /**
-   * (OPTIONAL) Indicates whether the key is available for use.
-   * @default - Key is enabled.
+   * Controls whether the encryption key is available to be used.
+   * Disabled keys cannot encrypt or decrypt data.
+   * @default true (key is enabled)
    */
   readonly enabled?: boolean;
   /**
-   * (OPTIONAL) Whether the encryption key should be retained when it is removed from the Stack.
+   * Determines what happens to the encryption key when it's removed from the Stack.
+   * 'retain' preserves the key for data recovery, 'destroy' permanently deletes it, 'snapshot' creates a backup.
+   *
    * @default retain
    */
   readonly removalPolicy?: 'destroy' | 'retain' | 'snapshot';
   /**
-   * This configuration determines which accounts and/or OUs the CMK is deployed to.
-   *
-   * To deploy KMS key into Root and Infrastructure organizational units, you need to provide below value for this parameter.
+   * Specifies which organizational units and accounts the customer-managed key is deployed to.
    *
    * @example
    * ```
@@ -176,8 +353,10 @@ export interface IKeyConfig {
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link MacieConfig}*
  *
  * @description
- * Amazon Macie Configuration
+ * Configuration for Amazon Macie, a data security service that discovers, classifies, and protects sensitive data.
  * Use this configuration to enable Amazon Macie within your AWS Organization along with it's reporting configuration.
+ *
+ * @see https://docs.aws.amazon.com/macie/latest/user/what-is-macie.html
  *
  * @example
  * ```
@@ -190,29 +369,29 @@ export interface IKeyConfig {
  */
 export interface IMacieConfig {
   /**
-   * Indicates whether AWS Macie enabled.
+   * Controls whether AWS Macie is enabled across your organization
    */
   readonly enable: boolean;
   /**
-   * List of AWS Region names to be excluded from configuring Amazon Macie
+   * List of AWS Region names to be excluded from configuring Amazon Macie.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
   /**
-   * (OPTIONAL) Specifies how often to publish updates to policy findings for the account. This includes publishing updates to Security Hub and Amazon EventBridge (formerly called Amazon CloudWatch Events).
-   * An enum value that specifies how frequently findings are published
-   * Possible values FIFTEEN_MINUTES, ONE_HOUR, or SIX_HOURS
+   * Specifies how frequently findings are published to Security Hub.
+   * Possible values: FIFTEEN_MINUTES, ONE_HOUR, or SIX_HOURS
    */
   readonly policyFindingsPublishingFrequency?: 'FIFTEEN_MINUTES' | 'ONE_HOUR' | 'SIX_HOURS';
   /**
-   * Specifies whether to publish sensitive data findings to Security Hub. If you set this value to true, Amazon Macie automatically publishes all sensitive data findings that weren't suppressed by a findings filter. The default value is false.
+   * Specifies whether to publish sensitive data findings to Security Hub. If you set this value to true, Amazon Macie automatically publishes all sensitive data findings that weren't suppressed by a findings filter.
+   * Default value is false.
    */
   readonly publishSensitiveDataFindings: boolean;
   /**
-   * Specifies whether to publish findings at all
+   * Specifies whether to publish findings to Security Hub and EventBridge
    */
   readonly publishPolicyFindings?: boolean;
   /**
-   * (OPTIONAL) Declaration of a S3 Lifecycle rule.
+   * Declaration of S3 Lifecycle rules that automatically manage the retention and deletion for Macie findings reports stored in S3.
    */
   readonly lifecycleRules?: t.ILifecycleRule[] | undefined;
 }
@@ -220,11 +399,12 @@ export interface IMacieConfig {
 /**
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link GuardDutyConfig} / {@link GuardDutyS3ProtectionConfig}*
  *
- * {@link https://docs.aws.amazon.com/guardduty/latest/ug/s3-protection.html} | AWS GuardDuty S3 Protection configuration.
- *
  * @description
+ * Configuration for enabling S3 protection with Amazon GuardDuty to detect suspicious and malicious activity in your S3 buckets.
  * Use this configuration to enable S3 Protection with Amazon GuardDuty to monitor object-level API operations for potential
  * security risks for data within Amazon S3 buckets.
+ *
+ * @see https://docs.aws.amazon.com/guardduty/latest/ug/s3-protection.html
  *
  * @example
  * ```
@@ -234,63 +414,82 @@ export interface IMacieConfig {
  */
 export interface IGuardDutyS3ProtectionConfig {
   /**
-   * Indicates whether AWS GuardDuty S3 Protection enabled.
+   * Controls whether GuardDuty S3 protection is enabled to monitor your S3 buckets for suspicious activity.
    */
   readonly enable: boolean;
   /**
-   * (OPTIONAL) List of AWS Region names to be excluded from configuring Amazon GuardDuty S3 Protection
+   * List of AWS regions where Amazon GuardDuty S3 protection should not be enabled.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
 }
 
 /**
- * AWS GuardDuty EKS Protection configuration.
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link GuardDutyConfig} / {@link GuardDutyEksProtectionConfig}*
+ *
+ * @description
+ * Configuration for GuardDuty EKS (Elastic Kubernetes Service) protection that monitors Amazon Elastic Kubernetes Service clusters for security threats.
+ * EKS Protection helps you detect potential security risks in Amazon EKS clusters.
+ *
+ * @see https://docs.aws.amazon.com/guardduty/latest/ug/kubernetes-protection.html
  */
 export interface IGuardDutyEksProtectionConfig {
   /**
-   * Indicates whether AWS GuardDuty EKS Protection enabled.
+   * Controls whether GuardDuty EKS Protection is enabled  to monitor your EKS clusters for security threats.
    */
   readonly enable: boolean;
   /**
-   * Indicates whether AWS GuardDuty EKS Agent is managed.
+   * Controls whether the GuardDuty EKS Agent is managed.
    */
   readonly manageAgent?: boolean;
   /**
-   * (OPTIONAL) List of AWS Region names to be excluded from configuring Amazon GuardDuty EKS Protection
+   * List of AWS regions where GuardDuty EKS protection should not be enabled.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
 }
 
 /**
- * AWS GuardDuty EC2 Malware Protection configuration.
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link GuardDutyConfig} / {@link GuardDutyEc2ProtectionConfig}*
+ *
+ * @description
+ * Configuration for GuardDuty for EC2 malware protection that scans EC2 instances and EBS volumes for malicious software.
+ * EC2 Malware Protection helps you detect malware and other security threats on your EC2 instances.
+ *
+ * @see https://docs.aws.amazon.com/guardduty/latest/ug/malware-protection.html
  */
 export interface IGuardDutyEc2ProtectionConfig {
   /**
-   * Indicates whether AWS GuardDuty EC2 Malware Protection is enabled.
+   * Controls whether GuardDuty EC2 Malware Protection is enabled to scan your EC2 instances for malware.
    */
   readonly enable: boolean;
   /**
-   * Indicates whether AWS GuardDuty EC2 Malware Protection should retain snapshots on findings.
+   * Controls whether EBS snapshots created during malware scanning are retained.
+   * When enables, snapshots are preserved.
    */
   readonly keepSnapshots: boolean;
   /**
-   * (OPTIONAL) List of AWS Region names to be excluded from configuring Amazon GuardDuty EC2 Malware Protection
+   * List of AWS regions where GuardDuty EC2 Malware Protection should not be enabled.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
 }
 
 /**
- * AWS GuardDuty RDS Malware Protection configuration.
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link GuardDutyConfig} / {@link GuardDutyRdsProtectionConfig}*
+ *
+ * @description
+ * Configuration for GuardDuty RDS (Relational Database Service) protection that monitors Amazon RDS instances for security threats.
+ * RDS Protection helps you detect potential security risks in your RDS databases.
+ *
+ * @see https://docs.aws.amazon.com/guardduty/latest/ug/rds-protection.html
  */
 export interface IGuardDutyRdsProtectionConfig {
   /**
-   * Indicates whether AWS GuardDuty RDS Malware Protection is enabled.
+   * Controls whether GuardDuty RDS Protection is enabled to monitor your RDS databases for security threats..
    */
   readonly enable: boolean;
   /**
-   * (OPTIONAL) List of AWS Region names to be excluded from configuring Amazon GuardDuty RDS Malware Protection
+   * List of AWS regions where GuardDuty RDS Protection should not be enabled.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
 }
 
 /**
@@ -298,22 +497,103 @@ export interface IGuardDutyRdsProtectionConfig {
  */
 export interface IGuardDutyLambdaProtectionConfig {
   /**
-   * Indicates whether AWS GuardDuty Lambda Malware Protection is enabled.
+   * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link GuardDutyConfig} / {@link GuardDutyLambdaProtectionConfig}*
+   *
+   * @description
+   * Configuration for GuardDuty Lambda Protection that monitor AWS Lambda functions for security threats.
+   * Lambda Protection helps you detect security risks in your serverless functions.
+   *
+   * @see https://docs.aws.amazon.com/guardduty/latest/ug/lambda-protection.html
+   */
+  /**
+   * Controls whether GuardDuty Lambda Protection is enabled to monitor your Lambda functions for security threats.
    */
   readonly enable: boolean;
   /**
-   * (OPTIONAL) List of AWS Region names to be excluded from configuring Amazon GuardDuty Lambda Malware Protection
+   * List of AWS regions where GuardDuty Lambda Protection should not be enabled.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link GuardDutyConfig} / {@link GuardDutyS3MalwareProtectionConfig}*
+ *
+ * {@link https://docs.aws.amazon.com/guardduty/latest/ug/gdu-malware-protection-s3.html} | AWS GuardDuty S3 Malware Protection configuration.
+ *
+ * @description
+ * Use this configuration to define an Amazon GuardDuty S3 Malware Protection Plan to an Amazon S3 bucket.
+ *
+ * @usecase
+ * **Scenario**: Your organization stores sensitive documents, application logs, and user uploads in Amazon S3 buckets.
+ * You need automated malware scanning to detect threats before they spread to other systems or compromise data integrity.
+ *
+ * **Implementation**: Configure GuardDuty S3 Malware Protection to automatically scan objects uploaded to critical buckets
+ * like document repositories, log archives, and file upload destinations. When malware is detected, Amazon GuardDuty generates
+ * findings and can automatically tag infected objects for quarantine or remediation workflows.
+ *
+ * **Benefits**: Provides real-time threat detection for Amazon S3 objects without impacting application performance,
+ * helps meet compliance requirements for data security, and enables automated response to malware threats.
+ * @example
+ * ```
+ * s3BucketName: aws-accelerator-vpc-531717405706-us-east-1
+ * account: LogArchive
+ * region: us-east-1
+ * objectPrefixes:
+ *   - "vpc-flow-logs/"
+ * enableMalwareProtectionTags: true
+ * tags:
+ *   - key: data-classification
+ *     value: low
+ * ```
+ */
+export interface IGuardDutyS3MalwareProtectionConfig {
+  /**
+   * Indicates whether AWS GuardDuty S3 Malware Protection is enabled.
+   */
+  readonly enable: boolean;
+  /**
+   * (OPTIONAL) The S3 Malware Protection Configuration. Provide this configuration when enabling this feature.
+   */
+  readonly s3Configurations?: IMalwareProtectionConfig[];
+}
+
+/**
+ * AWS GuardDuty S3 Malware Protection configuration.
+ */
+export interface IMalwareProtectionConfig {
+  /**
+   * Account that S3 bucket resides in
+   */
+  readonly account: string;
+  /**
+   * Region that S3 bucket resides in
+   */
+  readonly region: string;
+  /**
+   * Name of the S3 bucket.
+   */
+  readonly s3BucketName: string;
+  /**
+   * Information about the specified object prefixes. The S3 object will be scanned only if it belongs to any of the specified object prefixes.
+   */
+  readonly objectPrefixes?: string[];
+  /**
+   * Information about whether the tags will be added to the S3 object after scanning.
+   */
+  readonly enableMalwareProtectionTags?: boolean;
+  /**
+   * (OPTIONAL) Tags added to the Malware Protection plan resource.
+   */
+  readonly tags?: t.ITag[];
 }
 
 /**
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link GuardDutyConfig} / {@link GuardDutyExportFindingsConfig}*
  *
- * {@link https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_exportfindings.html} | AWS GuardDuty Export Findings configuration.
- *
  * @description
- * Use this configuration to export Amazon GuardDuty findings to Amazon CloudWatch Events, and, optionally, to an Amazon S3 bucket.
+ * Configuration for exporting GuardDuty security findings to an Amazon S3 bucket for long-term storage and analysis.
+ *
+ * @see https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_exportfindings.html
  *
  * @example
  * ```
@@ -325,11 +605,11 @@ export interface IGuardDutyLambdaProtectionConfig {
  */
 export interface IGuardDutyExportFindingsConfig {
   /**
-   * Indicates whether AWS GuardDuty Export Findings enabled.
+   * Controls whether GuardDuty findings are automatically exported to an S3 bucket.
    */
   readonly enable: boolean;
   /**
-   * (OPTIONAL) Indicates whether AWS GuardDuty Export Findings can be overwritten.
+   * Controls whether existing export configurations can be overwritten with new settings.
    */
   readonly overrideExisting?: boolean;
   /**
@@ -337,12 +617,12 @@ export interface IGuardDutyExportFindingsConfig {
    */
   readonly destinationType: 'S3';
   /**
-   * An enum value that specifies how frequently findings are exported, such as to CloudWatch Events.
+   * An enum value that specifies how frequently findings are exported to the S3 bucket.
    * Possible values FIFTEEN_MINUTES, ONE_HOUR, or SIX_HOURS
    */
   readonly exportFrequency: 'FIFTEEN_MINUTES' | 'ONE_HOUR' | 'SIX_HOURS';
   /**
-   * (OPTIONAL) AWS GuardDuty Prefix for centralized logging path.
+   * Custom prefix configuration for organizing GuardDuty findings in your centralized logging S3 bucket.
    */
   readonly overrideGuardDutyPrefix?: t.IPrefixConfig;
 }
@@ -351,10 +631,9 @@ export interface IGuardDutyExportFindingsConfig {
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link GuardDutyConfig}*
  *
  * @description
- * AWS GuardDuty configuration
- * Use this configuration to enable Amazon GuardDuty for an AWS Organization, as well as other modular
- * feature protections.
- *
+ * Configuration for Amazon GuardDuty, a threat detection service that monitors your AWS environment for malicious activity.
+ * Use this configuration to enable Amazon GuardDuty for an AWS Organization and configure which AWS services should be
+ * monitored for security threats.
  *
  * @example
  * ```
@@ -366,17 +645,17 @@ export interface IGuardDutyExportFindingsConfig {
  *     excludeRegions: []
  *   eksProtection:
  *     enable: true
- *     excludedRegions: []
+ *     excludeRegions: []
  *   ec2Protection:
  *     enable: true
- *     keepSnapshot: true
- *     excludedRegions: []
+ *     keepSnapshots: true
+ *     excludeRegions: []
  *   rdsProtection:
  *     enable: true
- *     excludedRegions: []
+ *     excludeRegions: []
  *   lambdaProtection:
  *     enable: true
- *     excludedRegions: []
+ *     excludeRegions: []
  *   exportConfiguration:
  *     enable: true
  *     overrideExisting: true
@@ -387,21 +666,27 @@ export interface IGuardDutyExportFindingsConfig {
  */
 export interface IGuardDutyConfig {
   /**
-   * Indicates whether AWS GuardDuty enabled.
+   * Controls whether GuardDuty is enabled across your organization to monitor for security threats.
+   *
+   * @remarks
+   * Accelerator will try to set the organization admin account to the Audit account, but it cannot overwrite the existing
+   * organization admin account if one is already set. If your pipeline fails, remove the existing delegated admin and rerun the pipeline.
    */
   readonly enable: boolean;
   /**
-   * (OPTIONAL) List of AWS Region names to be excluded from configuring Amazon GuardDuty
+   * List of AWS regions where GuardDuty should not be enabled.
    *
+   * @remarks
    * Please only specify one of the `excludeRegions` or `deploymentTargets` properties.
    *
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
   /**
-   * (OPTIONAL) Deployment targets for GuardDuty
+   * Specifies which organizational units and accounts should have GuardDuty enabled.
    *
+   * @remarks
    * We highly recommend enabling GuardDuty across all accounts and enabled regions within your organization.
-   * `deploymentTargets` should only be used when more granular control is required, not as a default configuration
+   * `deploymentTargets` should only be used when more granular control is required, not as a default configuration.
    * Please only specify one of the `deploymentTargets` or `excludeRegions` properties.
    *
    * Note: The delegated admin account defined in centralSecurityServices will always have GuardDuty enabled
@@ -410,46 +695,52 @@ export interface IGuardDutyConfig {
    */
   readonly deploymentTargets?: t.IDeploymentTargets;
   /**
-   * (OPTIONAL) Enables/disables the auto enabling of GuardDuty for any account including the new accounts joining the organization
+   * Controls whether GuardDuty is automatically enabled for new accounts joining the organization.
    *
+   * @remarks
    * It is recommended to set the value to `false` when using the `deploymentTargets` property to enable GuardDuty only on targeted accounts mentioned in the deploymentTargets. If you do not define or do not set it to `false` any new accounts joining the organization will automatically be enabled with GuardDuty.
    *
    * @default true
    */
   readonly autoEnableOrgMembers?: boolean;
   /**
-   * AWS GuardDuty S3 Protection configuration.
+   * Configuration for GuardDuty S3 Protection that monitors your S3 buckets for suspicious activity.
    * @type object
    */
   readonly s3Protection: IGuardDutyS3ProtectionConfig;
+  /**
+   * (OPTIONAL) AWS GuardDuty S3 Malware Protection configuration.
+   * @type object
+   */
+  readonly s3MalwareProtection?: IGuardDutyS3MalwareProtectionConfig;
   /**
    * (OPTIONAL) AWS GuardDuty EKS Protection configuration.
    * @type object
    */
   readonly eksProtection?: IGuardDutyEksProtectionConfig;
   /**
-   * (OPTIONAL) AWS GuardDuty EC2 Protection configuration.
+   * Configuration for GuardDuty EC2 Malware Protection that scans your EC2 instances for malicious software.
    * @type object
    */
   readonly ec2Protection?: IGuardDutyEc2ProtectionConfig;
   /**
-   * (OPTIONAL) AWS GuardDuty RDS Protection configuration.
+   * Configuration for GuardDuty RDS Protection that monitors your databases for security threats.
    * @type object
    */
   readonly rdsProtection?: IGuardDutyRdsProtectionConfig;
   /**
-   * (OPTIONAL) AWS GuardDuty Lambda Protection configuration.
+   * Configuration for GuardDuty Lambda Protection that monitors your serverless functions for security threats.
    * @type object
    */
   readonly lambdaProtection?: IGuardDutyLambdaProtectionConfig;
 
   /**
-   * AWS GuardDuty Export Findings configuration.
+   * Configuration for exporting GuardDuty findings to S3 for long-term storage and analysis.
    * @type object
    */
   readonly exportConfiguration: IGuardDutyExportFindingsConfig;
   /**
-   * (OPTIONAL) Declaration of a S3 Lifecycle rule.
+   * S3 lifecycle rules that automatically manage the retention and deletion of GuardDuty findings stored in S3.
    */
   readonly lifecycleRules?: t.ILifecycleRule[];
 }
@@ -458,7 +749,7 @@ export interface IGuardDutyConfig {
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link AuditManagerConfig} / {@link AuditManagerDefaultReportsDestinationConfig}*
  *
  * @description
- * AWS Audit Manager Default Reports Destination configuration.
+ * Configuration for specifying where AWS Audit Manager stores compliance assessment reports
  * Use this configuration to enable a destination for reports generated by AWS Audit Manager.
  *
  * @example
@@ -469,11 +760,12 @@ export interface IGuardDutyConfig {
  */
 export interface IAuditManagerDefaultReportsDestinationConfig {
   /**
-   * Indicates whether AWS Audit Manager Default Reports enabled.
+   * Controls whether AWS Audit Manager Default Reports destination is enabled.
+   * When enabled, compliance reports are automatically saved to the specified destination for audit trail purposes.
    */
   readonly enable: boolean;
   /**
-   * The type of resource for the publishing destination. Currently only Amazon S3 buckets are supported.
+   * The type of resource for storing audit reports. Currently only Amazon S3 buckets are supported.
    */
   readonly destinationType: 'S3';
 }
@@ -481,10 +773,13 @@ export interface IAuditManagerDefaultReportsDestinationConfig {
 /**
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link AuditManagerConfig}*
  *
- * {@link https://docs.aws.amazon.com/audit-manager/latest/userguide/what-is.html } | AWS Audit Manager configuration
- *
  * @description
- * Use this configuration to enable AWS Audit Manager for an AWS Organization.
+ * Configuration for AWS Audit Manager, a service that helps you continually audit your AWS usage to simplify how you manage risk and
+ * compliance with regulations and industry standards.
+ * Use this configuration to enable AWS Audit Manager for an AWS Organization. Audit Manager automates evidence collection
+ * so you can more easily assess whether your policies, procedures, and activities are operating effectively.
+ *
+ * @see https://docs.aws.amazon.com/audit-manager/latest/userguide/what-is.html
  *
  * @example
  * ```
@@ -499,20 +794,23 @@ export interface IAuditManagerDefaultReportsDestinationConfig {
  */
 export interface IAuditManagerConfig {
   /**
-   * Indicates whether AWS Audit Manager enabled.
+   * Controls whether AWS Audit Manager is enabled across your organization.
    */
   readonly enable: boolean;
   /**
-   * (OPTIONAL) List of AWS Region names to be excluded from configuring AWS Audit Manager. Please ensure any regions enabled in the global configuration that do not support Audit Manager are added to the excluded regions list. {@link https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/ | Supported services by region}.
+   * List of AWS regions where Audit Manager should not be enabled.
+   *
+   * @remarks Please ensure any regions enabled in the global configuration that do not support Audit Manager are added to the excluded regions list.
+   * {@link https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/ | Supported services by region}.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
   /**
-   * AWS Audit Manager Default Reports configuration.
+   * Configuration for where Audit Manager stores compliance assessment reports and audit-ready evidence.
    * @type object
    */
   readonly defaultReportsConfiguration: IAuditManagerDefaultReportsDestinationConfig;
   /**
-   * (OPTIONAL) Declaration of a S3 Lifecycle rule.
+   * S3 lifecycle rules that automatically manage the retention and deletion of Audit Manager reports and evidence stored in S3.
    */
   readonly lifecycleRules?: t.ILifecycleRule[];
 }
@@ -520,11 +818,11 @@ export interface IAuditManagerConfig {
 /**
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link DetectiveConfig}*
  *
- * {@link https://docs.aws.amazon.com/detective/latest/adminguide/what-is-detective.html} | Amazon Detective configuration
- *
  * @description
- * Use this configuration to enable Amazon Detective for an AWS Organization that allows users to analyze, investigate, and
- * quickly identify the root cause of security findings or suspicious activities.
+ * Configuration for Amazon Detective, a security service that helps you analyze, investigate, and quickly identify the
+ * root cause of security findings. Use this configuration to enable Amazon Detective for an AWS Organization.
+ *
+ * @see https://docs.aws.amazon.com/detective/latest/adminguide/what-is-detective.html
  *
  * @example
  * ```
@@ -535,23 +833,27 @@ export interface IAuditManagerConfig {
  */
 export interface IDetectiveConfig {
   /**
-   * Indicates whether Amazon Detective is enabled.
+   * Controls whether Amazon Detective is enabled across your organization.
    */
   readonly enable: boolean;
   /**
-   * (OPTIONAL) List of AWS Region names to be excluded from configuring Amazon Detective. Please ensure any regions enabled in the global configuration that do not support Amazon Detective are added to the excluded regions list. {@link https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/ | Supported services by region}.
+   * List of AWS regions where Detective should not be enabled.
+   *
+   * @remarks Please ensure any regions enabled in the global configuration that do not support Amazon Detective are added to the excluded regions list.
+   * {@link https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/ | Supported services by region}.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
 }
 
 /**
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubStandardConfig}*
  *
- * {@link https://docs.aws.amazon.com/securityhub/latest/userguide/standards-reference.html} | AWS Security Hub standards configuration.
- *
  * @description
+ * Configuration for enabling specific compliance and security standards within Amazon Security Hub.
  * Use this configuration to define the security standard(s) that are enabled through Amazon Security Hub and which accounts and/or
  * organization units that the controls are deployed to.
+ *
+ * @see https://docs.aws.amazon.com/securityhub/latest/userguide/standards-reference.html
  *
  * @example
  * ```
@@ -569,32 +871,35 @@ export interface IDetectiveConfig {
  */
 export interface ISecurityHubStandardConfig {
   /**
-   * An enum value that specifies one of three security standards supported by Security Hub
-   * Possible values are 'AWS Foundational Security Best Practices v1.0.0',
-   * 'CIS AWS Foundations Benchmark v1.2.0',
-   * 'CIS AWS Foundations Benchmark v1.4.0',
-   * 'CIS AWS Foundations Benchmark v3.0.0',
-   * 'NIST Special Publication 800-53 Revision 5,
-   * and 'PCI DSS v3.2.1'
+   * The name of the AWS Security Hub standard to enable or disable.
+   * This can be any valid Security Hub standard name supported by AWS.
+   *
+   * Common examples include:
+   * - 'AWS Foundational Security Best Practices v1.0.0'
+   * - 'CIS AWS Foundations Benchmark v1.2.0'
+   * - 'CIS AWS Foundations Benchmark v1.4.0'
+   * - 'CIS AWS Foundations Benchmark v3.0.0'
+   * - 'NIST Special Publication 800-53 Revision 5'
+   * - 'AWS Resource Tagging Standard v1.0.0'
+   * - 'PCI DSS v3.2.1'
+   * - 'PCI DSS v4.0.1'
+   *
+   * Note: AWS may add new standards over time. This field accepts any string
+   * to allow for future standards without requiring code changes.
    */
-  readonly name:
-    | 'AWS Foundational Security Best Practices v1.0.0'
-    | 'CIS AWS Foundations Benchmark v1.2.0'
-    | 'CIS AWS Foundations Benchmark v1.4.0'
-    | 'CIS AWS Foundations Benchmark v3.0.0'
-    | 'NIST Special Publication 800-53 Revision 5'
-    | 'PCI DSS v3.2.1'
-    | '';
+  readonly name: t.NonEmptyString;
+
   /**
-   * (OPTIONAL) Deployment targets for AWS Security Hub standard.
+   * Specifies which organizational units and accounts this security standard will be applied to.
    */
   readonly deploymentTargets?: t.IDeploymentTargets;
   /**
-   * Indicates whether given AWS Security Hub standard enabled.
+   * Controls whether this Security Hub standard is enabled to monitor compliance across your specified deployment targets.
+   * When enabled, Security Hub continuously evaluates your resources against the standard's security controls.
    */
   readonly enable: boolean;
   /**
-   * (OPTIONAL) An array of control names to be disabled for the given security standards
+   * List of specific control names within the security standard that should be disabled.
    */
   readonly controlsToDisable?: t.NonEmptyString[];
 }
@@ -603,36 +908,37 @@ export interface ISecurityHubStandardConfig {
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubLoggingConfig} / {@link SecurityHubLoggingCloudwatchConfig}*
  *
  * @description
- * Security Hub Logging CloudWatch Config
+ * Configuration for forwarding Security Hub findings to CloudWatch for centralized monitoring and analysis.
+ *
+ * @default logLevel HIGH
  *
  * @example
  * ```
  * enable: true
- * logLevel: MEDIUM
+ * logLevel: HIGH
  * ```
  */
 export interface ISecurityHubLoggingCloudwatchConfig {
   /**
-   * Security hub to cloudwatch logging is enabled by default.
+   * Controls whether Security Hub findings are automatically forwarded to CloudWatch Logs.
+   * When enabled, findings are sent to CloudWatch for integration with monitoring dashboards and alerting systems.
    */
   readonly enable: boolean;
   /**
-   * (OPTIONAL) CloudWatch Log Group Name
-   * @remarks
-   * Note: Log Group name must be unique in the account and region.
+   * Name of the CloudWatch Log Group where Security Hub findings will be stored.
    *
-   * The name of the log group SecurityHub Events are forwarded to. LZA will create a
+   * @remarks Log Group name must be unique in the account and region. LZA will create a
    * log group with this name if the property is provided, unless the log group already exists.
    */
   readonly logGroupName?: string;
   /**
-   * (OPTIONAL) Security Hub logging level
+   * Minimum severity level for findings that will be forwarded to CloudWatch Logs.
    *
    * @remarks
-   * Note: Values accepted are CRITICAL, HIGH, MEDIUM, LOW, INFORMATIONAL
-   *
    * Security Hub findings for events at the Level provided and above will be logged to CloudWatch Logs
    * For example, if you specify the HIGH level findings will be sent to CloudWatch Logs for HIGH and CRITICAL
+   *
+   * Values accepted are CRITICAL, HIGH, MEDIUM, LOW, INFORMATIONAL.
    */
   readonly logLevel?: t.SecurityHubSeverityLevel;
 }
@@ -641,7 +947,9 @@ export interface ISecurityHubLoggingCloudwatchConfig {
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubLoggingConfig}*
  *
  * @description
- * Security Hub Logging Config
+ * Configuration for Security Hub logging destinations that determines where security findings are stored for analysis.
+ * This configuration allows you to centralize Security Hub findings in CloudWatch Logs for integration with your
+ * monitoring and alerting infrastructure.
  *
  * @example
  * ```
@@ -654,7 +962,7 @@ export interface ISecurityHubLoggingCloudwatchConfig {
  */
 export interface ISecurityHubLoggingConfig {
   /**
-   * Data store to ship the Security Hub logs to.
+   * Configuration for forwarding Security Hub findings to CloudWatch Logs.
    */
   readonly cloudWatch?: ISecurityHubLoggingCloudwatchConfig;
 }
@@ -662,10 +970,14 @@ export interface ISecurityHubLoggingConfig {
 /**
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig}*
  *
- * {@link https://docs.aws.amazon.com/securityhub/latest/userguide/what-is-securityhub.html} | AWS Security Hub configuration
- *
  * @description
+ * Configuration for Amazon Security Hub, a centralized security findings management service that aggregates security alerts
+ * from multiple AWS security services.
  * Use this configuration to enable Amazon Security Hub for an AWS Organization along with it's auditing configuration.
+ *
+ * @default logLevel HIGH
+ *
+ * @see https://docs.aws.amazon.com/securityhub/latest/userguide/what-is-securityhub.html
  *
  * @example
  * ```
@@ -687,44 +999,42 @@ export interface ISecurityHubLoggingConfig {
  *   logging:
  *     cloudWatch:
  *       enable: true
- *       logLevel: MEDIUM
+ *       logLevel: HIGH
  * ```
  */
 export interface ISecurityHubConfig {
   /**
-   * Indicates whether AWS Security Hub is enabled (AWSConfig is required for enabling SecurityHub)
+   * Controls whether AWS Security Hub is enabled across your organization
+   * @remarks AWS Config is required for enabling Security Hub
    */
   readonly enable: boolean;
   /**
-   * (OPTIONAL) Indicates whether Security Hub results are aggregated in the Home Region.
+   * Controls whether Security Hub findings from all regions are aggregated in your organization's home region.
    */
   readonly regionAggregation?: boolean;
   /**
-   * (OPTIONAL) SNS Topic for Security Hub notifications.
+   * Name of the SNS topic that will receive Security Hub notifications.
    *
-   * @remarks
-   * Note: Topic must exist in the global config
+   * @remarks Topic must exist in the global config
    */
   readonly snsTopicName?: string;
   /**
-   * (OPTIONAL) Security Hub notification level
+   * Minimum severity level for findings that will trigger SNS notifications.
    *
-   * @remarks
-   * Note: Values accepted are CRITICAL, HIGH, MEDIUM, LOW, INFORMATIONAL
+   * @remarks Notifications will be sent for events at the Level provided and above.
+   * Example, if you specify the HIGH level notifications will be sent for HIGH and CRITICAL.
    *
-   * Notifications will be sent for events at the Level provided and above
-   * Example, if you specify the HIGH level notifications will
-   * be sent for HIGH and CRITICAL
+   * Values accepted are CRITICAL, HIGH, MEDIUM, LOW, INFORMATIONAL
    */
   readonly notificationLevel?: string;
   /**
-   * (OPTIONAL) List of AWS Region names to be excluded from configuring Security Hub
+   * List of AWS regions where Security Hub should not be enabled.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
   /**
-   * (OPTIONAL) Deployment targets for SecurityHub
+   * Specifies which organizational units and accounts should have Security Hub enabled.
    *
-   * We highly recommend enabling SecurityHub across all accounts and enabled regions within your organization.
+   * @remarks We highly recommend enabling SecurityHub across all accounts and enabled regions within your organization.
    * `deploymentTargets` should only be used when more granular control is required, not as a default configuration
    * Please only specify one of the `deploymentTargets` or `excludeRegions` properties.
    *
@@ -734,34 +1044,487 @@ export interface ISecurityHubConfig {
    */
   readonly deploymentTargets?: t.IDeploymentTargets;
   /**
-   * (OPTIONAL) Enables/disables the auto enabling of SecurityHub for any account including the new accounts joining the organization
+   * Controls whether Security Hub is automatically enabled for new accounts joining the organization.
    *
-   * It is recommended to set the value to `false` when using the `deploymentTargets` property to enable SecurityHub only on targeted accounts mentioned in the deploymentTargets. If you do not define or do not set it to `false` any new accounts joining the organization will automatically be enabled with SecurityHub.
+   * @remarks It is recommended to set the value to `false` when using the `deploymentTargets` property to enable SecurityHub only on targeted accounts mentioned in the deploymentTargets. If you do not define or do not set it to `false` any new accounts joining the organization will automatically be enabled with SecurityHub.
    *
    * @default true
    */
   readonly autoEnableOrgMembers?: boolean;
   /**
-   * Security Hub standards configuration
+   * List of security and compliance standards that Security Hub will monitor across your organization.
    */
   readonly standards: ISecurityHubStandardConfig[];
   /**
-   * (OPTIONAL) Security Hub logs are sent to CloudWatch logs by default. This option can enable or disable the logging.
+   * Configuration for forwarding Security Hub findings to CloudWatch Logs for centralized monitoring.
+   * When enabled, findings are automatically sent to CloudWatch for integration with your monitoring and alerting systems.
    *
    * @remarks
    * By default, if nothing is given `true` is taken. In order to stop logging, set this parameter to `false`.
    * Please note, this option can be toggled but log group with `/${acceleratorPrefix}-SecurityHub` will remain in the account for every enabled region and will need to be manually deleted. This is designed to ensure no accidental loss of data occurs.
    */
   readonly logging?: ISecurityHubLoggingConfig;
+  /**
+   * Configuration for Security Hub automation rules that automatically update findings based on specified criteria.
+   */
+  readonly automationRules?: ISecurityHubAutomationRuleConfig[];
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubAutomationRuleConfig} / {@link SecurityHubAutomationRulesStringFilter}*
+ *
+ * @description
+ * Configuration for string-based filtering criteria in Security Hub automation rules.
+ * This filter allows you to match findings based on text values in Security Hub finding fields,
+ * enabling precise automation rules that target specific types of findings based on their string attributes.
+ *
+ * @see https://docs.aws.amazon.com/securityhub/1.0/APIReference/API_StringFilter.html
+ *
+ * @example
+ * ```
+ * - value: "AwsS3Bucket"
+ *   comparison: "EQUALS"
+ * - value: "CRITICAL"
+ *   comparison: "EQUALS"
+ * - value: "prod"
+ *   comparison: "CONTAINS"
+ * ```
+ */
+export interface ISecurityHubAutomationRulesStringFilter {
+  /**
+   * The string value to match against when filtering Security Hub findings.
+   */
+  readonly value: string;
+  /**
+   * The comparison operator that defines how the filter value should be matched against finding field values.
+   * Different operators enable various matching strategies from exact matches to partial text searches.
+   *
+   * - EQUALS: Exact match
+   * - PREFIX: Starts with the specified value
+   * - NOT_EQUALS: Does not match exactly
+   * - PREFIX_NOT_EQUALS: Does not start with the specified value
+   * - CONTAINS: Contains the specified value anywhere
+   * - NOT_CONTAINS: Does not contain the specified value
+   * - CONTAINS_WORD: Contains the specified value as a complete word
+   */
+  readonly comparison:
+    | 'EQUALS'
+    | 'PREFIX'
+    | 'NOT_EQUALS'
+    | 'PREFIX_NOT_EQUALS'
+    | 'CONTAINS'
+    | 'NOT_CONTAINS'
+    | 'CONTAINS_WORD';
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubAutomationRuleConfig} / {@link SecurityHubAutomationRulesNumberFilter}*
+ *
+ * @description
+ * Configuration for numeric-based filtering criteria in Security Hub automation rules.
+ * This filter allows you to match findings based on numeric values in Security Hub finding fields.
+ *
+ * @see https://docs.aws.amazon.com/securityhub/1.0/APIReference/API_NumberFilter.html
+ *
+ * @example -
+ * ```
+ * # Filter for high severity scores (70 and above)
+ * gte: 70
+ *
+ * # Filter for findings with confidence between 50 and 90
+ * gte: 50
+ * lte: 90
+ *
+ * # Filter for exact criticality score
+ * eq: 85
+ * ```
+ */
+export interface ISecurityHubAutomationRulesNumberFilter {
+  /**
+   * Matches findings where the numeric field value is greater than or equal to this number.
+   * Use this to filter for findings above a certain threshold (e.g., high severity scores).
+   *
+   * Greater than or equal to value
+   */
+  readonly gte?: number;
+  /**
+   * Matches findings where the numeric field value is less than or equal to this number.
+   * Use this to filter for findings below a certain threshold (e.g., low confidence scores).
+   *
+   * Less than or equal to value
+   */
+  readonly lte?: number;
+  /**
+   * Matches findings where the numeric field value is greater than this number.
+   * Use this for strict greater-than comparisons (excluding the boundary value).
+   */
+  readonly gt?: number;
+  /**
+   * Matches findings where the numeric field value is less than this number.
+   * Use this for strict less-than comparisons (excluding the boundary value).
+   */
+  readonly lt?: number;
+  /**
+   * Matches findings where the numeric field value exactly equals this number.
+   * Use this to filter for findings with specific numeric values.
+   */
+  readonly eq?: number;
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubAutomationRuleConfig} / {@link SecurityHubAutomationRulesDateFilter}*
+ *
+ * @description
+ * Configuration for date-based filtering criteria in Security Hub automation rules.
+ * This filter allows you to match findings based on date and time values in Security Hub finding fields.
+ *
+ * @see https://docs.aws.amazon.com/securityhub/1.0/APIReference/API_DateFilter.html
+ *
+ * @example
+ * ```
+ * # Filter for findings from a specific date range
+ * start: "2024-01-01T00:00:00Z"
+ * end: "2024-01-31T23:59:59Z"
+ *
+ * # Filter for findings from the last 30 days
+ * dateRange:
+ *   value: 30
+ *   unit: "DAYS"
+ * ```
+ */
+export interface ISecurityHubAutomationRulesDateFilter {
+  /**
+   * The start date and time for the date range filter in ISO 8601 format.
+   * Findings with dates on or after this timestamp will match the filter.
+   * Use this to define the beginning of a specific time period for filtering.
+   */
+  readonly start?: string;
+  /**
+   * The end date and time for the date range filter in ISO 8601 format.
+   * Findings with dates on or before this timestamp will match the filter.
+   * Use this to define the end boundary of a specific time period for filtering.
+   */
+  readonly end?: string;
+  /**
+   * Configuration for relative date range filtering based on a rolling time window.
+   * This provides a dynamic alternative to fixed start/end dates, automatically
+   * adjusting the filter criteria based on the current date and time.
+   */
+  readonly dateRange?: {
+    /**
+     * The number of time units to look back from the current date.
+     * For example, a value of 30 with unit "DAYS" would match findings from the last 30 days.
+     */
+    value: number;
+    /**
+     * The time unit for the date range calculation.
+     * Currently only "DAYS" is supported for relative date filtering.
+     */
+    unit: 'DAYS';
+  };
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubAutomationRuleConfig} / {@link SecurityHubAutomationRulesKeyValueFilter}*
+ *
+ * @description
+ * Configuration for key-value pair filtering criteria in Security Hub automation rules.
+ * This filter allows you to match findings based on custom key-value pairs in Security Hub finding fields.
+ *
+ * @see https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-securityhub-automationrule-mapfilter.html
+ *
+ * @example
+ * ```
+ * # Filter for findings with specific tag values
+ * key: "Environment"
+ * value: "Production"
+ * comparison: "EQUALS"
+ *
+ * # Filter for findings containing specific metadata
+ * key: "Department"
+ * value: "Finance"
+ * comparison: "CONTAINS"
+ * ```
+ */
+export interface ISecurityHubAutomationRulesKeyValueFilter {
+  /**
+   * The key name to filter on within key-value pair fields.
+   * This specifies which key within a structured field (like tags or user-defined fields) to examine.
+   */
+  readonly key: string;
+  /**
+   * The value to match against for the specified key.
+   * This is the target value that will be compared against the actual value associated with the key.
+   */
+  readonly value: string;
+  /**
+   * The comparison operator that defines how the filter value should be matched against the key's value.
+   * Different operators enable various matching strategies for key-value pair filtering.
+   *
+   * - EQUALS: Exact match of the value
+   * - NOT_EQUALS: Does not match the value exactly
+   * - CONTAINS: Value contains the specified text
+   * - NOT_CONTAINS: Value does not contain the specified text
+   */
+  readonly comparison: 'EQUALS' | 'NOT_EQUALS' | 'CONTAINS' | 'NOT_CONTAINS';
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubAutomationRuleConfig} / {@link SecurityHubAutomationRuleNote}*
+ *
+ * @description
+ * Configuration for adding explanatory notes to Security Hub findings through automation rules.
+ * This allows automation rules to automatically document the reason for actions taken on findings,
+ * providing context and audit trails for security teams to understand automated decisions.
+ *
+ * @example
+ * ```
+ * text: "Automatically suppressed - low severity finding in development environment"
+ * updatedBy: "SecurityAutomation"
+ * ```
+ */
+export interface ISecurityHubAutomationRuleNote {
+  /**
+   * The descriptive text content of the note that will be added to the finding.
+   * This should explain the reason for the automation action
+   */
+  readonly text: string;
+  /**
+   * The name or identifier of the entity responsible for adding this note.
+   */
+  readonly updatedBy: string;
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubAutomationRuleConfig} / {@link SecurityHubAutomationRuleRelatedFinding}*
+ *
+ * @description
+ * Configuration for linking related findings in Security Hub automation rules.
+ * This allows automation rules to establish relationships between findings.
+ *
+ * @example
+ * ```
+ * productArn: "arn:aws:securityhub:us-east-1:123456789012:product/aws/guardduty"
+ * id: "finding-12345"
+ * ```
+ */
+export interface ISecurityHubAutomationRuleRelatedFinding {
+  /**
+   * The Amazon Resource Name (ARN) of the security tool that generated the related finding.
+   * This identifies the source service or tool that created the finding you want to link to.
+   */
+  readonly productArn: string;
+  /**
+   * The unique identifier of the related finding within the specified security tool.
+   */
+  readonly id: string;
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubAutomationRuleConfig} / {@link SecurityHubAutomationRuleFindingFieldsUpdate}*
+ *
+ * @description
+ * Configuration for updating specific fields within Security Hub findings through automation rules.
+ * Identifies the finding fields that the automation rule action updates when a finding matches the defined criteria.
+ *
+ * @see https://docs.aws.amazon.com/securityhub/1.0/APIReference/API_AutomationRulesFindingFieldsUpdate.html
+ *
+ * @example
+ * ```
+ * note:
+ *   text: "Automatically suppressed by automation rule"
+ *   updatedBy: "AWSAccelerator"
+ * severityLabel: "LOW"
+ * workflowStatus: "SUPPRESSED"
+ * ```
+ */
+export interface ISecurityHubAutomationRuleFindingFieldsUpdate {
+  /**
+   * The updated note to add to the finding that documents the reason for the automated action.
+   */
+  readonly note?: ISecurityHubAutomationRuleNote;
+  /**
+   * Severity label to assign to the finding
+   */
+  readonly severityLabel?: string;
+  /**
+   * The verification state to assign to the finding, indicating the validation status of the security issue.
+   * Valid values: UNKNOWN, TRUE_POSITIVE, FALSE_POSITIVE, BENIGN_POSITIVE.
+   */
+  readonly verificationState?: string;
+  /**
+   * The confidence score (0-100) indicating how certain the automation rule is about the finding's accuracy.
+   */
+  readonly confidence?: number;
+  /**
+   * The criticality score (0-100) representing the business impact if this finding represents a real security issue.
+   */
+  readonly criticality?: number;
+  /**
+   * Array of finding types to assign, categorizing the nature of the security issue.
+   */
+  readonly types?: string[];
+  /**
+   * Custom key-value pairs to add to the finding for organization-specific metadata.
+   */
+  readonly userDefinedFields?: Record<string, string>;
+  /**
+   * Workflow status to assign to the finding to update information about the investigation.
+   * This controls the finding's state in your security workflow (e.g., NEW, NOTIFIED, RESOLVED, SUPPRESSED).
+   */
+  readonly workflowStatus?: string;
+  /**
+   * Array of related findings to link to this finding for correlation and context.
+   */
+  readonly relatedFindings?: ISecurityHubAutomationRuleRelatedFinding[];
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubAutomationRuleConfig} / {@link SecurityHubAutomationRuleAction}*
+ *
+ * @description
+ * Configuration for defining the specific actions that Security Hub automation rules will perform on findings
+ * that match the rule criteria.
+ * Actions determine what modifications will be made to findings, such as updating severity, suppressing findings, or adding notes.
+ *
+ * @example
+ * ```
+ * type: "FINDING_FIELDS_UPDATE"
+ * findingFieldsUpdate:
+ *   workflowStatus: "SUPPRESSED"
+ *   note:
+ *     text: "Automatically suppressed by automation rule"
+ *     updatedBy: "SecurityTeam"
+ * ```
+ */
+export interface ISecurityHubAutomationRuleAction {
+  /**
+   * The type of action to perform when findings match the automation rule criteria.
+   */
+  readonly type: string;
+  /**
+   * Configuration specifying which finding fields to update and their new values.
+   * This defines the specific modifications that will be applied to matching findings,
+   * such as changing severity, workflow status, or adding explanatory notes.
+   */
+  readonly findingFieldsUpdate?: ISecurityHubAutomationRuleFindingFieldsUpdate;
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubAutomationRuleConfig} / {@link SecurityHubAutomationRuleCriteria}*
+ *
+ * @description
+ * Configuration for defining the filtering criteria that Security Hub findings must match to trigger automation rule actions.
+ * Each criteria specifies a finding field (key) and the filter conditions that determine whether a finding matches the rule.
+ * Supports any valid SecurityHub finding field as a key with appropriate filter arrays as values.
+ *
+ * @example
+ * ```
+ * - key: "AwsAccountId"
+ *   filter:
+ *     - value: "123456789012"
+ *       comparison: "EQUALS"
+ * - key: "SeverityLabel"
+ *   filter:
+ *     - value: "HIGH"
+ *       comparison: "EQUALS"
+ * - key: "ResourceType"
+ *   filter:
+ *     - value: "AwsS3Bucket"
+ *       comparison: "EQUALS"
+ * ```
+ */
+export interface ISecurityHubAutomationRuleCriteria {
+  /**
+   * The name of the Security Hub finding field to filter on.
+   */
+  readonly key: string;
+  /**
+   * The filter conditions to apply to the specified finding field.
+   * The filter type (string, number, date, or key-value) must match the data type of the field being filtered.
+   */
+  readonly filter:
+    | ISecurityHubAutomationRulesStringFilter[]
+    | ISecurityHubAutomationRulesNumberFilter[]
+    | ISecurityHubAutomationRulesDateFilter[]
+    | ISecurityHubAutomationRulesKeyValueFilter[];
+}
+
+/**
+ * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SecurityHubConfig} / {@link SecurityHubAutomationRuleConfig}
+ *
+ * @description
+ * Configuration for defining Security Hub automation rules that automatically update findings based on specified criteria.
+ * Automation rules help streamline security operations by automatically suppressing, updating, or enriching findings.
+ *
+ * @see https://docs.aws.amazon.com/securityhub/latest/userguide/automation-rules.html
+ *
+ * @example
+ * ```
+ * - name: "SuppressLowSeverityS3Findings"
+ *   description: "Automatically suppress low severity S3 findings"
+ *   enabled: true
+ *   actions:
+ *     - type: "FINDING_FIELDS_UPDATE"
+ *       findingFieldsUpdate:
+ *         workflowStatus: "SUPPRESSED"
+ *         note:
+ *           text: "Low severity S3 finding automatically suppressed"
+ *           updatedBy: "SecurityAutomation"
+ *   criteria:
+ *     - key: "SeverityLabel"
+ *       filter:
+ *         - value: "LOW"
+ *           comparison: "EQUALS"
+ *     - key: "ResourceType"
+ *       filter:
+ *         - value: "AwsS3Bucket"
+ *           comparison: "EQUALS"
+ * ```
+ */
+export interface ISecurityHubAutomationRuleConfig {
+  /**
+   * The unique name identifier for the automation rule.
+   */
+  readonly name: string;
+  /**
+   * A detailed description explaining what the automation rule does and when it applies.
+   */
+  readonly description: string;
+  /**
+   * Controls whether the automation rule is enabled and will proccess findings.
+   */
+  readonly enabled: boolean;
+  /**
+   * Array of actions to perform on findings that match the rule criteria.
+   */
+  readonly actions: ISecurityHubAutomationRuleAction[];
+  /**
+   * Array of criteria that findings must match to trigger the rule actions
+   */
+  readonly criteria: ISecurityHubAutomationRuleCriteria[];
+  /**
+   * The execution order for this rule when multiple rules apply to the same finding.
+   * Rules with lower numbers execute first. Valid range: 1-1000.
+   */
+  readonly ruleOrder?: number;
+  /**
+   * Indiciates whether this rule should be the last rule applied to a matching finding.
+   */
+  readonly isTerminal?: boolean;
+  /**
+   * List of AWS regions where this automation rule should not be applied.
+   */
+  readonly excludeRegions?: string[];
 }
 
 /**
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link EbsDefaultVolumeEncryptionConfig}*
  *
- * {@link https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html#encryption-by-default | AWS EBS default encryption} configuration.
- *
  * @description
- * Use this configuration to enable enforced encryption of new EBS volumes and snapshots created in an AWS environment.
+ * Configuration for enabling automatic encryption of all new EBS volumes and snapshots in your AWS environment..
+ *
+ * @see https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html#encryption-by-default
  *
  * @example
  * Deployment targets:
@@ -784,18 +1547,19 @@ export interface ISecurityHubConfig {
  */
 export interface IEbsDefaultVolumeEncryptionConfig {
   /**
-   * Indicates whether AWS EBS volume have default encryption enabled.
+   * Controls whether EBS default volume encryption is enabled.
+   * When enabled, all new EBS volumes created in the specified accounts and regions will be encrypted by default.
    */
   readonly enable: boolean;
   /**
-   * (OPTIONAL) KMS key to encrypt EBS volume.
+   * Name of the AWS Key Management Service (KMS) key to use for encrypting EBS volumes
    *
    * @remarks
    * Note: When no value is provided Landing Zone Accelerator will create the KMS key.
    */
   readonly kmsKey?: t.NonEmptyString;
   /**
-   * (OPTIONAL) Deployment targets for EBS default volume encryption
+   * Specifies which organizational units (OUs) and accounts will have EBS default volume encryption enabled.
    *
    * @remarks
    * You can limit the OUs, accounts, and regions that EBS default volume encryption is deployed to. Please
@@ -806,19 +1570,19 @@ export interface IEbsDefaultVolumeEncryptionConfig {
    */
   readonly deploymentTargets?: t.IDeploymentTargets;
   /**
-   * (OPTIONAL) List of AWS Region names to be excluded from configuring AWS EBS volume default encryption
+   * List of AWS regions where EBS default volume encryption should not be enabled.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
 }
 
 /**
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SsmAutomationConfig} / {@link DocumentSetConfig} / {@link DocumentConfig}*
  *
- * {@link https://docs.aws.amazon.com/systems-manager/latest/userguide/documents.html} | AWS Systems Manager document configuration
- *
  * @description
- * Use this configuration to define AWS System Manager documents (SSM documents) that can be used on managed instances in an
- * environment.
+ * Configuration for defining AWS Systems Manager documents (SSM documents) that can be used to automate tasks on managed instances.
+ * SSM documents contain the steps and parameters needed to perform specific administrative tasks or configurations.
+ *
+ * @see https://docs.aws.amazon.com/systems-manager/latest/userguide/documents.html
  *
  * @example
  * ```
@@ -828,14 +1592,23 @@ export interface IEbsDefaultVolumeEncryptionConfig {
  */
 export interface IDocumentConfig {
   /**
-   * Name of document to be created
+   * The unique identifier for the SSM document to be created.
    */
   readonly name: t.NonEmptyString;
   /**
-   * Document template file path. This file must be available in accelerator config repository.
+   * The file path to the document template containing the SSM document definition.
+   * This file must be available in the accelerator configuration repository.
    */
   readonly template: t.NonEmptyString;
   /**
+   * The target resource type that defines which AWS resources this document can operate on.
+   *
+   * @example
+   * - "/AWS::EC2::Instance" - Document can run on EC2 instances only
+   * - "/" - Document can run on all resource types
+   * - If not specified, document cannot run on any resources
+   *
+   * @remarks
    * Specify a target type to define the kinds of resources the document can run on. For example, to run a document on EC2 instances, specify the following value: /AWS::EC2::Instance. If you specify a value of '/' the document can run on all types of resources. If you don't specify a value, the document can't run on any resources. For a list of valid resource types, see AWS resource and property types reference in the AWS CloudFormation User Guide.
    * Ref: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html
    * Length Constraints: Maximum length of 200.
@@ -848,7 +1621,9 @@ export interface IDocumentConfig {
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SsmAutomationConfig} / {@link DocumentSetConfig}*
  *
  * @description
- * AWS Systems Manager document sharing configuration
+ * Configuration for sharing AWS Systems Manager documents across organizational units within your AWS Organization.
+ *
+ * @see https://docs.aws.amazon.com/systems-manager/latest/userguide/documents-ssm-sharing.html
  *
  * @example
  * ```
@@ -862,12 +1637,11 @@ export interface IDocumentConfig {
  */
 export interface IDocumentSetConfig {
   /**
-   * Document share target, valid value should be any organizational unit.
-   * Document will be shared with every account within the given OU
+   * Specifies the organizational units (OUs) where the SSM documents will be shared.
    */
   readonly shareTargets: t.IShareTargets;
   /**
-   * List of the documents to be shared
+   * Array of SSM documents to be shared with the specified organizational units.
    */
   readonly documents: IDocumentConfig[];
 }
@@ -876,7 +1650,8 @@ export interface IDocumentSetConfig {
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig} / {@link SsmAutomationConfig}*
  *
  * @description
- * AWS Systems Manager automation configuration
+ * Configuration for AWS Systems Manager (SSM) automation that enables centralized management and distribution of SSM documents
+ * across your AWS Organization.
  *
  * @example
  * ```
@@ -893,11 +1668,11 @@ export interface IDocumentSetConfig {
  */
 export interface ISsmAutomationConfig {
   /**
-   * (OPTIONAL) List of AWS Region names to be excluded from configuring block S3 public access
+   * List of AWS regions where SSM automation documents should not be deployed.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
   /**
-   * List of documents for automation
+   * Array of document sets that define which SSM documents to create and share across organizational units.
    */
   readonly documentSets: IDocumentSetConfig[];
 }
@@ -906,7 +1681,10 @@ export interface ISsmAutomationConfig {
  * *{@link SecurityConfig} / {@link CentralSecurityServicesConfig}*
  *
  * @description
- * AWS Accelerator central security services configuration
+ * Configuration for centralized security services that provides organization-wide security controls and monitoring capabilities.
+ * This configuration enables and manages core AWS security services including GuardDuty, Security Hub, Macie, Detective, and Audit Manager
+ * across your entire AWS Organization. It establishes a centralized security posture with consistent policies, automated threat detection,
+ * compliance monitoring, and unified security findings management to help organizations maintain strong security governance at scale.
  *
  * @example
  * ```
@@ -968,6 +1746,8 @@ export interface ISsmAutomationConfig {
  *           - Control2
  *       - name: CIS AWS Foundations Benchmark v3.0.0
  *         enable: true
+ *       - name: CIS AWS Foundations Benchmark v5.0.0
+ *         enable: true
  *       - name: NIST Special Publication 800-53 Revision 5
  *         enable: true
  *         controlsToDisable:
@@ -1002,10 +1782,15 @@ export interface ICentralSecurityServicesConfig {
    */
   readonly delegatedAdminAccount: t.NonEmptyString;
   /**
+   * Configuration for automatically encrypting all new EBS volumes across your organization.
+   * This ensures data-at-rest protection and helps meet compliance requirements by enforcing
+   * encryption on all EBS volumes without requiring manual configuration.
+   *
    * AWS Elastic Block Store default encryption configuration
    *
-   * Accelerator use this parameter to configure EBS default encryption.
-   * Accelerator will create KMS key for every AWS environment (account and region), which will be used as default EBS encryption key.
+   * @remarks
+   * Accelerator uses this parameter to configure EBS default encryption.
+   * Accelerator will create a KMS key for every AWS environment (account and region), which will be used as default EBS encryption key.
    *
    * To enable EBS default encryption in every region accelerator implemented, you need to provide below value for this parameter.
    *
@@ -1018,10 +1803,12 @@ export interface ICentralSecurityServicesConfig {
    */
   readonly ebsDefaultVolumeEncryption: IEbsDefaultVolumeEncryptionConfig;
   /**
-   * AWS S3 public access block configuration
+   * Configuration for blocking public access to S3 buckets across your organization.
+   * This security control prevents accidental data exposure by blocking public access
+   * at the account level, providing an additional layer of protection for sensitive data.
    *
-   * Accelerator use this parameter to block AWS S3 public access
-   *
+   * @remarks
+   * Accelerator uses this parameter to block AWS S3 public access.
    * To enable S3 public access blocking in every region accelerator implemented, you need to provide below value for this parameter.
    *
    * @example
@@ -1033,7 +1820,26 @@ export interface ICentralSecurityServicesConfig {
    */
   readonly s3PublicAccessBlock: IS3PublicAccessBlockConfig;
   /**
-   * (OPTIONAL) AWS Service Control Policies Revert Manual Changes configuration
+   * Configuration for AWS Systems Manager security settinga across your organization.
+   *
+   * @remarks
+   * Accelerator uses this parameter to configure SSM-related security settings.
+   * To enable SSM Block Public Document Sharing in every region accelerator implemented, you need to provide below value for this parameter.
+   * If not specified, SSM Block Public Document Sharing will be disabled by default.
+   *
+   * @example
+   * ```
+   * ssmSettings:
+   *   blockPublicDocumentSharing:
+   *     enable: true
+   *     excludeAccounts: []
+   * ```
+   */
+  readonly ssmSettings?: ISsmSettingsConfig;
+  /**
+   * Configuration for monitoring and reverting unauthorized changes to Service Control Policies.
+   * This helps maintain security governance by detecting and alerting on manual modifications
+   * to SCPs that could weaken your organization's security posture.
    *
    * @example
    * ```
@@ -1044,16 +1850,15 @@ export interface ICentralSecurityServicesConfig {
    */
   readonly scpRevertChangesConfig?: IScpRevertChangesConfig;
   /**
-   * AWS SNS subscription configuration
-   * Deprecated
+   * Configuration for SNS notification subscriptions for security alerts (DEPRECATED).
    *
-   * NOTICE: The configuration of SNS topics is being moved
-   * to the Global Config. This block is deprecated and
-   * will be removed in a future release
+   * @deprecated This parameter is deprecated and will be removed in a future release.
+   * SNS topic configuration has been moved to the Global Config.
    *
-   * Accelerator use this parameter to define AWS SNS notification configuration.
-   *
+   * @remarks
+   * Accelerator uses this parameter to define AWS SNS notification configuration.
    * To enable high, medium and low SNS notifications, you need to provide below value for this parameter.
+   *
    * @example
    * ```
    * snsSubscriptions:
@@ -1067,14 +1872,17 @@ export interface ICentralSecurityServicesConfig {
    */
   readonly snsSubscriptions?: ISnsSubscriptionConfig[];
   /**
-   * Amazon Macie Configuration
+   * Configuration for Amazon Macie data security and privacy service across you organization.
    *
-   * Accelerator use this parameter to define AWS Macie configuration.
+   * @remarks
+   * Accelerator uses this parameter to configure Amazon Macie across your organization.
+   * When enabled, Macie will scan S3 buckets for sensitive data and publish findings to Security Hub.
+   * You can configure the frequency of policy findings updates and enable sensitive data findings publishing.
    *
-   * To enable Macie in every region accelerator implemented and
-   * set fifteen minutes of frequency to publish updates to policy findings for the account with
-   * publishing sensitive data findings to Security Hub.
-   * you need to provide below value for this parameter.
+   * To enable Macie in every region where the accelerator is deployed, set the policy findings
+   * publishing frequency to fifteen minutes, and enable publishing of sensitive data findings
+   * to Security Hub, you need to provide the below configuration for this parameter.
+   *
    * @example
    * ```
    * macie:
@@ -1086,24 +1894,31 @@ export interface ICentralSecurityServicesConfig {
    */
   readonly macie: IMacieConfig;
   /**
-   * Amazon GuardDuty Configuration
+   * Configuration for Amazon GuardDuty threat detection service across your organization.
+   * GuardDuty provides intelligent threat detection using machine learning to identify
+   * malicious activity and unauthorized behavior across your AWS environment.
    */
   readonly guardduty: IGuardDutyConfig;
   /**
-   * (OPTIONAL) Amazon Audit Manager Configuration
+   * Configuration for AWS Audit Manager compliance automation service across your organization.
+   * Audit Manager helps automate evidence collection and assessment preparation for audits
+   * by continuously collecting and organizing evidence from your AWS services.
    */
   readonly auditManager?: IAuditManagerConfig;
   /**
-   * (OPTIONAL) Amazon Detective Configuration
+   * Configuration for Amazon Detective security investigation service across your organization.
+   * Detective helps analyze and investigate potential security issues by providing
+   * visualizations and context around security findings from GuardDuty, Security Hub, and VPC Flow Logs.
    */
   readonly detective?: IDetectiveConfig;
   /**
-   * AWS Security Hub configuration
+   * Configuration for AWS Security Hub centralized security findings management across your organization.
+   * Security Hub aggregates security alerts and findings from multiple AWS security services.
    *
-   * Accelerator use this parameter to define AWS Security Hub configuration.
-   *
+   * @remarks
+   * Accelerator uses this parameter to define AWS Security Hub configuration.
    * To enable AWS Security Hub for all regions and
-   * enable "AWS Foundational Security Best Practices v1.0.0" security standard, deployment targets and disable controls
+   * enable "AWS Foundational Security Best Practices v1.0.0" security standard, deployment targets, and disable controls
    * you need provide below value for this parameter.
    *
    * @example
@@ -1133,11 +1948,13 @@ export interface ICentralSecurityServicesConfig {
    */
   readonly securityHub: ISecurityHubConfig;
   /**
-   * AWS Systems Manager Document configuration
+   * Configuration for AWS Systems Manager automation documents across your organization.
+   * This enables centralized management and distribution of SSM documents for standardizing
+   * operational procedures and automating administrative tasks across all accounts.
    *
-   * Accelerator use this parameter to define AWS Systems Manager documents configuration.
+   * @remarks
+   * Accelerator uses this parameter to define AWS Systems Manager documents configuration.
    * SSM documents are created in designated administrator account for security services, i.e. Audit account.
-   *
    * To create a SSM document named as "SSM-ELB-Enable-Logging" in every region accelerator implemented and share this
    * document with Root organizational unit(OU), you need to provide below value for this parameter.
    * To share document to specific account uncomment accounts list. A valid SSM document template file ssm-documents/ssm-elb-enable-logging.yaml
@@ -1165,7 +1982,11 @@ export interface ICentralSecurityServicesConfig {
  * *{@link SecurityConfig} / {@link KeyManagementServiceConfig}*
  *
  * @description
- *  KMS key management service configuration
+ * Configuration for AWS Key Management Service (KMS) that enables centralized management of encryption keys
+ * across your organization. This allows you to create, manage, and control customer-managed KMS keys
+ * for encrypting data at rest and in transit, helping meet compliance requirements and security best practices.
+ *
+ * @see https://docs.aws.amazon.com/kms/latest/developerguide/overview.html
  *
  * @example
  * ```
@@ -1183,9 +2004,17 @@ export interface ICentralSecurityServicesConfig {
  * ```
  */
 export interface IKeyManagementServiceConfig {
+  /**
+   * Array of KMS key configurations to be created and managed across your organization.
+   */
   readonly keySets: IKeyConfig[];
 }
 
+/**
+ * Enumeration of AWS resource types supported by resource policy enforcement.
+ * These resource types can have automated resource-based policies applied through AWS Config rules
+ * to ensure consistent security controls and access management across your organization.
+ */
 export enum ResourceTypeEnum {
   S3_BUCKET = 'S3_BUCKET',
   KMS_KEY = 'KMS_KEY',
@@ -1205,42 +2034,125 @@ export enum ResourceTypeEnum {
   LAMBDA_FUNCTION = 'LAMBDA_FUNCTION',
 }
 
+/**
+ * *{@link SecurityConfig} / {@link ResourcePolicyEnforcementConfig} / {@link ResourcePolicySetConfig} / {@link ResourcePolicyConfig}*
+ *
+ * @description
+ * Configuration for defining resource-based policies that will be automatically applied to specific AWS resource types.
+ * This allows you to enforce consistent access controls and security policies across resources of the same type
+ * throughout your organization using AWS Config rules for automated compliance monitoring and remediation.
+ *
+ * @example
+ * ```
+ * resourcePolicies:
+ *   - resourceType: S3_BUCKET
+ *     document: resource-policies/s3-bucket-policy.json
+ *   - resourceType: KMS_KEY
+ *     document: resource-policies/kms-key-policy.json
+ * ```
+ */
 export interface IResourcePolicyConfig {
+  /**
+   * The type of AWS resource that this policy will be applied to.
+   * This determines which AWS resources will be targeted for policy enforcement,
+   * such as S3 buckets, KMS keys, IAM roles, or other supported resource types.
+   */
   readonly resourceType: keyof typeof ResourceTypeEnum;
+  /**
+   * Path to the JSON policy document file that defines the resource-based policy.
+   * This file must be available in the accelerator configuration repository.
+   */
   readonly document: t.NonEmptyString;
 }
 
+/**
+ * *{@link SecurityConfig} / {@link ResourcePolicyEnforcementConfig} / {@link ResourcePolicyRemediation}*
+ *
+ * @description
+ * Configuration for automated remediation actions when AWS Config detects non-compliant resource policies.
+ * This enables automatic correction of policy violations to maintain consistent security controls
+ * across your organization without manual intervention, helping ensure continuous compliance.
+ *
+ * @example
+ * ```
+ * remediation:
+ *   automatic: true
+ *   retryAttemptSeconds: 120
+ *   maximumAutomaticAttempts: 3
+ * ```
+ */
 export interface IResourcePolicyRemediation {
   /**
-   * The remediation is triggered automatically.
+   * Controls whether remediation actions are triggered automatically when policy violations are detected.
+   * When enabled, AWS Config will automatically attempt to correct non-compliant resource policies.
    */
   readonly automatic: boolean;
   /**
-   * Maximum time in seconds that AWS Config runs auto-remediation. If you do not select a number, the default is 60 seconds.
+   * Maximum time in seconds that AWS Config waits before timing out a remediation attempt.
+   * This prevents remediation actions from running indefinitely and ensures timely completion.
+   *
+   * @default 60 seconds
    */
   readonly retryAttemptSeconds?: number;
   /**
-   * The maximum number of failed attempts for auto-remediation. If you do not select a number, the default is 5.
+   * Maximum number of times AWS Config will attempt to remediate a non-compliant resource.
+   * This prevents infinite retry loops while allowing for temporary failures to be resolved.
+   * After reaching this limit, manual intervention may be required.
+   *
+   * @default 5 attempts
    */
   readonly maximumAutomaticAttempts?: number;
 }
 
+/**
+ * *{@link SecurityConfig} / {@link ResourcePolicyEnforcementConfig} / {@link ResourcePolicySetConfig}*
+ *
+ * @description
+ * Configuration for a set of resource policies that will be deployed together to specific organizational units or accounts.
+ * This allows you to group related resource policies and deploy them as a cohesive security control package
+ * across your organization, ensuring consistent policy enforcement for different environments or business units.
+ *
+ * @example
+ * ```
+ * policySets:
+ *   - deploymentTargets:
+ *       organizationalUnits:
+ *         - Workloads
+ *     resourcePolicies:
+ *       - resourceType: S3_BUCKET
+ *         document: resource-policies/s3-workload-policy.json
+ *       - resourceType: KMS_KEY
+ *         document: resource-policies/kms-workload-policy.json
+ *     inputParameters:
+ *       SourceAccount: "123456789012,987654321098"
+ *       allowedAccountList: "{{ ALLOWED_EXTERNAL_ACCOUNTS }}"
+ * ```
+ */
 export interface IResourcePolicySetConfig {
   /**
-   * The deployment targets - accounts/OUs where the config rule and remediation action will be deployed to
+   * Specifies the organizational units and accounts where the AWS Config rules and remediation actions will be deployed.
    */
   readonly deploymentTargets: t.IDeploymentTargets;
   /**
-   * A list of resource policy templates for different types of resources
+   * Array of resource policy configurations that define the specific policies to be enforced.
    */
   readonly resourcePolicies: IResourcePolicyConfig[];
   /**
-   * The input parameters which will be set as environment variable in Custom Config Rule Lambda and Remediation lambda
+   * Custom parameters that will be passed as environment variables to the AWS Config rule and remediation Lambda functions.
    *
-   * Meanwhile, 'SourceAccount' is a reserved parameters for allow-only resource policy -- Lambda_Function and CERTIFICATE_AUTHORITY.
-   * For example, 'SourceAccount: 123456789012,987654321098' means requests from these two accounts can be allowed.
-   * Apart from these two, No other external accounts can access a lambda function or Certificate Authority.
+   * @remarks
+   * Special reserved parameters:
+   * - `SourceAccount`: For Lambda functions and Certificate Authority resources, specifies which external accounts
+   *   are allowed access. Format: "123456789012,987654321098" (comma-separated account IDs).
+   *   Only these specified accounts will be granted access; all other external accounts will be denied.
    *
+   * @example
+   * ```
+   * inputParameters:
+   *   SourceAccount: "123456789012,987654321098"
+   *   allowedAccountList: "{{ ALLOWED_EXTERNAL_ACCOUNTS }}"
+   *   environment: "production"
+   * ```
    */
   readonly inputParameters?: { [key: string]: string };
 }
@@ -1249,12 +2161,24 @@ export interface IResourcePolicySetConfig {
  * *{@link SecurityConfig} / {@link ResourcePolicyEnforcementConfig}/{@link NetworkPerimeterConfig}*
  *
  * @description
- * Network Perimeter Config.
+ * Configuration for defining the network perimeter scope when using VPC lookup parameters in resource policies.
  *
- * If managedVpcOnly is true, all the VPCs in accounts will be included while parameter `ACCEL_LOOKUP:VPC|VPC_ID:XX` is used.
- * If managedVpcOnly is false, only the VPC  created by LZA will be included while parameter `ACCEL_LOOKUP:VPC|VPC_ID:XX` is used.
+ *  @example
+ * ```
+ * networkPerimeter:
+ *   managedVpcOnly: true
+ * ```
  */
 export interface INetworkPerimeterConfig {
+  /**
+   * Controls which VPCs are included when using VPC lookup parameters in resource policy templates.
+   *
+   * @remarks
+   * When `true`: All VPCs in the target accounts will be included when the parameter `ACCEL_LOOKUP:VPC|VPC_ID:XX` is used.
+   * This provides broader network perimeter coverage including pre-existing VPCs.
+   *
+   * When `false`: Only VPCs created by the Landing Zone Accelerator will be included when the parameter `ACCEL_LOOKUP:VPC|VPC_ID:XX` is used.
+   */
   readonly managedVpcOnly?: boolean;
 }
 
@@ -1262,15 +2186,17 @@ export interface INetworkPerimeterConfig {
  * *{@link SecurityConfig} / {@link ResourcePolicyEnforcementConfig}*
  *
  * @description
- * Resource Policy Enforcement Config. The configuration allows you to deploy AWS Config rules to
- * automatically apply resource-based policies to AWS resources including S3 buckets, IAM roles, and KMS keys etc.
- * AWS Organization is required to support it.
+ * Configuration for automated resource policy enforcement across your AWS Organization using AWS Config rules.
  *
- * Here are a list of supported service {@link SecurityConfigTypes.resourceTypeEnum }
+ * @remarks
+ * This configuration deploys AWS Config rules that continuously monitor resources and automatically
+ * apply or remediate resource-based policies to maintain compliance with your organization's security standards.
+ * Supported resource types include S3 buckets, IAM roles, KMS keys, and many other AWS services.
+ *
+ * Here is the list of supported services {@link SecurityConfigTypes.resourceTypeEnum }
  *
  * @example
  * ```
- *
  * resourcePolicyEnforcement:
  *   enable: true
  *   remediation:
@@ -1289,9 +2215,25 @@ export interface INetworkPerimeterConfig {
  *           - Root
  */
 export interface IResourcePolicyEnforcementConfig {
+  /**
+   * Controls whether resource policy enforcement is enabled across your organization.
+   * When enabled, AWS Config rules will be deployed to monitor and enforce resource-based policies
+   * according to the configured policy sets and remediation settings.
+   */
   readonly enable: boolean;
+  /**
+   * Configuration for automated remediation when policy violations are detected.
+   * This defines how AWS Config should respond when resources are found to be non-compliant.
+   */
   readonly remediation: IResourcePolicyRemediation;
+  /**
+   * Array of policy sets that define which resource policies to enforce and where to deploy them.
+   */
   readonly policySets: IResourcePolicySetConfig[];
+  /**
+   * Configuration for network perimeter controls when using VPC lookup parameters in resource policies.
+   * This optional setting controls which VPCs are included when resolving network references in policy templates.
+   */
   readonly networkPerimeter?: INetworkPerimeterConfig;
 }
 
@@ -1299,7 +2241,10 @@ export interface IResourcePolicyEnforcementConfig {
  * *{@link SecurityConfig} / {@link AccessAnalyzerConfig}*
  *
  * @description
- * AWS AccessAnalyzer configuration
+ * Configuration for AWS Identity and Access Management (IAM) Access Analyzer that identifies resources with external access
+ * and helps implement least privilege by analyzing resource policies for security risks.
+ *
+ * @see https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html
  *
  * @example
  * ```
@@ -1309,10 +2254,10 @@ export interface IResourcePolicyEnforcementConfig {
  */
 export interface IAccessAnalyzerConfig {
   /**
-   * Indicates whether AWS AccessAnalyzer enabled in your organization.
+   * Controls whether AWS IAM Access Analyzer is enabled across your organization.
    *
    * @remarks
-   * Note: Once enabled, IAM Access Analyzer examines policies and reports a list of findings for resources that grant public or cross-account access from outside your AWS Organizations in the IAM console and through APIs.
+   * Once enabled, IAM Access Analyzer examines policies and reports a list of findings for resources that grant public or cross-account access from outside your AWS Organizations in the IAM console and through APIs.
    */
   readonly enable: boolean;
 }
@@ -1321,7 +2266,10 @@ export interface IAccessAnalyzerConfig {
  * *{@link SecurityConfig} / {@link IamPasswordPolicyConfig}*
  *
  * @description
- * IAM password policy configuration
+ * Configuration for AWS Identity and Access Management (IAM) password policy that enforces password complexity and security requirements
+ * for IAM users across your organization.
+ *
+ * @see https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_passwords_account-policy.html
  *
  * @example
  * ```
@@ -1339,137 +2287,222 @@ export interface IAccessAnalyzerConfig {
  */
 export interface IIamPasswordPolicyConfig {
   /**
-   * Allows all IAM users in your account to use the AWS Management Console to change their own passwords.
+   * Controls whether IAM users can change their own passwords through the AWS Management Console.
+   * When enabled, users can update their passwords without administrator intervention.
    *
    * @default true
    */
   readonly allowUsersToChangePassword: boolean;
   /**
-   * Prevents IAM users who are accessing the account via the AWS Management Console from setting a new console password after their password has expired.
-   * The IAM user cannot access the console until an administrator resets the password.
+   * Controls whether IAM users can set a new password after their current password expires.
+   * When enabled, users with expired passwords cannot access the console until an administrator resets their password.
    *
    * @default true
    */
   readonly hardExpiry: boolean;
   /**
-   * Specifies whether IAM user passwords must contain at least one uppercase character from the ISO basic Latin alphabet (A to Z).
+   * Requires passwords to contain at least one uppercase letter from the ISO basic Latin alphabet (A to Z).
    *
-   * Note: If you do not specify a value for this parameter, then the operation uses the default value of false. The result is that passwords do not require at least one uppercase character.
+   * @remarks If you do not specify a value for this parameter, then the operation uses the default value of false. The result is that passwords do not require at least one uppercase character.
    *
    * @default true
    */
   readonly requireUppercaseCharacters: boolean;
   /**
-   * Specifies whether IAM user passwords must contain at least one lowercase character from the ISO basic Latin alphabet (a to z).
+   * Requires passwords to contain at least one lowercase letter from the ISO basic Latin alphabet (a to z).
    *
-   * Note: If you do not specify a value for this parameter, then the operation uses the default value of false. The result is that passwords do not require at least one lowercase character.
+   * @remarks If you do not specify a value for this parameter, then the operation uses the default value of false. The result is that passwords do not require at least one lowercase character.
    *
    * @default true
    */
   readonly requireLowercaseCharacters: boolean;
   /**
-   * Specifies whether IAM user passwords must contain at least one of the following non-alphanumeric characters:
+   * Requires passwords to contain at least one special character.
+   * Allowed symbols: ! @ # $ % ^ & * ( ) _ + - = [ ] { } | '
    *
-   * ! @ # $ % ^ & * ( ) _ + - = [ ] { } | '
-   *
-   * Note: If you do not specify a value for this parameter, then the operation uses the default value of false. The result is that passwords do not require at least one symbol character.
+   * @remarks If you do not specify a value for this parameter, then the operation uses the default value of false. The result is that passwords do not require at least one symbol character.
    *
    * @default true
    */
   readonly requireSymbols: boolean;
   /**
-   * Specifies whether IAM user passwords must contain at least one numeric character (0 to 9).
+   * Requires passwords to contain at least one numeric character (0-9).
    *
-   * Note: If you do not specify a value for this parameter, then the operation uses the default value of false. The result is that passwords do not require at least one numeric character.
+   * @remarks If you do not specify a value for this parameter, then the operation uses the default value of false. The result is that passwords do not require at least one numeric character.
    *
    * @default true
    */
   readonly requireNumbers: boolean;
   /**
-   * The minimum number of characters allowed in an IAM user password.
+   * The minimum number of characters required for IAM user passwords.
    *
-   * Note: If you do not specify a value for this parameter, then the operation uses the default value of 6.
+   * @remarks If you do not specify a value for this parameter, then the operation uses the default value of 14.
    *
    * @default 14
    */
   readonly minimumPasswordLength: number;
   /**
-   * Specifies the number of previous passwords that IAM users are prevented from reusing.
+   * The number of previous passwords that users cannot reuse.
    *
-   * Note: If you do not specify a value for this parameter, then the operation uses the default value of 0.
+   * @remarks If you do not specify a value for this parameter, then the operation uses the default value of 24.
    * The result is that IAM users are not prevented from reusing previous passwords.
    *
    * @default 24
    */
   readonly passwordReusePrevention: number;
   /**
-   * The number of days that an IAM user password is valid.
+   * The maximum number of days a password remains valid before requiring a change.
    *
-   * Note: If you do not specify a value for this parameter, then the operation uses the default value of 0. The result is that IAM user passwords never expire.
+   * @remarks Valid values are between 1 and 1095 days.
    *
    * @default 90
    */
   readonly maxPasswordAge: number;
 }
 
+/**
+ * *{@link SecurityConfig} / {@link AwsConfig} / {@link AwsConfigRuleSet} / {@link ConfigRule} / {@link CustomRule} / {@link CustomRuleLambda}*
+ *
+ * @description
+ * Configuration for AWS Lambda functions that implement custom AWS Config rules for compliance monitoring.
+ *
+ * @see https://docs.aws.amazon.com/config/latest/developerguide/evaluate-config_develop-rules.html
+ *
+ * @example
+ * lambda:
+ * ```
+ * lambda:
+ *   sourceFilePath: path/to/function.zip
+ *   handler: index.handler
+ *   runtime: nodejsXX.x
+ *   rolePolicyFile: path/to/policy.json
+ *   timeout: 3
+ * ```
+ */
 export interface ICustomRuleLambdaType {
   /**
-   * The source code file path of your Lambda function. This is a zip file containing lambda function, this file must be available in config repository.
+   * Path to the ZIP file containing your Lambda function source code.
+   * This file must be available in the accelerator configuration repository.
    */
   readonly sourceFilePath: t.NonEmptyString;
   /**
-   * The name of the method within your code that Lambda calls to execute your function. The format includes the file name. It can also include namespaces and other qualifiers, depending on the runtime.
-   * For more information, see https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-features.html#gettingstarted-features-programmingmodel.
+   * The entry point for your Lambda function that AWS Config will invoke.
+   * Specifies the method within your code that Lambda calls to execute the compliance evaluation.
+   * Format varies by runtime (e.g., "index.handler" for Node.js, "lambda_function.lambda_handler" for Python).
+   *
+   * @see https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-features.html#gettingstarted-features-programmingmodel
    */
   readonly handler: t.NonEmptyString;
   /**
-   * The runtime environment for the Lambda function that you are uploading. For valid values, see the Runtime property in the AWS Lambda Developer Guide.
+   * The runtime environment for executing your Lambda function.
+   * Must be compatible with your function's source code language and version requirements.
+   *
+   * @example "nodejs18.x", "python3.9", "java11"
+   * @see https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
    */
   readonly runtime: t.NonEmptyString;
   /**
-   * Lambda execution role policy definition file
+   * Path to the JSON file defining IAM policies for the Lambda execution role.
+   * This file must be available in the accelerator configuration repository.
    */
   readonly rolePolicyFile: t.NonEmptyString;
   /**
-   * Lambda function execution timeout in seconds
+   * Maximum execution time for the Lambda function in seconds.
    */
   readonly timeout?: number;
 }
 
+/**
+ * *{@link SecurityConfig} / {@link AwsConfig} / {@link AwsConfigRuleSet} / {@link ConfigRule} / {@link TriggeringResource}*
+ *
+ * @description
+ * Configuration for defining which AWS resources trigger evaluations for custom AWS Config rules.
+ *
+ * @example
+ * Trigger by tag:
+ * ```
+ * triggeringResources:
+ *   lookupType: Tag
+ *   lookupKey: Environment
+ *   lookupValue:
+ *     - Production
+ *     - Staging
+ * ```
+ *
+ * Trigger by resource type:
+ * ```
+ * triggeringResources:
+ *   lookupType: ResourceTypes
+ *   lookupKey: ""
+ *   lookupValue:
+ *     - AWS::EC2::Instance
+ *     - AWS::S3::Bucket
+ * ```
+ */
 export interface ITriggeringResourceType {
   /**
-   * An enum to identify triggering resource types.
-   * Possible values ResourceId, Tag, or ResourceTypes
+   * The method used to identify which resources should trigger Config rule evaluations.
+   * This determines how the Config rule will find and evaluate AWS resources for compliance.
    *
-   * Triggering resource can be lookup by resource id, tags or resource types.
+   * @remarks
+   * - **ResourceId**: Target specific resources by their unique identifiers
+   * - **Tag**: Target resources that have specific tag key-value pairs
+   * - **ResourceTypes**: Target all resources of specific AWS resource types
    */
   readonly lookupType: 'ResourceId' | 'Tag' | 'ResourceTypes' | string;
   /**
-   * Resource lookup type, resource can be lookup by tag or types. When resource needs to lookup by tag, this field will have tag name.
+   * The lookup key used to identify resources based on the specified lookup type.
    */
   readonly lookupKey: t.NonEmptyString;
   /**
-   * Resource lookup value, when resource lookup using tag, this field will have tag value to search resource.
+   * Array of values used to match resources based on the lookup type and key.
    */
   readonly lookupValue: t.NonEmptyString[];
 }
 
+/**
+ * *{@link SecurityConfig} / {@link AwsConfig} / {@link AwsConfigRuleSet} / {@link ConfigRule} / {@link CustomRule}*
+ *
+ * @description
+ * Configuration for custom AWS Config rules that use Lambda functions to evaluate resource compliance.
+ *
+ * @see https://docs.aws.amazon.com/config/latest/developerguide/evaluate-config_develop-rules.html
+ *
+ * @example
+ * Custom rule:
+ * ```
+ * lambda:
+ *   sourceFilePath: path/to/function.zip
+ *   handler: index.handler
+ *   runtime: nodejsXX.x
+ *   rolePolicyFile: path/to/policy.json
+ *   timeout: 3
+ * periodic: true
+ * maximumExecutionFrequency: Six_Hours
+ * configurationChanges: true
+ * triggeringResources:
+ *   lookupType: Tag
+ *   lookupKey: EnvironmentA
+ *   lookupValue:
+ *     - AWS::EC2::Instance
+ * ```
+ */
 export interface ICustomRuleConfigType {
   /**
-   * The Lambda function to run.
+   * Configuration for the Lambda function that implements the custom compliance evaluation logic.
    */
   readonly lambda: ICustomRuleLambdaType;
   /**
-   * Whether to run the rule on a fixed frequency.
+   * Controls whether the rule runs on a scheduled basis at regular intervals.
+   * When enabled, the rule will evaluate resources according to the specified frequency.
    *
    * @default true
    */
   readonly periodic?: boolean;
   /**
-   * The maximum frequency at which the AWS Config rule runs evaluations.
+   * The frequency at which periodic evaluations are performed.
    *
-   * Default:
-   * MaximumExecutionFrequency.TWENTY_FOUR_HOURS
+   * @default MaximumExecutionFrequency.TWENTY_FOUR_HOURS
    */
   readonly maximumExecutionFrequency:
     | 'One_Hour'
@@ -1479,32 +2512,56 @@ export interface ICustomRuleConfigType {
     | 'TwentyFour_Hours'
     | string;
   /**
-   * Whether to run the rule on configuration changes.
+   * Controls whether the rule runs when AWS resource configurations change.
+   * When enabled, the rule will immediately evaluate affected resources whenever
+   * their configuration is modified.
    *
-   * Default:
-   * false
+   * @default false
    */
   readonly configurationChanges?: boolean;
   /**
-   * Defines which resources trigger an evaluation for an AWS Config rule.
+   * Specifies which AWS resources will trigger evaluations for this Config rule.
    */
   readonly triggeringResources: ITriggeringResourceType;
 }
 
 /**
- * Config rule remediation input parameter configuration type
+ * *{@link SecurityConfig} / {@link AwsConfig} / {@link AwsConfigRuleSet} / {@link ConfigRule} / {@link ConfigRuleRemediation} / {@link RemediationParameters}*
+ *
+ * @description
+ * Configuration for input parameters passed to AWS Config rule remediation actions.
+ * These parameters provide the necessary data and context for remediation automation documents
+ * to execute corrective actions on non-compliant resources, enabling automated compliance restoration.
+ *
+ * @example
+ * ```
+ * parameters:
+ *   - name: BucketName
+ *     value: RESOURCE_ID
+ *     type: String
+ *   - name: KMSMasterKey
+ *     value: ${ACCEL_LOOKUP::KMS}
+ *     type: String
+ *   - name: AllowedRegions
+ *     value: us-east-1,us-west-2
+ *     type: StringList
+ * ```
  */
 export interface IRemediationParametersConfigType {
   /**
-   * Name of the parameter
+   * The name of the parameter as expected by the remediation automation document.
    */
   readonly name: t.NonEmptyString;
   /**
-   * Parameter value
+   * The value to pass for this parameter during remediation execution.
    */
   readonly value: t.NonEmptyString;
   /**
-   * Data type of the parameter, allowed value (StringList or String)
+   * The data type of the parameter value, determining how the remediation document interprets the input.
+   *
+   *  @remarks
+   * - **String**: Single value parameter
+   * - **StringList**: Comma-separated list of values for parameters that accept multiple inputs
    */
   readonly type: 'String' | 'StringList';
 }
@@ -1515,67 +2572,117 @@ export interface IRemediationParametersConfigType {
 //   readonly type: 'String' | 'StringList';
 // }
 
+/**
+ * *{@link SecurityConfig} / {@link AwsConfig} / {@link AwsConfigRuleSet} / {@link ConfigRule} / {@link ConfigRuleRemediation}*
+ *
+ * @description
+ * Configuration for automated remediation actions that AWS Config executes when resources are found non-compliant.
+ * This enables automatic correction of compliance violations using AWS Systems Manager automation documents,
+ * reducing manual intervention and ensuring continuous compliance across your AWS environment.
+ *
+ * @see https://docs.aws.amazon.com/config/latest/developerguide/remediation.html
+ *
+ * @example
+ * ```
+ * remediation:
+ *   rolePolicyFile: path/to/remediation-role-policy.json
+ *   automatic: true
+ *   targetId: AWSConfigRemediation-EnableS3BucketEncryption
+ *   targetAccountName: Audit
+ *   targetVersion: "1"
+ *   retryAttemptSeconds: 60
+ *   maximumAutomaticAttempts: 3
+ *   parameters:
+ *     - name: BucketName
+ *       value: RESOURCE_ID
+ *       type: String
+ *     - name: SSEAlgorithm
+ *       value: AES256
+ *       type: String
+ *   excludeRegions:
+ *     - us-gov-east-1
+ * ```
+ */
 export interface IConfigRuleRemediationType {
   /**
-   * Remediation assume role policy definition json file. This file must be present in config repository.
-   *
-   * Create your own custom remediation actions using AWS Systems Manager Automation documents.
-   * When a role needed to be created to perform custom remediation actions, role permission needs to be defined in this file.
+   * Path to the JSON file defining IAM policies for the remediation execution role.
+   * This file must be available in the configuration repository.
    */
   readonly rolePolicyFile: t.NonEmptyString;
   /**
-   * The remediation is triggered automatically.
+   * Controls whether remediation actions are triggered automatically when non-compliance is detected.
+   * When enabled, AWS Config will immediately attempt to remediate non-compliant resources
+   * without manual intervention.
    */
   readonly automatic: boolean;
   /**
-   * Target ID is the name of the public document.
-   *
-   * The name of the AWS SSM document to perform custom remediation actions.
+   * The name of the AWS Systems Manager automation document that performs the remediation actions.
    */
   readonly targetId: t.NonEmptyString;
   /**
-   * Name of the account owning the public document to perform custom remediation actions.
-   * Accelerator creates these documents in Audit account and shared with other accounts.
+   * The name of the AWS account that owns the remediation automation document.
+   *
+   * @remarks
+   * The Landing Zone Accelerator typically creates these documents in the Audit account
+   * and shares them with other accounts for centralized remediation management.
    */
   readonly targetAccountName?: t.NonEmptyString;
   /**
-   * Version of the target. For example, version of the SSM document.
+   * The version of the target automation document to use for remediation.
    *
-   * If you make backward incompatible changes to the SSM document, you must call PutRemediationConfiguration API again to ensure the remediations can run.
+   * @remarks
+   * If you make backward incompatible changes to the SSM document, you must call
+   * PutRemediationConfiguration API again to ensure the remediations can run.
    */
   readonly targetVersion?: t.NonEmptyString;
   /**
-   * Target SSM document remediation lambda function
+   * Configuration for a Lambda function that supports the remediation automation document.
+   * This is used when the remediation requires custom logic that cannot be achieved
+   * through standard SSM automation document actions alone.
    */
   readonly targetDocumentLambda?: ICustomRuleLambdaType;
   /**
-   * Maximum time in seconds that AWS Config runs auto-remediation. If you do not select a number, the default is 60 seconds.
+   * Maximum time in seconds that AWS Config waits for each remediation attempt to complete.
+   * This prevents remediation actions from running indefinitely and ensures timely failure detection.
    *
-   * For example, if you specify RetryAttemptSeconds as 50 seconds and MaximumAutomaticAttempts as 5, AWS Config will run auto-remediations 5 times within 50 seconds before throwing an exception.
+   * @default 60 seconds
+   *
+   * @example
+   * If you specify retryAttemptSeconds as 50 and maximumAutomaticAttempts as 5,
+   * AWS Config will run auto-remediations 5 times within 50 seconds before throwing an exception.
    */
   readonly retryAttemptSeconds?: number;
   /**
-   * The maximum number of failed attempts for auto-remediation. If you do not select a number, the default is 5.
+   * The maximum number of remediation attempts for a single non-compliant resource.
+   * This prevents infinite retry loops while allowing for temporary failures to be resolved.
+   * After reaching this limit, manual intervention may be required.
    *
-   * For example, if you specify MaximumAutomaticAttempts as 5 with RetryAttemptSeconds as 50 seconds, AWS Config will put a RemediationException on your behalf for the failing resource after the 5th failed attempt within 50 seconds.
+   * @default 5 attempts
+   *
+   * @example
+   * If you specify maximumAutomaticAttempts as 5 with retryAttemptSeconds as 50,
+   * AWS Config will put a RemediationException after the 5th failed attempt within 50 seconds.
    */
   readonly maximumAutomaticAttempts?: number;
   /**
-   * List of remediation parameters
-   *
+   * Array of input parameters to pass to the remediation automation document.
+   * These parameters provide the necessary context and data for the automation document
+   * to perform the appropriate corrective actions on non-compliant resources.
    */
   readonly parameters?: IRemediationParametersConfigType[];
   /**
-   * List of AWS Region names to be excluded from applying remediation
+   * List of AWS regions where this remediation should not be applied.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
 }
 
 /**
  * *{@link SecurityConfig} / {@link AwsConfig} / {@link AwsConfigRuleSet} / {@link ConfigRule}*
  *
  * @description
- * AWS ConfigRule configuration
+ * Configuration for AWS Config rules that evaluate AWS resource compliance against organizational policies and best practices.
+ * Config rules can be either AWS-managed rules (pre-built compliance checks) or custom rules (organization-specific logic)
+ * and can include automated remediation to restore compliance when violations are detected.
  *
  * @example
  * Managed Config rule:
@@ -1597,12 +2704,13 @@ export interface IConfigRuleRemediationType {
  *         handler: index.handler
  *         runtime: nodejsXX.x
  *         rolePolicyFile: path/to/policy.json
+ *         timeout: 3
  *       periodic: true
  *       maximumExecutionFrequency: Six_Hours
  *       configurationChanges: true
  *       triggeringResources:
- *         lookupType: ResourceTypes
- *         lookupKey: ResourceTypes
+ *         lookupType: Tag
+ *         lookupKey: EnvironmentA
  *         lookupValue:
  *           - AWS::EC2::Instance
  * ```
@@ -1629,43 +2737,45 @@ export interface IConfigRuleRemediationType {
  */
 export interface IConfigRule {
   /**
-   * A name for the AWS Config rule.
+   * Unique name for the AWS Config rule within your organization.
    *
-   * @remarks
-   * Note: Changing this value of an AWS Config Rule will trigger a new resource creation.
+   * @remarks Changing this value of an AWS Config Rule will trigger a new resource creation.
    */
   readonly name: t.NonEmptyString;
   /**
-   * (OPTIONAL) A description about this AWS Config rule.
-   *
+   * Human-readable description explaining what this Config rule evaluates.
    */
   readonly description?: t.NonEmptyString;
   /**
-   * (OPTIONAL) The identifier of the AWS managed rule.
+   * The identifier of the AWS-managed rule to use for compliance evaluation.
    */
   readonly identifier?: t.NonEmptyString;
   /**
-   * (OPTIONAL) Input parameter values that are passed to the AWS Config rule.
+   * Key-value pairs that provide configuration parameters to the Config rule.
    */
   readonly inputParameters?: { [key: t.NonEmptyString]: t.NonEmptyString } | null; // TODO: Did this work?
   /**
-   * (OPTIONAL) Defines which resources trigger an evaluation for an AWS Config rule.
+   * Array of AWS resource types that this rule will evaluate for compliance.
    */
   readonly complianceResourceTypes?: t.NonEmptyString[];
   /**
-   * (OPTIONAL) Config rule type Managed or Custom. For custom config rule, this parameter value is Custom, when creating managed config rule this parameter value can be undefined or empty string
+   * The type of Config rule being created.
+   * @remarks Set to "Custom" for custom rules backed by Lambda functions, or omit for AWS-managed rules.
    */
   readonly type?: t.NonEmptyString;
   /**
-   * (OPTIONAL) A custom config rule is backed by AWS Lambda function. This is required when creating custom config rule.
+   * Configuration for custom config rules backed by AWS Lambda functions.
+   * Required when type is set to "Custom" for organization-specific compliance logic.
    */
   readonly customRule?: ICustomRuleConfigType;
   /**
-   * A remediation for the config rule, auto remediation to automatically remediate noncompliant resources.
+   * Configuration for automated remediation actions when resources are found non-compliant.
+   * When configured, AWS Config can automatically fix compliance violations without manual intervention,
+   * ensuring continuous compliance across your AWS environment.
    */
   readonly remediation?: IConfigRuleRemediationType;
   /**
-   * (OPTIONAL) Tags for the config rule
+   * Key-value pairs to assign as tags to the Config rule.
    */
   readonly tags?: t.ITag[];
 }
@@ -1674,7 +2784,7 @@ export interface IConfigRule {
  * *{@link SecurityConfig} / {@link AwsConfig} / {@link AwsConfigRuleSet}*
  *
  * @description
- * List of AWS Config rules
+ * Configuration for a set of AWS Config rules that will be deployed together to specific organizational units or accounts.
  *
  * @example
  * ```
@@ -1690,9 +2800,7 @@ export interface IConfigRule {
  */
 export interface IAwsConfigRuleSet {
   /**
-   * Config ruleset deployment target.
-   *
-   * To configure AWS Config rules into Root and Infrastructure organizational units, you need to provide below value for this parameter.
+   * Specifies the organizational units and accounts where this set of Config rules will be deployed.
    *
    * @example
    * ```
@@ -1704,10 +2812,7 @@ export interface IAwsConfigRuleSet {
    */
   readonly deploymentTargets: t.IDeploymentTargets;
   /**
-   * AWS Config rule set
-   *
-   * Following example will create a custom rule named accelerator-attach-ec2-instance-profile with remediation
-   * and a managed rule named accelerator-iam-user-group-membership-check without remediation
+   * Array of AWS Config rules to deploy as part of this rule set.
    *
    * @example
    * ```
@@ -1726,8 +2831,8 @@ export interface IAwsConfigRuleSet {
    *             maximumExecutionFrequency: Six_Hours
    *             configurationChanges: true
    *             triggeringResources:
-   *               lookupType: ResourceTypes
-   *               lookupKey: ResourceTypes
+   *               lookupType: Tag
+   *               lookupKey: EnvironmentA
    *               lookupValue:
    *                 - AWS::EC2::Instance
    *          - name: accelerator-iam-user-group-membership-check
@@ -1743,12 +2848,16 @@ export interface IAwsConfigRuleSet {
  * *{@link SecurityConfig} / {@link AwsConfig} / {@link AwsConfigAggregation}*
  *
  * @description
- * AWS Config Aggregation Configuration
- * Not used in Control Tower environment
- * Aggregation will be configured in all enabled regions
- * unless specifically excluded
- * If the delegatedAdmin account is not provided
- * config will be aggregated to the management account
+ * Configuration for AWS Config aggregation that centralizes compliance data from multiple accounts and regions
+ * into a single location for organization-wide visibility and reporting. This enables centralized compliance
+ * monitoring and simplifies governance oversight across your entire AWS Organization.
+ *
+ * @remarks
+ * - Not used in AWS Control Tower environments (Control Tower provides its own aggregation)
+ * - Aggregation will be configured in all enabled regions unless specifically excluded
+ * - If no delegated admin account is specified, aggregation occurs in the management account
+ *
+ * @see https://docs.aws.amazon.com/config/latest/developerguide/aggregate-data.html
  *
  * @example
  * AWS Config Aggregation with a delegated admin account:
@@ -1764,7 +2873,19 @@ export interface IAwsConfigRuleSet {
  * ```
  */
 export interface IAwsConfigAggregation {
+  /**
+   * Controls whether AWS Config aggregation is enabled across your organization.
+   * When enabled, compliance data from all accounts and regions will be centralized
+   * for unified reporting and governance oversight.
+   */
   readonly enable: boolean;
+  /**
+   * The name of the account designated to collect and store aggregated Config data.
+   *
+   * @remarks
+   * If not specified, aggregation will occur in the management account.
+   * The delegated admin account must have appropriate permissions to collect Config data from all organization accounts.
+   */
   readonly delegatedAdminAccount?: t.NonEmptyString;
 }
 
@@ -1772,7 +2893,11 @@ export interface IAwsConfigAggregation {
  * *{@link SecurityConfig} / {@link AwsConfig}*
  *
  * @description
- * AWS Config Recorder and Rules
+ * Configuration for AWS Config service that enables continuous monitoring and assessment of AWS resource configurations
+ * for compliance, security, and governance. This service records configuration changes, evaluates resources against
+ * compliance rules, and provides centralized visibility into your AWS environment's configuration state.
+ *
+ * @see https://docs.aws.amazon.com/config/latest/developerguide/WhatIsConfig.html
  *
  * @example
  * ```
@@ -1801,24 +2926,21 @@ export interface IAwsConfigAggregation {
  */
 export interface IAwsConfig {
   /**
-   * Indicates whether AWS Config recorder enabled.
+   * Controls whether the AWS Config configuration recorder is enabled to track resource changes.
    *
-   * To enable AWS Config, you must create a configuration recorder
-   *
-   * ConfigurationRecorder resource describes the AWS resource types for which AWS Config records configuration changes. The configuration recorder stores the configurations of the supported resources in your account as configuration items.
+   * @remarks
+   * To enable AWS Config, you must create a configuration recorder. The ConfigurationRecorder resource
+   * describes the AWS resource types for which AWS Config records configuration changes.
    */
   readonly enableConfigurationRecorder: boolean;
   /**
-   * (OPTIONAL) AWS Config deployment target.
+   * Specifies the organizational units and accounts where AWS Config will be deployed.
    *
-   * Leaving `deploymentTargets` undefined will enable AWS Config across all accounts and enabled regions.
-   *
-   * We highly recommend enabling AWS Config across all accounts and enabled regions within your organization.
-   * `deploymentTargets` should only be used when more granular control is required, not as a default configuration.
-   *
-   * To enable AWS Config into Infrastructure organizational unit, you need to provide below value for this parameter.
-   *
-   * Note: The delegated admin account defined in centralSecurityServices will always have AwsConfig enabled
+   * @remarks
+   * - Leaving undefined enables AWS Config across all accounts and enabled regions (recommended)
+   * - We highly recommend enabling AWS Config organization-wide for comprehensive governance
+   * - Use deployment targets only when granular control is specifically required
+   * - The delegated admin account from centralSecurityServices will always have AWS Config enabled
    *
    * @example
    * ```
@@ -1829,39 +2951,42 @@ export interface IAwsConfig {
    */
   readonly deploymentTargets?: t.IDeploymentTargets;
   /**
-   * Indicates whether delivery channel enabled.
+   * Controls whether the delivery channel is enabled for sending configuration changes to S3.
    *
-   * AWS Config uses the delivery channel to deliver the configuration changes to your Amazon S3 bucket.
-   * DEPRECATED
+   * @deprecated This parameter is deprecated.
+   *
+   * @remarks
+   * AWS Config uses the delivery channel to deliver configuration changes to your Amazon S3 bucket.
    */
   readonly enableDeliveryChannel?: boolean;
   /**
-   * Indicates whether or not to override existing config recorder settings
-   * Must be enabled if any account and region combination has an
-   * existing config recorder, even if config recording is turned off
-   * The Landing Zone Accelerator will override the settings in all configured
-   * accounts and regions
-   * ** Do not enable this setting if you have deployed LZA
-   * ** successfully with enableConfigurationRecorder set to true
-   * ** and overrideExisting either unset or set to false
-   * ** Doing so will cause a resource conflict
-   * When the overrideExisting property is enabled
-   * ensure that any scp's are not blocking the passRole
-   * iam permission for the iam role name {acceleratorPrefix}Config
+   * Controls whether to override existing Config recorder settings in accounts that already have Config enabled.
+   *
+   * @remarks
+   * **IMPORTANT WARNINGS:**
+   * - Must be enabled if any account/region has an existing Config recorder, even if recording is disabled
+   * - Do NOT enable this if you have successfully deployed LZA with enableConfigurationRecorder=true and overrideExisting=false
+   * - Enabling this setting inappropriately will cause resource conflicts
+   * - When enabled, ensure SCPs don't block the passRole IAM permission for role {acceleratorPrefix}Config
    */
   readonly overrideExisting?: boolean;
   /**
-   * Config Recorder Aggregation configuration
+   * Configuration for AWS Config aggregation that centralizes compliance data from multiple accounts and regions.
+   * This enables organization-wide compliance reporting and centralized governance oversight.
    */
   readonly aggregation?: IAwsConfigAggregation;
   /**
-   * AWS Config rule sets
+   * Array of Config rule sets that define compliance checks to be deployed across your organization.
    */
   readonly ruleSets?: IAwsConfigRuleSet[];
   /**
-   * Indicates whether to create the Configuration Recorder with a service linked role. If not specified, AWS Config will use a custom IAM role created by LZA.
-   * For new deployments, it is recommended to set this setting to true.
-   * For more information, see https://docs.aws.amazon.com/config/latest/developerguide/using-service-linked-roles.html
+   * Controls whether to use AWS service-linked roles for Config instead of custom IAM roles created by LZA.
+   * @remarks
+   * - Recommended for new deployments as it simplifies IAM management
+   * - Service-linked roles are automatically managed by AWS with appropriate permissions
+   * - If not specified, LZA will create and manage custom IAM roles for Config
+   *
+   * @see https://docs.aws.amazon.com/config/latest/developerguide/using-service-linked-roles.html
    */
   readonly useServiceLinkedRole?: boolean;
 }
@@ -1870,7 +2995,10 @@ export interface IAwsConfig {
  * *{@link SecurityConfig} / {@link CloudWatchConfig} / {@link MetricSetConfig} / {@link MetricConfig}*
  *
  * @description
- * AWS CloudWatch Metric configuration
+ * Configuration for CloudWatch metric filters that extract metrics from log data for monitoring and alerting.
+ * Metric filters turn log data into numerical CloudWatch metrics that you can graph or set alarms on.
+ *
+ * @see https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/MonitoringLogData.html
  *
  * @example
  * ```
@@ -1885,28 +3013,30 @@ export interface IAwsConfig {
  */
 export interface IMetricConfig {
   /**
-   * Metric filter name
+   * Unique name for the metric filter within the log group.
    */
   readonly filterName: t.NonEmptyString;
   /**
-   * The log group to create the filter on.
+   * The name of the CLoudWatch Logs log group to monitor for matching events.
+   * The metric filter will scan all log streams within this log group for events
+   * that match the specified filter pattern.
    */
   readonly logGroupName: t.NonEmptyString;
   /**
-   * Pattern to search for log events.
+   * A symbolic description of how CloudWatch Logs should interpret the data in each log event.
+   * The pattern specifies what to look for in the log file, such as timestamps, IP addresses, strings, and so on.
    */
   readonly filterPattern: t.NonEmptyString;
   /**
-   * The namespace of the metric to emit.
+   * The destination namespace of the new CloudWatch metric.
    */
   readonly metricNamespace: t.NonEmptyString;
   /**
-   * The name of the metric to emit.
+   * The name of the CloudWatch metric to which the monitored log information should be published.
    */
   readonly metricName: t.NonEmptyString;
   /**
-   * The value to emit for the metric.
-   *
+   * The numerical value to publish to the metric each time a matching log is found.
    * Can either be a literal number (typically “1”), or the name of a field in the structure to take the value from the matched event. If you are using a field value, the field value must have been matched using the pattern.
    *
    * @remarks
@@ -1915,16 +3045,20 @@ export interface IMetricConfig {
    */
   readonly metricValue: t.NonEmptyString;
   /**
-   * Sets how this alarm is to handle missing data points.
+   * Defines how CloudWatch alarms should handle periods when no matching log events occur.
    */
   readonly treatMissingData?: t.NonEmptyString;
+  /**
+   * Th value reported to the metric filter during a period when logs are ingested but no matching logs are found.
+   */
+  readonly defaultValue?: number;
 }
 
 /**
  * *{@link SecurityConfig} / {@link CloudWatchConfig} / {@link MetricSetConfig}*
  *
  * @description
- * AWS CloudWatch Metric set configuration
+ * Configuration for a set of CloudWatch metric filters that will be deployed together to specific regions and organizational units.
  *
  * @example
  * ```
@@ -1945,17 +3079,15 @@ export interface IMetricConfig {
  */
 export interface IMetricSetConfig {
   /**
-   * (OPTIONAL) AWS region names to configure CloudWatch Metrics
+   * AWS regions where the CloudWatch metric filters will be deployed.
    */
-  readonly regions?: t.Region[];
+  readonly regions?: string[];
   /**
-   * Deployment targets for CloudWatch Metrics configuration
+   * Specfies the organizational units and accounts where this set of metric filters will be deployed.
    */
   readonly deploymentTargets?: t.IDeploymentTargets;
   /**
-   * AWS CloudWatch Metric list
-   *
-   * Following example will create metric filter RootAccountMetricFilter for aws-controltower/CloudTrailLogs log group
+   * Array of CloudWatch metric filter configurations to deploy as part of this metric set.
    *
    * @example
    * ```
@@ -1976,7 +3108,9 @@ export interface IMetricSetConfig {
  * *{@link SecurityConfig} / {@link CloudWatchConfig} / {@link AlarmSetConfig} / {@link AlarmConfig}*
  *
  * @description
- * AWS CloudWatch Alarm configuration
+ * Configuration for CloudWatch alarms that monitor metrics and trigger notifications when thresholds are breached.
+ *
+ * @see https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html
  *
  * @example
  * ```
@@ -1995,61 +3129,75 @@ export interface IMetricSetConfig {
  */
 export interface IAlarmConfig {
   /**
-   * Name of the alarm
+   * Unique name for the CloudWatch alarm
    */
   readonly alarmName: t.NonEmptyString;
   /**
-   * Description for the alarm
+   * Human-readable description explaining what this alarm monitors and when it triggers.
    */
   readonly alarmDescription: t.NonEmptyString;
   /**
-   * Alert SNS notification level
-   * Deprecated
+   * SNS notification level for alarm alerts.
+   *
+   * @deprecated This parameter is deprecated.
    */
   readonly snsAlertLevel?: t.NonEmptyString;
   /**
-   * (OPTIONAL) SNS Topic Name
-   * SNS Topic Name from global config
+   * The name of the SNS topic to send alarm notifications to when the alarm state changes.
+   * This topic name must be defined in the global configuration.
    */
   readonly snsTopicName?: t.NonEmptyString;
   /**
-   * Name of the metric.
+   * The name of the CloudWatch metric to monitor for threshold breaches.
    */
   readonly metricName: t.NonEmptyString;
   /**
-   * Namespace of the metric.
+   * The CloudWatch namespace where the metric is located.
    */
   readonly namespace: t.NonEmptyString;
   /**
-   * Comparison to use to check if metric is breaching
+   * The comparison operator used to evaluate the metric against the threshold.
+   * This determines the condition that must be met for the alarm to trigger.
    */
   readonly comparisonOperator: t.NonEmptyString;
   /**
-   * The number of periods over which data is compared to the specified threshold.
+   * The number of consecutive periods over which the threshold must be breached for the alarm to trigger.
    */
   readonly evaluationPeriods: number;
   /**
-   * The period over which the specified statistic is applied.
+   * The length of each evaluation period in seconds.
    */
   readonly period: number;
   /**
-   * What functions to use for aggregating.
+   * The statistical function to apply to the metric data points within each period.
+   * This determines how multiple data points within a period are aggregated for threshold comparison.
    *
-   * Can be one of the following:
-   * -  “Minimum” | “min”
-   * -  “Maximum” | “max”
-   * -  “Average” | “avg”
-   * -  “Sum” | “sum”
-   * -  “SampleCount | “n”
-   * -  “pNN.NN”
+   * @remarks
+   * Available statistics:
+   * - "Minimum" | "min": Lowest value in the period
+   * - "Maximum" | "max": Highest value in the period
+   * - "Average" | "avg": Average of all values in the period
+   * - "Sum" | "sum": Total of all values in the period (common for counting metrics)
+   * - "SampleCount" | "n": Number of data points in the period
+   * - "pNN.NN": Percentile statistics (e.g., "p95.00" for 95th percentile)
    */
   readonly statistic: t.NonEmptyString;
   /**
-   * The value against which the specified statistic is compared.
+   * The threshold value that the metric statistic is compared against to determine alarm state.
+   * When the metric breaches this threshold according to the comparison operator,
+   * the alarm will transition to the ALARM state and trigger notifications.
    */
   readonly threshold: number;
   /**
-   * Sets how this alarm is to handle missing data points.
+   * Defines how the alarm should behave when metric data is missing or is insufficient.
+   *
+   * @remarks
+   * - "notBreaching": Treat missing data as not breaching the threshold
+   * - "breaching": Treat missing data as breaching the threshold
+   * - "ignore": Ignore missing data when evaluating alarm state (alarm state is maintained)
+   * - "missing": Treat missing data as missing (the alarm transitions to INSUFFICIENT_DATA)
+   *
+   * @see https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html#alarms-and-missing-data
    */
   readonly treatMissingData: t.NonEmptyString;
 }
@@ -2058,7 +3206,7 @@ export interface IAlarmConfig {
  * *{@link SecurityConfig} / {@link CloudWatchConfig} / {@link AlarmSetConfig}}*
  *
  * @description
- * AWS CloudWatch Alarm sets
+ * Configuration for a set of CloudWatch alarms that will be deployed together to specific regions and organizational units.
  *
  * @example
  * ```
@@ -2083,17 +3231,15 @@ export interface IAlarmConfig {
  */
 export interface IAlarmSetConfig {
   /**
-   * AWS region names to configure CloudWatch Alarms
+   * AWS regions where the CloudWatch alarms will be deployed.
    */
-  readonly regions?: t.Region[];
+  readonly regions?: string[];
   /**
-   * Deployment targets for CloudWatch Alarms configuration
+   * Specifies the organizational units and accounts where this set of alarms will be deployed.
    */
   readonly deploymentTargets: t.IDeploymentTargets;
   /**
-   * List of AWS CloudWatch Alarms
-   *
-   * Following example will create CIS-1.1-RootAccountUsage alarm for RootAccountUsage metric with notification level low
+   * Array of CloudWatch alarm configurations to deploy as part of this alarm set.
    *
    * @example
    * ```
@@ -2119,10 +3265,10 @@ export interface IAlarmSetConfig {
 /**
  * *{@link SecurityConfig} / {@link CloudWatchConfig} / {@link LogGroupsConfig} / {@link EncryptionConfig}*
  *
- * {@link https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/encrypt-log-data-kms.html | CloudWatch log group encryption} configuration.
- *
  * @description
- * Use this configuration to enable encryption for a log group.
+ * Configuration for encrypting CloudWatch log groups using AWS Key Management Service (KMS).
+ *
+ * @see https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/encrypt-log-data-kms.html
  *
  * @example
  * Key name reference example:
@@ -2141,50 +3287,42 @@ export interface IAlarmSetConfig {
  */
 export interface IEncryptionConfig {
   /**
-   * (OPTIONAL) Use this property to reference a
-   * KMS Key Name that is created by Landing Zone Accelerator.
+   * References a KMS key created and managed by Landing Zone Accelerator for log group encryption.
    *
    * @remarks
-   * CAUTION: When importing an existing AWS CloudWatch Logs Group that has encryption enabled. If specifying the
-   * encryption configuration with any KMS parameter under the encryption configuration, Landing Zone Accelerator
-   * on AWS will associate a new key with the log group. It is recommend to verify if any processes or applications are using the previous key,
-   * and has access to the new key before updating.
+   * **CAUTION:** When importing an existing CloudWatch log group that has encryption enabled,
+   * specifying any KMS parameter will cause LZA to associate a new key with the log group.
+   * Verify that processes and applications using the previous key have access to the new key before updating.
    *
    * This is the logical `name` property of the key as defined in security-config.yaml.
-   *
-   * @see {@link KeyConfig}
    */
   readonly kmsKeyName?: t.NonEmptyString;
   /**
-   * (OPTIONAL) Reference the KMS Key Arn that is used to encrypt the AWS CloudWatch Logs Group. This should be a
-   * KMS Key that is not managed by Landing Zone Accelerator.
+   * References a KMS key, not managed by LZA, for log group encryption.
    *
    * @remarks
-   * CAUTION: When importing an existing AWS CloudWatch Logs Group that has encryption enabled. If specifying the
-   * encryption configuration with any KMS parameter under the encryption configuration, Landing Zone Accelerator
-   * on AWS will associate a new key with the log group. It is recommend to verify if any processes or applications are using the previous key,
-   * and has access to the new key before updating.
+   * **CAUTION:** When importing an existing CloudWatch log group that has encryption enabled,
+   * specifying any KMS parameter will cause LZA to associate a new key with the log group.
+   * Verify that processes and applications using the previous key have access to the new key before updating.
    *
-   * Note: If using the `kmsKeyArn` parameter to encrypt your AWS CloudWatch Logs Groups. It's important that the logs
-   * service is provided the necessary cryptographic API calls to the CMK. For more information on how to manage the
-   * CMK for logs service access, please review the documentation.
+   * **Important:** The CloudWatch Logs service must have the necessary permissions to use this customer-managed key (CMK).
+   * Ensure the key policy allows CloudWatch Logs to perform cryptographic operations.
    *
-   * @see {@link https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/encrypt-log-data-kms.html}
-   *
+   * @see https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/encrypt-log-data-kms.html
    */
   readonly kmsKeyArn?: t.NonEmptyString;
   /**
-   * (OPTIONAL) Set this property to `true` if you would like to use the
-   * default CloudWatch Logs KMS CMK that is deployed by Landing Zone Accelerator.
+   * Uses the default CloudWatch Logs KMS key that is automatically deployed by Landing Zone Accelerator.
    *
    * @remarks
-   * CAUTION: When importing an existing AWS CloudWatch Logs Group that has encryption enabled. If specifying the
-   * encryption configuration with any KMS parameter under the encryption configuration, Landing Zone Accelerator
-   * on AWS will associate a new key with the log group. It is recommend to verify if any processes or applications are using the previous key,
-   * and has access to the new key before updating.
+   * Set this property to `true` if you would like to use the
+   * default CloudWatch Logs KMS customer-managed key (CMK) that is deployed by Landing Zone Accelerator.
+   *
+   * **CAUTION:** When importing an existing CloudWatch log group that has encryption enabled,
+   * specifying any KMS parameter will cause LZA to associate a new key with the log group.
+   * Verify that processes and applications using the previous key have access to the new key before updating.
    *
    * This key is deployed to all accounts managed by the solution by default.
-   *
    */
   readonly useLzaManagedKey?: boolean;
 }
@@ -2192,15 +3330,14 @@ export interface IEncryptionConfig {
 /**
  * *{@link SecurityConfig} / {@link CloudWatchConfig} / {@link LogGroupsConfig}*
  *
- * {@link https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogsConcepts.html | CloudWatch log group} configuration.
- *
  * @description
- * Use this configuration to deploy CloudWatch log groups to your environment.
- * You can also import existing log groups into your accelerator configuration.
- * Log groups define groups of log streams that share the same retention, monitoring, and access control settings.
+ * Configuration for deploying and managing CloudWatch log groups across your organization.
+ * You can deploy new log groups or import existing ones into your accelerator configuration for centralized management.
+ *
+ * @see https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatchLogsConcepts.html
  *
  * @example
- * CloudWatch Log Group that is using a CMK that is being managed by Landing Zone Accelerator on AWS.
+ * CloudWatch Log Group that is using a customer-managed key (CMK) that is being managed by Landing Zone Accelerator on AWS.
  * ```
  * - logGroupName: Log1
  *   logRetentionInDays: 365
@@ -2236,7 +3373,7 @@ export interface IEncryptionConfig {
  */
 export interface ILogGroupsConfig {
   /**
-   * Name of the CloudWatch log group
+   * The name of the CLoudWatch log group to create or manage.
    *
    * @remarks
    * If importing an existing log group, this must be the name of the
@@ -2244,36 +3381,33 @@ export interface ILogGroupsConfig {
    */
   readonly logGroupName: t.NonEmptyString;
   /**
-   * (OPTIONAL) How long, in days, the log contents will be retained.
+   * The number of days to retain log events in the log group.
    *
-   * To retain all logs, set this value to undefined.
-   *
+   * @remarks To retain all logs, set this value to undefined.
    * @default undefined
    */
   readonly logRetentionInDays: number;
   /**
-   * (OPTIONAL) Set this property to `false` if you would like the log group
+   * Controls whether the log group should be protected from accidental deletion.
+   *
+   * @remarks Set this property to `false` if you would like the log group
    * to be deleted if it is removed from the solution configuration file.
    *
    * @default true
    */
   readonly terminationProtected?: boolean;
   /**
-   * (OPTIONAL) The encryption configuration of the AWS CloudWatch Logs Group.
+   * Configuration for encrypting log data at rest using AWS KMS.
    *
    * @remarks
-   * CAUTION: If importing an existing AWS CloudWatch Logs Group that has encryption enabled. If specifying the
-   * encryption configuration with any KMS parameter under the encryption configuration, Landing Zone Accelerator
-   * on AWS will associate a new key with the log group. The same situation is applied for a log group that is
-   * created by Landing Zone Accelerator on AWS where specifying a new KMS parameter will update the KMS key used
-   * to encrypt the log group. It is recommend to verify if any processes or applications are using the previous key,
-   * and has access to the new key before updating.
+   * **CAUTION:** When importing an existing encrypted log group, specifying any KMS parameter
+   * will cause LZA to associate a new key with the log group. This also applies to existing
+   * LZA-managed log groups when changing KMS parameters. Verify that processes and applications
+   * using the previous key have access to the new key before updating.
    */
   readonly encryption?: IEncryptionConfig;
   /**
-   * Deployment targets for CloudWatch Logs
-   *
-   * @see {@link DeploymentTargets}
+   * Specifies the organizational units and accounts where this log group will be deployed.
    */
   readonly deploymentTargets: t.IDeploymentTargets;
 }
@@ -2282,7 +3416,9 @@ export interface ILogGroupsConfig {
  * *{@link SecurityConfig} / {@link CloudWatchConfig}*
  *
  * @description
- * AWS CloudWatch configuration
+ * Configuration for AWS CloudWatch monitoring and logging services across your organization.
+ *
+ * @see https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html
  *
  * @example
  * ```
@@ -2336,9 +3472,7 @@ export interface ILogGroupsConfig {
  */
 export interface ICloudWatchConfig {
   /**
-   * List AWS CloudWatch Metrics configuration
-   *
-   * Following example will create metric filter RootAccountMetricFilter for aws-controltower/CloudTrailLogs log group
+   * Array of metric filter sets that extract metrics from log data for monitoring and alerting.
    *
    * @example
    * ```
@@ -2354,9 +3488,7 @@ export interface ICloudWatchConfig {
    */
   readonly metricSets: IMetricSetConfig[];
   /**
-   * List AWS CloudWatch Alarms configuration
-   *
-   * Following example will create CIS-1.1-RootAccountUsage alarm for RootAccountUsage metric with notification level low
+   * Array of alarm sets that monitor metrics and trigger notifications when thresholds are breached.
    *
    * @example
    * ```
@@ -2378,9 +3510,7 @@ export interface ICloudWatchConfig {
    */
   readonly alarmSets: IAlarmSetConfig[];
   /**
-   * (OPTIONAL) List CloudWatch Logs configuration
-   *
-   * The Following is an example of deploying CloudWatch Logs to multiple regions
+   * Array of CloudWatch log group configurations for centralized log management.
    *
    * @example
    * ```
@@ -2398,29 +3528,4 @@ export interface ICloudWatchConfig {
    * ```
    */
   readonly logGroups?: ILogGroupsConfig[];
-}
-
-/**
- * Accelerator security configuration
- */
-export interface ISecurityConfig {
-  /**
-   * Accelerator home region name.
-   *
-   * @example
-   * ```
-   * homeRegion: &HOME_REGION us-east-1
-   * ```
-   */
-  readonly homeRegion?: t.Region;
-  /**
-   * Central security configuration
-   */
-  readonly centralSecurityServices: ICentralSecurityServicesConfig;
-  readonly accessAnalyzer: IAccessAnalyzerConfig;
-  readonly iamPasswordPolicy: IIamPasswordPolicyConfig;
-  readonly awsConfig: IAwsConfig;
-  readonly cloudWatch: ICloudWatchConfig;
-  readonly keyManagementService?: IKeyManagementServiceConfig;
-  readonly resourcePolicyEnforcement?: IResourcePolicyEnforcementConfig;
 }

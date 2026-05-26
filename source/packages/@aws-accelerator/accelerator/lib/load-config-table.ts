@@ -15,7 +15,7 @@ import * as cdk from 'aws-cdk-lib';
 import { v4 as uuidv4 } from 'uuid';
 import { Construct } from 'constructs';
 import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '../../utils/lib/lambda';
-import path = require('path');
+import * as path from 'path';
 
 export interface LoadAcceleratorConfigTableProps {
   readonly acceleratorConfigTable: cdk.aws_dynamodb.ITable;
@@ -24,6 +24,7 @@ export interface LoadAcceleratorConfigTableProps {
   readonly logArchiveAccountEmail: string;
   readonly auditAccountEmail: string;
   readonly configS3Bucket: string;
+  readonly configDirS3Key: string;
   readonly organizationsConfigS3Key: string;
   readonly accountConfigS3Key: string;
   readonly replacementsConfigS3Key?: string;
@@ -77,6 +78,9 @@ export class LoadAcceleratorConfigTable extends Construct {
       runtime: CUSTOM_RESOURCE_PROVIDER_RUNTIME,
       timeout: cdk.Duration.minutes(15),
       memorySize: cdk.Size.mebibytes(1024),
+      environment: {
+        ACCELERATOR_STAGE: 'prepare',
+      },
       policyStatements: [
         {
           Sid: 'organizations',
@@ -97,7 +101,7 @@ export class LoadAcceleratorConfigTable extends Construct {
         {
           Sid: 'configTable',
           Effect: 'Allow',
-          Action: ['dynamodb:UpdateItem', 'dynamodb:PutItem'],
+          Action: ['dynamodb:UpdateItem', 'dynamodb:PutItem', 'dynamodb:Scan', 'dynamodb:DeleteItem'],
           Resource: [props.acceleratorConfigTable.tableArn],
         },
         {
@@ -109,8 +113,11 @@ export class LoadAcceleratorConfigTable extends Construct {
         {
           Sid: 's3',
           Effect: 'Allow',
-          Action: ['s3:GetObject'],
+          Action: ['s3:GetObject', 's3:ListBucket'],
           Resource: [
+            `arn:${cdk.Stack.of(this).partition}:s3:::cdk-accel-assets-${cdk.Stack.of(this).account}-${
+              cdk.Stack.of(this).region
+            }`,
             `arn:${cdk.Stack.of(this).partition}:s3:::cdk-accel-assets-${cdk.Stack.of(this).account}-${
               cdk.Stack.of(this).region
             }/*`,
@@ -142,6 +149,7 @@ export class LoadAcceleratorConfigTable extends Construct {
         auditAccountEmail: props.auditAccountEmail,
         logArchiveAccountEmail: props.logArchiveAccountEmail,
         configS3Bucket: props.configS3Bucket,
+        configDirS3Key: props.configDirS3Key,
         organizationsConfigS3Key: props.organizationsConfigS3Key,
         accountConfigS3Key: props.accountConfigS3Key,
         replacementsConfigS3Key: props.replacementsConfigS3Key,

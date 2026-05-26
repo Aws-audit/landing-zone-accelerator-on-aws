@@ -36,6 +36,7 @@ export enum AcceleratorStage {
   DEPENDENCIES = 'dependencies',
   SECURITY = 'security',
   SECURITY_RESOURCES = 'security-resources',
+  SECURITY_GUARDDUTY_S3_MALWARE = 'security-guardduty-s3-malware',
   OPERATIONS = 'operations',
   IDENTITY_CENTER = 'identity-center',
   NETWORK_PREP = 'network-prep',
@@ -49,4 +50,5 @@ export enum AcceleratorStage {
   FINALIZE = 'finalize',
   IMPORT_ASEA_RESOURCES = 'import-asea-resources',
   POST_IMPORT_ASEA_RESOURCES = 'post-import-asea-resources',
+  PRE_APPROVAL = 'pre-approval',
 }

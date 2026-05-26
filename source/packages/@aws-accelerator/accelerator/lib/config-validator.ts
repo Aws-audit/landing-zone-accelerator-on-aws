@@ -31,13 +31,17 @@ import {
   SecurityConfigValidator,
   ReplacementsConfigValidator,
 } from '@aws-accelerator/config';
-import { createLogger } from '@aws-accelerator/utils/lib/logger';
-import { Accelerator } from './accelerator';
-import { getReplacementsConfig } from '../utils/app-utils';
+import { createLogger, setExternalManagementAccountCredentials } from '@aws-accelerator/utils';
 
 const logger = createLogger(['config-validator']);
 const configDirPath = process.argv[2];
-const homeRegion = GlobalConfig.loadRawGlobalConfig(configDirPath).homeRegion;
+let homeRegion: string;
+try {
+  homeRegion = GlobalConfig.loadRawGlobalConfig(configDirPath).homeRegion;
+  logger.info('homeRegion set to ', homeRegion);
+} catch (e) {
+  logger.error('Failed on loadRawGlobalConfig', e);
+}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const initErrors: { file: string; message: any }[] = [];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,6 +70,8 @@ const props = {
   enableSingleAccountMode: enableSingleAccountMode,
   replacementsPresent: areReplacementsPresent(),
   regionByRegionDeployOrder,
+  // stage is needed to find if dynamoDB lookup is needed. ACCELERATOR_STAGE is set in codePipeline environments
+  stage: process.env['ACCELERATOR_STAGE'],
 };
 
 if (configDirPath) {
@@ -115,15 +121,20 @@ async function validateConfig(props: {
   account: string | undefined;
   replacementsPresent: boolean;
   regionByRegionDeployOrder: string | undefined;
+  stage: string | undefined;
 }) {
-  await Accelerator.getManagementAccountCredentials(props.partition);
-  const orgsEnabled = OrganizationConfig.loadRawOrganizationsConfig(configDirPath).enable;
-
+  let orgsEnabled: boolean;
+  try {
+    await setExternalManagementAccountCredentials(props.partition, homeRegion);
+    orgsEnabled = OrganizationConfig.loadRawOrganizationsConfig(configDirPath).enable;
+  } catch (e) {
+    logger.error('Failure in validationConfig', e);
+  }
   // Load accounts config
   let accountsConfig: AccountsConfig | undefined = undefined;
   try {
     accountsConfig = AccountsConfig.load(configDirPath);
-    await accountsConfig.loadAccountIds(props.partition, props.enableSingleAccountMode, orgsEnabled, accountsConfig);
+    await accountsConfig.loadAccountIds(props.partition, props.enableSingleAccountMode, orgsEnabled!, accountsConfig);
   } catch (e) {
     initErrors.push({ file: AccountsConfig.FILENAME, message: e });
   }
@@ -131,9 +142,8 @@ async function validateConfig(props: {
   // Load replacements config
   let replacementsConfig: ReplacementsConfig | undefined = undefined;
   try {
-    replacementsConfig = getReplacementsConfig(configDirPath, accountsConfig!);
-    const isOrgsEnabled = OrganizationConfig.loadRawOrganizationsConfig(configDirPath).enable;
-    await replacementsConfig.loadReplacementValues({ region: homeRegion }, isOrgsEnabled);
+    replacementsConfig = ReplacementsConfig.load(configDirPath, accountsConfig!);
+    await replacementsConfig.loadDynamicReplacements(homeRegion);
   } catch (e) {
     initErrors.push({ file: ReplacementsConfig.FILENAME, message: e });
   }
@@ -141,7 +151,7 @@ async function validateConfig(props: {
   // Load global config
   let globalConfig: GlobalConfig | undefined = undefined;
   try {
-    globalConfig = GlobalConfig.load(configDirPath, replacementsConfig);
+    globalConfig = GlobalConfig.load(configDirPath, replacementsConfig!);
   } catch (e) {
     initErrors.push({ file: GlobalConfig.FILENAME, message: e });
   }
@@ -149,7 +159,7 @@ async function validateConfig(props: {
   // Load IAM config
   let iamConfig: IamConfig | undefined = undefined;
   try {
-    iamConfig = IamConfig.load(configDirPath, replacementsConfig);
+    iamConfig = IamConfig.load(configDirPath, replacementsConfig!);
   } catch (e) {
     initErrors.push({ file: IamConfig.FILENAME, message: e });
   }
@@ -157,7 +167,7 @@ async function validateConfig(props: {
   // Load network config
   let networkConfig: NetworkConfig | undefined = undefined;
   try {
-    networkConfig = NetworkConfig.load(configDirPath, replacementsConfig);
+    networkConfig = NetworkConfig.load(configDirPath, replacementsConfig!);
   } catch (e) {
     initErrors.push({ file: NetworkConfig.FILENAME, message: e });
   }
@@ -165,7 +175,7 @@ async function validateConfig(props: {
   // Load organization config
   let organizationConfig: OrganizationConfig | undefined = undefined;
   try {
-    organizationConfig = OrganizationConfig.load(configDirPath, replacementsConfig);
+    organizationConfig = OrganizationConfig.load(configDirPath, replacementsConfig!);
   } catch (e) {
     initErrors.push({ file: OrganizationConfig.FILENAME, message: e });
   }
@@ -173,7 +183,7 @@ async function validateConfig(props: {
   // Load security config
   let securityConfig: SecurityConfig | undefined = undefined;
   try {
-    securityConfig = SecurityConfig.load(configDirPath, replacementsConfig);
+    securityConfig = SecurityConfig.load(configDirPath, replacementsConfig!);
   } catch (e) {
     initErrors.push({ file: SecurityConfig.FILENAME, message: e });
   }
@@ -182,7 +192,7 @@ async function validateConfig(props: {
   let customizationsConfig: CustomizationsConfig | undefined = undefined;
   if (fs.existsSync(path.join(configDirPath, CustomizationsConfig.FILENAME))) {
     try {
-      customizationsConfig = CustomizationsConfig.load(configDirPath, replacementsConfig);
+      customizationsConfig = CustomizationsConfig.load(configDirPath, replacementsConfig!);
     } catch (e) {
       initErrors.push({ file: CustomizationsConfig.FILENAME, message: e });
     }
@@ -239,7 +249,7 @@ function runValidators(
   // Accounts config validator
   if (accountsConfig && organizationConfig) {
     try {
-      new AccountsConfigValidator(accountsConfig, organizationConfig);
+      new AccountsConfigValidator(accountsConfig, organizationConfig).validate();
     } catch (e) {
       configErrors.push(e);
     }
@@ -291,7 +301,7 @@ function runValidators(
   // IAM config validator
   if (accountsConfig && globalConfig && iamConfig && networkConfig && organizationConfig && securityConfig) {
     try {
-      new IamConfigValidator(
+      const configValidator = new IamConfigValidator(
         iamConfig,
         accountsConfig,
         networkConfig,
@@ -299,6 +309,7 @@ function runValidators(
         securityConfig,
         configDirPath,
       );
+      configValidator.validate();
     } catch (e) {
       configErrors.push(e);
     }

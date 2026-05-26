@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`TransitGatewayPeering Construct(TransitGatewayPrefixListReference):  Snapshot Test 1`] = `
+exports[`TransitGatewayPeering > Construct(TransitGatewayPrefixListReference):  Snapshot Test 1`] = `
 {
   "Resources": {
     "CustomTransitGatewayAcceptPeeringCustomResourceProviderHandler692671C6": {
@@ -14,21 +14,26 @@ exports[`TransitGatewayPeering Construct(TransitGatewayPrefixListReference):  Sn
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomTransitGatewayAcceptPeeringCustomResourceProviderRole0A88B1D1",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
     },
     "CustomTransitGatewayAcceptPeeringCustomResourceProviderLogGroupB843F457": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "KmsKeyId": {
           "Fn::GetAtt": [

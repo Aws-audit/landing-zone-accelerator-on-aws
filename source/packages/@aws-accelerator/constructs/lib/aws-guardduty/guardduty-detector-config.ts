@@ -14,8 +14,7 @@
 import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-
-const path = require('path');
+import * as path from 'path';
 
 /**
  * Export config destination types
@@ -47,7 +46,7 @@ export interface GuardDutyDetectorConfigProps {
   /**
    * Malware Protection Snapshots retention
    */
-  readonly keepMalwareProtectionSnapshosts: boolean;
+  readonly keepMalwareProtectionSnapshots: boolean;
   /**
    * RDS Protection
    */

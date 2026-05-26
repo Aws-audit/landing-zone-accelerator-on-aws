@@ -12,12 +12,14 @@
  */
 
 import * as t from '../common/types';
+import { OrganizationalUnit, Root } from '@aws-sdk/client-organizations';
 
 /**
  * *{@link OrganizationConfig} / {@link OrganizationalUnitConfig}*
  *
  * @description
- * AWS Organizational Unit (OU) configuration
+ * Configuration for defining organizational units within your AWS organization structure.
+ * Organizational units provide hierarchical grouping of accounts and enable targeted application of governance policies.
  *
  * @example
  * ```
@@ -29,11 +31,11 @@ import * as t from '../common/types';
  */
 export interface IOrganizationalUnitConfig {
   /**
-   * The name and nested path that you want to assign to the OU.
-   * When referring to OU's in the other configuration files ensure
-   * that the name matches what has been provided here.
-   * For example if you wanted an OU directly off of root just supply the OU name.
+   * Name and hierarchical path for the organizational unit.
+   * Supports nested structures using forward slash notation (e.g., "Sandbox/Development/Application1").
+   * This name is used as a reference in other configuration sections.
    * Always configure all of the OUs in the path.
+   *
    * A nested OU configuration would be like this
    * - name: Sandbox
    * - name: Sandbox/Pipeline
@@ -42,9 +44,8 @@ export interface IOrganizationalUnitConfig {
    */
   readonly name: t.NonEmptyString;
   /**
-   * Optional property used to ignore organizational unit and
-   * the associated accounts
-   * Default value is false
+   * When set to true, excludes this organizational unit and its associated accounts from processing.
+   * Defaults to false if not specified.
    */
   readonly ignore?: boolean;
 }
@@ -53,6 +54,9 @@ export interface IOrganizationalUnitConfig {
  * *{@link OrganizationConfig} / {@link OrganizationalUnitIdConfig}
  *
  * @description
+ * Configuration for mapping organizational unit names to their AWS identifiers.
+ * Provides a way to bypass AWS Organizations API lookups by explicitly defining OU IDs and ARNs.
+ *
  * Organizational unit id configuration
  *
  * @example
@@ -65,24 +69,31 @@ export interface IOrganizationalUnitConfig {
  */
 export interface IOrganizationalUnitIdConfig {
   /**
-   * A name for the OU
+   * The logical name that identifies the organizational unit.
+   * Used as a reference key for mapping to the corresponding OU ID and ARN.
    */
   readonly name: t.NonEmptyString;
   /**
-   * OU id
+   * AWS Organizations unique identifier for the organizational unit.
    */
   readonly id: t.NonEmptyString;
   /**
-   * OU arn
+   * Amazon Resource Name (ARN) of the organizational unit.
    */
   readonly arn: t.NonEmptyString;
+  /**
+   * Optional AWS Organizations API response data.
+   * Contains the raw response from the Organizations service.
+   */
+  readonly orgsApiResponse?: OrganizationalUnit | Root;
 }
 
 /**
  * *{@link OrganizationConfig} / {@link QuarantineNewAccountsConfig}*
  *
  * @description
- * Quarantine SCP application configuration
+ * Configuration for automatically applying quarantine policies to newly created accounts.
+ * When enabled, applies a specified Service Control Policy to all new accounts for security isolation until proper setup is completed.
  *
  * @example
  * ```
@@ -93,24 +104,103 @@ export interface IOrganizationalUnitIdConfig {
  */
 export interface IQuarantineNewAccountsConfig {
   /**
-   * Indicates where or not a Quarantine policy is applied
-   * when new accounts are created. If enabled all accounts created by
-   * any means will have the configured policy applied.
+   * Controls whether quarantine policies are automatically applied to newly created accounts.
+   * When enabled, all accounts created by any means will have the specified SCP applied for security isolation.
    */
   readonly enable: boolean;
   /**
-   * The policy to apply to new accounts. This value must exist
-   * if the feature is enabled. The name must also match
-   * a policy that is defined in the serviceControlPolicy section.
+   * Name of the Service Control Policy to apply to new accounts for quarantine purposes.
+   * This value is required when quarantine is enabled and must match a policy defined in the serviceControlPolicies section.
    */
   readonly scpPolicyName?: t.NonEmptyString;
 }
-
+/**
+ * *{@link OrganizationConfig} / {@link DeclarativePolicyConfig}*
+ *
+ * @description
+ * Configuration structure for declarative policies that manage AWS service settings.
+ *
+ * @example
+ * ```
+ * declarativePolicies:
+ *   - name: DeclarativePolicy
+ *     description: Declarative Policy Controls
+ *     policy: path/to/declarative-policy.json
+ *     deploymentTargets:
+ *       organizationalUnits: []
+ * ```
+ */
+export interface IDeclarativePolicyConfig {
+  /**
+   * Unique identifier for the declarative policy.
+   * The regex pattern that is used to validate this parameter is a string of any of the characters in the ASCII character range.
+   */
+  readonly name: t.NonEmptyString;
+  /**
+   * Human-readable description explaining what AWS service settings this policy manages.
+   * Helps administrators understand the policy's purpose and scope.
+   */
+  readonly description: t.NonEmptyString;
+  /**
+   * Path to the JSON file containing the declarative policy definition.
+   * File must exist in the configuration repository and define the desired AWS service states.
+   */
+  readonly policy: t.NonEmptyString;
+  /**
+   * Specifies which organizational units or accounts this declarative policy will be applied to.
+   */
+  readonly deploymentTargets: t.IDeploymentTargets;
+}
+/**
+ * *{@link OrganizationConfig} / {@link ResourceControlPolicyConfig}*
+ *
+ * @description
+ * Configuration structure for resource control policies that establish data perimeters and control resource access.
+ *
+ * @example
+ * ```
+ * resourceControlPolicies:
+ *   - name: DataPerimeterControls
+ *     description: Data Perimeter Controls
+ *     policy: path/to/data-perimeter.json
+ *     deploymentTargets:
+ *       organizationalUnits: []
+ * ```
+ */
+export interface IResourceControlPolicyConfig {
+  /**
+   * Unique identifier for the resource control policy.
+   * The regex pattern that is used to validate this parameter is a string of any of the characters in the ASCII character range.
+   */
+  readonly name: t.NonEmptyString;
+  /**
+   * Human-readable description explaining what data perimeter controls this policy enforces.
+   * Helps administrators understand the policy's security purpose and scope.
+   */
+  readonly description: t.NonEmptyString;
+  /**
+   * Path to the JSON file containing the resource control policy definition.
+   * File must exist in the configuration repository and define resource access restrictions.
+   */
+  readonly policy: t.NonEmptyString;
+  /**
+   * Defines how the resource control policy is evaluated - either deny-list (default) or allow-list.
+   * Deny-list blocks specified resources, allow-list only permits specified resources.
+   * https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_rcps_evaluation.html
+   */
+  readonly strategy?: 'deny-list' | 'allow-list';
+  /**
+   * Specifies which organizational units this resource control policy will be applied to.
+   * Determines the scope of data perimeter enforcement.
+   */
+  readonly deploymentTargets: t.IDeploymentTargets;
+}
 /**
  * *{@link OrganizationConfig} / {@link ServiceControlPolicyConfig}*
  *
  * @description
- * Service control policy configuration
+ * Configuration structure for service control policies that define permission guardrails for AWS accounts.
+ * SCPs help establish security boundaries by controlling what actions users and roles can perform.
  *
  * @example
  * ```
@@ -125,41 +215,45 @@ export interface IQuarantineNewAccountsConfig {
  */
 export interface IServiceControlPolicyConfig {
   /**
-   * The friendly name to assign to the policy.
+   * Unique identifier for the service control policy.
    * The regex pattern that is used to validate this parameter is a string of any of the characters in the ASCII character range.
    */
   readonly name: t.NonEmptyString;
   /**
-   * A description to assign to the policy.
+   * Human-readable description explaining what permissions this policy controls.
+   * Helps administrators understand the policy's security purpose and scope.
    */
   readonly description: t.NonEmptyString;
   /**
-   * Service control definition json file. This file must be present in config repository
+   * Path to the JSON file containing the service control policy definition.
+   * File must exist in the configuration repository and define permission restrictions.
    */
   readonly policy: t.NonEmptyString;
   /**
-   * Kind of service control policy
+   * Specifies whether this is an AWS-managed or customer-managed policy.
+   * AWS-managed policies are predefined by AWS, customer-managed policies are custom.
    */
   readonly type: 'awsManaged' | 'customerManaged';
   /**
-   * Service control policy deployment targets
+   * Defines how the service control policy is evaluated - either deny-list (default) or allow-list.
+   * Deny-list blocks specified actions, allow-list only permits specified actions.
+   *
+   * @see https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps_strategies.html
    */
   readonly strategy?: 'deny-list' | 'allow-list';
   /**
-   * Service control policy strategy.
-   * https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps_strategies.html
+   * Specifies which organizational units this service control policy will be applied to.
+   * Determines the scope of permission enforcement.
    */
   readonly deploymentTargets: t.IDeploymentTargets;
 }
 
 /**
- * *{@link OrganizationConfig} / {@link TaggingPolicyConfig}*
+ * *{@link OrganizationConfig} / {@link ITaggingPolicyConfig}*
  *
  * @description
- * Organizations tag policy.
- *
- * Tag policies help you standardize tags on all tagged resources across your organization.
- * You can use tag policies to define tag keys (including how they should be capitalized) and their allowed values.
+ * Configuration structure for tagging policies that enforce consistent tag standards across your organization.
+ * Tagging policies help standardize tag keys, values, and capitalization on all tagged resources and define what values are allowed.
  *
  * @example
  * ```
@@ -174,32 +268,33 @@ export interface IServiceControlPolicyConfig {
  */
 export interface ITaggingPolicyConfig {
   /**
-   * The friendly name to assign to the policy.
+   * Unique identifier for the tagging policy.
    * The regex pattern that is used to validate this parameter is a string of any of the characters in the ASCII character range.
    */
   readonly name: t.NonEmptyString;
   /**
-   * A description to assign to the policy.
+   * Human-readable description explaining what tagging standards this policy enforces.
+   * Helps administrators understand the policy's compliance and governance purpose.
    */
   readonly description: t.NonEmptyString;
   /**
-   * Tagging policy definition json file. This file must be present in config repository
+   * Path to the JSON file containing the tagging policy definition.
+   * File must exist in the configuration repository and define required tags and allowed values.
    */
   readonly policy: t.NonEmptyString;
   /**
-   * Tagging policy deployment targets
+   * Specifies which organizational units this tagging policy will be applied to.
+   * Determines the scope of tag standardization enforcement.
    */
   readonly deploymentTargets: t.IDeploymentTargets;
 }
 
 /**
- * *{@link OrganizationConfig} / {@link TaggingPolicyConfig}*
+ * *{@link OrganizationConfig} / {@link IChatbotPolicyConfig}*
  *
  * @description
- * Chatbot policy.
- *
- * Chatbot policies allow you to control access to an organization's accounts
- * from chat applications such as Slack and Microsoft Teams.
+ * Configuration structure for chatbot policies that control AWS account access from chat applications.
+ * Chatbot policies help manage permissions and security for integrations with Slack, Microsoft Teams, and other chat platforms.
  *
  * @example
  * ```
@@ -214,20 +309,23 @@ export interface ITaggingPolicyConfig {
  */
 export interface IChatbotPolicyConfig {
   /**
-   * The friendly name to assign to the policy.
+   * Unique identifier for the chatbot policy.
    * The regex pattern that is used to validate this parameter is a string of any of the characters in the ASCII character range.
    */
   readonly name: t.NonEmptyString;
   /**
-   * A description to assign to the policy.
+   * Human-readable description explaining what chatbot access controls this policy enforces.
+   * Helps administrators understand the policy's security and integration purpose.
    */
   readonly description: t.NonEmptyString;
   /**
-   * Chatbot policy definition json file. This file must be present in config repository
+   * Path to the JSON file containing the chatbot policy definition.
+   * File must exist in the configuration repository and define chat application access permissions.
    */
   readonly policy: t.NonEmptyString;
   /**
-   * Chatbot policy deployment targets
+   * Specifies which organizational units this chatbot policy will be applied to.
+   * Determines the scope of chat application access control.
    */
   readonly deploymentTargets: t.IDeploymentTargets;
 }
@@ -236,10 +334,8 @@ export interface IChatbotPolicyConfig {
  * *{@link OrganizationConfig} / {@link BackupPolicyConfig}*
  *
  * @description
- * Organization backup policy
- *
- * Backup policies enable you to deploy organization-wide backup plans to help ensure compliance across your organization's accounts.
- * Using policies helps ensure consistency in how you implement your backup plans
+ * Configuration structure for backup policies that enforce consistent data protection across your organization.
+ * Backup policies help deploy organization-wide backup plans to ensure compliance and data recovery capabilities.
  *
  * @example
  * ```
@@ -254,40 +350,66 @@ export interface IChatbotPolicyConfig {
  */
 export interface IBackupPolicyConfig {
   /**
-   * The friendly name to assign to the policy.
+   * Unique identifier for the backup policy.
    * The regex pattern that is used to validate this parameter is a string of any of the characters in the ASCII character range.
    */
   readonly name: t.NonEmptyString;
   /**
-   * A description to assign to the policy.
+   * Human-readable description explaining what backup requirements this policy enforces.
+   * Helps administrators understand the policy's data protection and compliance purpose.
    */
   readonly description: t.NonEmptyString;
   /**
-   * Backup policy definition json file. This file must be present in config repository
+   * Path to the JSON file containing the backup policy definition.
+   * File must exist in the configuration repository and define backup plans and schedules.
    */
   readonly policy: t.NonEmptyString;
   /**
-   * Backup policy deployment targets
+   * Specifies which organizational units this backup policy will be applied to.
+   * Determines the scope of backup requirement enforcement.
    */
   readonly deploymentTargets: t.IDeploymentTargets;
 }
 
 /**
  * Organization configuration
+ *
+ * Defines organizational structure and governance policies to be deployed across your multi-account environment.
+ * Controls whether organizational management is enabled and specifies the account hierarchy, security policies,
+ * and automated controls that will be applied.
  */
 export interface IOrganizationConfig {
   /**
-   * Indicates whether AWS Organization enabled.
+   * Declarative policy configurations that manage AWS service settings across organizational units.
+   * The policy content is loaded from a JSON file from the path specified.
+   * File must exist in the configuration repository.
+   *
+   * @see https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_declarative.html
+   *
+   * @example
+   * ```
+   * declarativePolicies:
+   *   - name: ResrictHttpsConnection
+   *     description: >
+   *       This policy restricts making AMIs public and enable serial console access
+   *     policy: declarative-policies/ec2-settings.json
+   *     type: customerManaged
+   *     deploymentTargets:
+   *       organizationalUnits:
+   *         - Infrastructure
+   * ```
+   */
+  readonly declarativePolicies?: IDeclarativePolicyConfig[];
+  /**
+   * Controls whether AWS Organizations features are enabled for the management account.
+   * When set to true, enables the organizational structure and policies defined in this configuration.
    *
    */
   readonly enable: boolean;
   /**
-   * A Record of Organizational Unit configurations
+   * List of Organizational Units to be created or managed. Supports nested organizational unit structures using forward slash notation.
    *
-   * @see OrganizationalUnitConfig
-   *
-   * To create Security and Infrastructure OU in root , you need to provide following values for this parameter.
-   * Nested OU's start at root and configure all of the ou's in the path
+   * @see https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_ous.html
    *
    * @example
    * ```
@@ -304,20 +426,44 @@ export interface IOrganizationConfig {
   /**
    * Optionally provide a list of Organizational Unit IDs to bypass the usage of the
    * AWS Organizations Client lookup. This is not a readonly member since we
-   * will initialize it with values if it is not provided
+   * will initialize it with values if it is not provided.
    */
   readonly organizationalUnitIds?: IOrganizationalUnitIdConfig[];
   /**
-   * A record of Quarantine New Accounts configuration
-   * @see QuarantineNewAccountsConfig
+   * Configuration for automatically applying quarantine policies to newly created accounts.
+   * When enabled, applies a specified Service Control Policy to all new accounts for security isolation.
    */
   readonly quarantineNewAccounts?: IQuarantineNewAccountsConfig;
   /**
-   * A Record of Service Control Policy configurations
+   * Resource Control Policy configurations for controlling access to AWS resources.
+   * RCPs help establish data perimeters and restrict resource access patterns.
+   * The policy content is loaded from a JSON file from the path specified and deployed to the specified organizational units.
+   * File must exist in the configuration repository.
    *
-   * @see ServiceControlPolicyConfig
+   * @see https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_rcps.html
    *
-   * To create service control policy named DenyDeleteVpcFlowLogs from service-control-policies/deny-delete-vpc-flow-logs.json file in config repository, you need to provide following values for this parameter.
+   * @example
+   * ```
+   * resourceControlPolicies:
+   *   - name: ResrictHttpsConnection
+   *     description: >
+   *       This RCP restricts access to only HTTPS connections to your resources.
+   *     policy: resource-control-policies/restrict-https-connections.json
+   *     type: customerManaged
+   *     strategy: deny-list # defines RCP strategy - deny-list or allow-list. See https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_rcps_evaluation.html#how_rcps_deny
+   *     deploymentTargets:
+   *       organizationalUnits:
+   *         - Security
+   * ```
+   */
+  readonly resourceControlPolicies?: IResourceControlPolicyConfig[];
+  /**
+   * Service Control Policy configurations that define maximum permissions for users and roles.
+   * SCPs act as guardrails to prevent certain actions.
+   * The policy content is loaded from a JSON file from the path specified and deployed to the specified organizational units.
+   * File must exist in the configuration repository.
+   *
+   * @see https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html
    *
    * @example
    * ```
@@ -337,11 +483,11 @@ export interface IOrganizationConfig {
    */
   readonly serviceControlPolicies: IServiceControlPolicyConfig[];
   /**
-   * A Record of Tagging Policy configurations
+   * Tagging policy configurations that standardize tags across resources in organizational units.
+   * The policy content is loaded from a JSON file from the path specified and deployed to the specified organizational units.
+   * File must exist in the configuration repository.
    *
-   * @see TaggingPolicyConfig
-   *
-   * To create tagging policy named TagPolicy from tagging-policies/org-tag-policy.json file in config repository, you need to provide following values for this parameter.
+   * @see https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_tag-policies.html
    *
    * @example
    * ```
@@ -356,11 +502,13 @@ export interface IOrganizationConfig {
    */
   readonly taggingPolicies: ITaggingPolicyConfig[];
   /**
-   * A list of Chatbot Policy configurations
+   * Chat applications policy configurations that control access to organization accounts from chat applications.
+   * These policies enforce which chat applications can be used and restrict access to specific workspaces and channels.
+   * The policy content is loaded from a JSON file from the path specified and deployed to the specified organizational units.
+   * File must exist in the configuration repository.
    *
-   * @see ChatbotPolicyConfig
+   * @see https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_chatbot.html
    *
-   * To create chatbot policy named ChatbotPolicy from chatbot-policies/org-chatbot-policy.json file in config repository, you need to provide following values for this parameter.
    *
    * @example
    * ```
@@ -375,11 +523,12 @@ export interface IOrganizationConfig {
    */
   readonly chatbotPolicies?: IChatbotPolicyConfig[];
   /**
-   * A Record of Backup Policy configurations
+   * Backup policy configurations that enforce organization-wide backup requirements across organizational units.
+   * These policies ensure consistent backup strategies and compliance across accounts.
+   * The policy content is loaded from a JSON file from the path specified and deployed to the specified organizational units.
+   * File must exist in the configuration repository.
    *
-   * @see BackupPolicyConfig
-   *
-   * To create backup policy named BackupPolicy from backup-policies/org-backup-policies.json file in config repository, you need to provide following values for this parameter.
+   * @see https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_backup.html
    *
    * @example
    * ```

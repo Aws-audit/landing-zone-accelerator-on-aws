@@ -11,7 +11,7 @@
  *  and limitations under the License.
  */
 import { EnablePolicyTypeCommand, ListRootsCommand, OrganizationsClient } from '@aws-sdk/client-organizations';
-import { afterEach, beforeEach, expect, it } from '@jest/globals';
+import { afterEach, beforeEach, expect, it } from 'vitest';
 import { AwsClientStub, mockClient } from 'aws-sdk-client-mock';
 import { handler } from '../../../lib/aws-organizations/enable-policy-type/index';
 import {
@@ -76,7 +76,7 @@ const createEventBackup: CloudFormationCustomResourceCreateEvent = {
 };
 
 // When
-it('@aws-accelerator/constructs/aws-organizations/enable-policy-type create event -- policies already enabled', async () => {
+it('@aws-accelerator/constructs/lib/aws-organizations/enable-policy-type create event -- policies already enabled', async () => {
   orgsMock.on(ListRootsCommand).resolves({
     Roots: [
       {
@@ -103,7 +103,7 @@ it('@aws-accelerator/constructs/aws-organizations/enable-policy-type create even
 });
 
 // When
-it('@aws-accelerator/constructs/aws-organizations/enable-policy-type create event -- policies not enabled', async () => {
+it('@aws-accelerator/constructs/lib/aws-organizations/enable-policy-type create event -- policies not enabled', async () => {
   orgsMock.on(ListRootsCommand).resolves({
     Roots: [{ Id: 'r-123456', Name: 'Root' }],
   });

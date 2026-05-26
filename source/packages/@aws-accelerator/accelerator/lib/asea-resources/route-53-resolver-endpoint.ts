@@ -1,9 +1,9 @@
 import { AseaResourceType } from '@aws-accelerator/config';
+import { getAseaVpcName, SsmResourceType } from '@aws-accelerator/utils';
 import { ImportAseaResourcesStack, LogLevel } from '../stacks/import-asea-resources-stack';
 import { AseaResource, AseaResourceProps } from './resource';
 import * as cdk from 'aws-cdk-lib';
 import { pascalCase } from 'pascal-case';
-import { SsmResourceType } from '@aws-accelerator/utils';
 
 const ASEA_PHASE_NUMBER = '3';
 const enum RESOURCE_TYPE {
@@ -35,12 +35,17 @@ export class Route53ResolverEndpoint extends AseaResource {
       return;
     }
     for (const vpcItem of this.props.networkConfig.vpcs) {
+      if (vpcItem.region !== this.scope.region) {
+        continue;
+      }
+
       for (const endpointItem of vpcItem.vpcRoute53Resolver?.endpoints ?? []) {
         if (endpointItem.type === 'OUTBOUND') {
           // Set Resolver Endpoint
+          const aseaConfigVpcName = getAseaVpcName(vpcItem.name).replace('_vpc', '');
           const resolverEndpointCfn = this.scope.importStackResources.getResourceByName(
             'Name',
-            `${vpcItem.name} Outbound Endpoint`.replace('_vpc', ''),
+            `${aseaConfigVpcName} Outbound Endpoint`,
           );
           if (resolverEndpointCfn) {
             // Need to pull the logical ID
@@ -67,9 +72,10 @@ export class Route53ResolverEndpoint extends AseaResource {
         }
         if (endpointItem.type === 'INBOUND') {
           // Set Resolver Endpoint
+          const aseaConfigVpcName = getAseaVpcName(vpcItem.name).replace('_vpc', '');
           const resolverEndpointCfn = this.scope.importStackResources.getResourceByName(
             'Name',
-            `${vpcItem.name} Inbound Endpoint`.replace('_vpc', ''),
+            `${aseaConfigVpcName} Inbound Endpoint`,
           );
           if (resolverEndpointCfn) {
             // Need to pull the logical ID

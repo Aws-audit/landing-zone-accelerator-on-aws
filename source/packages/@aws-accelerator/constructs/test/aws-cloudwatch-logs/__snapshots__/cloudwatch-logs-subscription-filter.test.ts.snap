@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`CloudWatchLogsSubscriptionFilter Construct(CloudWatchLogsSubscriptionFilter):  Snapshot Test 1`] = `
+exports[`CloudWatchLogsSubscriptionFilter > Construct(CloudWatchLogsSubscriptionFilter):  Snapshot Test 1`] = `
 {
   "Resources": {
     "CloudWatchLogsSubscriptionFilter90533F2E": {
@@ -196,15 +196,22 @@ exports[`CloudWatchLogsSubscriptionFilter Construct(CloudWatchLogsSubscriptionFi
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "AWS_STS_REGIONAL_ENDPOINTS": "regional",
+            "NO_OP": "false",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomUpdateSubscriptionFilterCustomResourceProviderRole81A1751E",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",

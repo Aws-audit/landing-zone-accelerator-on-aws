@@ -16,7 +16,7 @@ import {
   IRegisterOrganizationalUnitModule,
 } from '../../../interfaces/control-tower/register-organizational-unit';
 
-import { createLogger } from '../../../common/logger';
+import { createLogger, createStatusLogger } from '../../../common/logger';
 import { throttlingBackOff } from '../../../common/throttle';
 import path from 'path';
 import {
@@ -41,6 +41,8 @@ import {
   GetBaselineOperationCommand,
   paginateListBaselines,
   paginateListEnabledBaselines,
+  ResetEnabledBaselineCommand,
+  UpdateEnabledBaselineCommand,
 } from '@aws-sdk/client-controltower';
 import { AcceleratorModuleName } from '../../../common/resources';
 import { OrganizationsClient } from '@aws-sdk/client-organizations';
@@ -49,6 +51,7 @@ import { STSClient } from '@aws-sdk/client-sts';
 
 export class RegisterOrganizationalUnitModule implements IRegisterOrganizationalUnitModule {
   private readonly logger = createLogger([path.parse(path.basename(__filename)).name]);
+  private readonly statusLogger = createStatusLogger([path.parse(path.basename(__filename)).name]);
 
   /**
    * Handler function to enable baseline for AWS Organizations organizational unit (OU)
@@ -118,7 +121,6 @@ export class RegisterOrganizationalUnitModule implements IRegisterOrganizational
         }),
         ouId,
         props.partition,
-        props.configuration.organizationalUnitId,
       );
     }
 
@@ -200,18 +202,28 @@ export class RegisterOrganizationalUnitModule implements IRegisterOrganizational
       return message;
     }
 
-    if (ouRegisteredInControlTower && currentBaselineVersion !== baselineVersion) {
-      const message = `AWS Organizations organizational unit (OU) "${ouName}" is already registered with AWS Control Tower, but the baseline version is "${currentBaselineVersion}" which is different from expected baseline version "${baselineVersion}" and registration status is "${currentRegistrationStatus}", update baseline is required for OU, perform update baseline from console.`;
-      this.logger.warn(message);
-      return message;
-    }
-
     const parameters: EnabledBaselineParameter[] = [];
 
-    parameters.push({
-      key: 'IdentityCenterEnabledBaselineArn',
-      value: identityCenterBaselineIdentifier,
-    });
+    if (identityCenterBaselineIdentifier) {
+      parameters.push({
+        key: 'IdentityCenterEnabledBaselineArn',
+        value: identityCenterBaselineIdentifier,
+      });
+    }
+
+    if (ouRegisteredInControlTower && currentBaselineVersion !== baselineVersion) {
+      this.logger.info(
+        `AWS Organizations organizational unit (OU) "${ouName}" baseline version is "${currentBaselineVersion}" which is different from expected baseline version "${baselineVersion}". Updating baseline...`,
+      );
+      return await this.updateOuBaseline(
+        client,
+        ouName,
+        ouArn,
+        baselineVersion,
+        ouRegisteredInControlTower.arn!,
+        parameters,
+      );
+    }
 
     if (!ouRegisteredInControlTower) {
       return await this.registerOuWithControlTower(
@@ -224,10 +236,14 @@ export class RegisterOrganizationalUnitModule implements IRegisterOrganizational
       );
     }
 
-    const message = `AWS Organizations organizational unit (OU) "${ouName}" is already registered with AWS Control Tower, registration status is "${currentRegistrationStatus}" and baseline version is "${currentBaselineVersion}", operation skipped.`;
+    if (props.configuration.reregisterOu) {
+      this.logger.info(
+        `Re-registration requested for AWS Organizations organizational unit (OU) "${ouName}". Resetting baseline...`,
+      );
+      return await this.resetOuBaseline(client, ouName, ouArn, baselineVersion, ouRegisteredInControlTower.arn!);
+    }
 
-    this.logger.warn(message);
-    return message;
+    return `AWS Organizations organizational unit (OU) "${ouName}" is already registered with AWS Control Tower, registration status is "${currentRegistrationStatus}" and baseline version is "${currentBaselineVersion}", operation skipped.`;
   }
 
   /**
@@ -276,6 +292,100 @@ export class RegisterOrganizationalUnitModule implements IRegisterOrganizational
   }
 
   /**
+   * Function to update OU baseline in AWS Control Tower
+   * @param client {@link ControlTowerClient}
+   * @param ouName string
+   * @param ouArn string
+   * @param baselineVersion string
+   * @param enabledBaselineIdentifier string
+   * @param parameters {@link EnabledBaselineParameter}[]
+   * @returns string
+   */
+  private async updateOuBaseline(
+    client: ControlTowerClient,
+    ouName: string,
+    ouArn: string,
+    baselineVersion: string,
+    enabledBaselineIdentifier: string,
+    parameters: EnabledBaselineParameter[],
+  ): Promise<string> {
+    this.statusLogger.info(
+      `Updating baseline for AWS Organizations organizational unit (OU) "${ouName}" to version "${baselineVersion}".`,
+    );
+
+    const response = await throttlingBackOff(() =>
+      client.send(
+        new UpdateEnabledBaselineCommand({
+          enabledBaselineIdentifier: enabledBaselineIdentifier,
+          baselineVersion: baselineVersion,
+          parameters,
+        }),
+      ),
+    );
+
+    if (!response.operationIdentifier) {
+      throw new Error(
+        `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: UpdateEnabledBaseline api did not return operationIdentifier property while updating baseline for AWS Organizations organizational unit (OU) "${ouName}".`,
+      );
+    }
+
+    await this.waitUntilBaselineCompletes(client, ouName, ouArn, response.operationIdentifier);
+
+    const status = `Baseline update for AWS Organizations organizational unit (OU) "${ouName}" to version "${baselineVersion}" is successful.`;
+
+    this.logger.info(status);
+    return status;
+  }
+
+  /**
+   * Function to reset OU baseline in AWS Control Tower by disabling and re-enabling
+   * @param client {@link ControlTowerClient}
+   * @param ouName string
+   * @param ouArn string
+   * @param baselineVersion string
+   * @param enabledBaselineIdentifier string
+   * @returns string
+   */
+  private async resetOuBaseline(
+    client: ControlTowerClient,
+    ouName: string,
+    ouArn: string,
+    baselineVersion: string,
+    enabledBaselineIdentifier: string,
+  ): Promise<string> {
+    this.logger.info(
+      `Resetting baseline for AWS Organizations organizational unit (OU) "${ouName}" by re-registering with AWS Control Tower.`,
+    );
+
+    // Note: AWS Control Tower does not provide a direct reset API
+    // The reset is achieved by updating the baseline which will refresh the configuration
+    this.statusLogger.info(
+      `Updating baseline for AWS Organizations organizational unit (OU) "${ouName}" to version "${baselineVersion}" to reset configuration.`,
+    );
+
+    const response = await throttlingBackOff(() =>
+      client.send(
+        new ResetEnabledBaselineCommand({
+          enabledBaselineIdentifier: enabledBaselineIdentifier,
+        }),
+      ),
+    );
+
+    if (!response.operationIdentifier) {
+      throw new Error(
+        `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: UpdateEnabledBaseline api did not return operationIdentifier property while resetting baseline for AWS Organizations organizational unit (OU) "${ouName}".`,
+      );
+    }
+
+    await this.waitUntilBaselineCompletes(client, ouName, ouArn, response.operationIdentifier);
+
+    const status = `Baseline reset for AWS Organizations organizational unit (OU) "${ouName}" to version "${baselineVersion}" is successful.`;
+
+    this.logger.info(status);
+    return status;
+  }
+
+  /**
    * Function to check and wait till the AWS Organizations organizational unit registration completion.
    * @param client {@link ControlTowerClient}
    * @param ouName string
@@ -304,8 +414,8 @@ export class RegisterOrganizationalUnitModule implements IRegisterOrganizational
           `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: AWS Organizations organizational unit "${ouName}" baseline operation took more than ${timeoutInMinutes} minutes. Pipeline aborted, please review AWS Control Tower console to make sure organization unit registration completes.`,
         );
       }
-      this.logger.info(
-        `AWS Organizations organizational unit "${ouName}" baseline operation with identifier "${operationIdentifier}" is currently in "${status}" state. After ${queryIntervalInMinutes} minutes delay, the status will be rechecked. Elapsed time ${elapsedInMinutes} minutes.`,
+      this.statusLogger.info(
+        `AWS Organizations organizational unit "${ouName}" baseline operation with identifier "${operationIdentifier}" is currently in "${status}" state. After ${queryIntervalInMinutes} minutes delay, the status will be rechecked.`,
       );
     }
   }
@@ -475,8 +585,9 @@ export class RegisterOrganizationalUnitModule implements IRegisterOrganizational
     const landingZoneVersionSet1 = ['2.0', '2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7'];
     const landingZoneVersionSet2 = ['2.8', '2.9'];
     const landingZoneVersionSet3 = ['3.0', '3.1'];
+    const landingZoneVersionSet4 = ['3.2', '3.3'];
 
-    const baselineVersion = '4.0';
+    const baselineVersion = '5.0';
 
     if (landingZoneVersionSet1.includes(landingZoneVersion)) {
       return '1.0';
@@ -486,6 +597,9 @@ export class RegisterOrganizationalUnitModule implements IRegisterOrganizational
     }
     if (landingZoneVersionSet3.includes(landingZoneVersion)) {
       return '3.0';
+    }
+    if (landingZoneVersionSet4.includes(landingZoneVersion)) {
+      return '4.0';
     }
 
     return baselineVersion;

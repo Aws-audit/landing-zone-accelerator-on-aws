@@ -15,7 +15,7 @@ import { DEFAULT_LAMBDA_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
-import path = require('path');
+import * as path from 'path';
 
 export interface WarmAccountProps {
   readonly cloudwatchKmsKey?: cdk.aws_kms.IKey;
@@ -167,7 +167,7 @@ export class WarmAccount extends Construct {
       logGroupName: `/aws/lambda/${this.onEvent.functionName}`,
       retention: props.logRetentionInDays,
       encryptionKey: props.cloudwatchKmsKey,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
     });
 
     this.isComplete = new cdk.aws_lambda.Function(this, 'WarmAccountStatusFunction', {
@@ -183,7 +183,7 @@ export class WarmAccount extends Construct {
       logGroupName: `/aws/lambda/${this.isComplete.functionName}`,
       retention: props.logRetentionInDays,
       encryptionKey: props.cloudwatchKmsKey,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
     });
     const waiterStateMachineLogGroup = new cdk.aws_logs.LogGroup(this, `${this.onEvent.node.id}WaiterLogGroup`, {
       logGroupName: `/aws/vendedlogs/states/waiter-state-machine/${this.onEvent.node.id}`,

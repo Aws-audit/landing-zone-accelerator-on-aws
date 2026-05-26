@@ -33,7 +33,7 @@ export function throttlingBackOff<T>(
 }
 
 export const isThrottlingError = (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/explicit-module-boundary-types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   e: any,
 ): boolean => {
   return (
@@ -57,6 +57,7 @@ export const isThrottlingError = (
     e.code === 'EPIPE' ||
     e.code === 'ETIMEDOUT' ||
     // SDKv3 Error Structure
+    e.name === 'PolicyTypeNotEnabledException' || // Retry for Resource Control Policies
     e.name === 'ConcurrentModificationException' || // Retry for AWS Organizations
     e.name === 'InsufficientDeliveryPolicyException' || // Retry for ConfigService
     e.name === 'NoAvailableDeliveryChannelException' || // Retry for ConfigService

@@ -27,7 +27,7 @@ import {
   TransitGatewayPeering,
   Vpc,
 } from '@aws-accelerator/constructs';
-import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
+import { SsmResourceType, MetadataKeys } from '@aws-accelerator/utils';
 import * as cdk from 'aws-cdk-lib';
 import { NagSuppressions } from 'cdk-nag';
 import { pascalCase } from 'pascal-case';
@@ -35,6 +35,7 @@ import { AcceleratorStackProps } from '../../accelerator-stack';
 import { LogLevel } from '../network-stack';
 import { getSubnet, getTransitGatewayId, getVpc } from '../utils/getter-utils';
 import { NetworkVpcStack } from './network-vpc-stack';
+import { LZAResourceLookup, LZAResourceLookupType } from '../../../../utils/lza-resource-lookup';
 
 export class TgwResources {
   public readonly tgwAttachmentMap: Map<string, ITransitGatewayAttachment>;
@@ -42,6 +43,7 @@ export class TgwResources {
   public readonly vpcAttachmentRole?: cdk.aws_iam.Role;
 
   private stack: NetworkVpcStack;
+  private lzaLookup: LZAResourceLookup;
 
   constructor(
     networkVpcStack: NetworkVpcStack,
@@ -51,6 +53,16 @@ export class TgwResources {
     props: AcceleratorStackProps,
   ) {
     this.stack = networkVpcStack;
+
+    this.lzaLookup = new LZAResourceLookup({
+      accountId: this.stack.account,
+      region: this.stack.region,
+      aseaResourceList: this.stack.props.globalConfig.externalLandingZoneResources?.resourceList ?? [],
+      enableV2Stacks: this.stack.props.globalConfig.useV2Stacks,
+      externalLandingZoneResources:
+        this.stack.props.globalConfig.externalLandingZoneResources?.importExternalLandingZoneResources,
+      stackName: this.stack.stackName,
+    });
 
     // Create cross-account access role for TGW attachments, if applicable
     this.vpcAttachmentRole = this.createTgwAttachmentRole(this.stack.vpcsInScope, props);
@@ -80,6 +92,8 @@ export class TgwResources {
     // Get account IDs of external accounts hosting TGWs
     const transitGatewayAccountIds = this.getTgwOwningAccountIds(vpcResources, props);
 
+    const roleName = `${props.prefixes.accelerator}-GetTgwAttachmentRole-${cdk.Stack.of(this.stack).region}`;
+
     // Create cross account access role to read transit gateway attachments if
     // there are other accounts in the list
     if (transitGatewayAccountIds.length > 0) {
@@ -94,8 +108,8 @@ export class TgwResources {
           props.prefixes.accelerator
         }-*-CustomGetTransitGateway*`,
       ];
-      const role = new cdk.aws_iam.Role(this.stack, 'DescribeTgwAttachRole', {
-        roleName: `${props.prefixes.accelerator}-DescribeTgwAttachRole-${cdk.Stack.of(this.stack).region}`,
+      const role = new cdk.aws_iam.Role(this.stack, 'GetTgwAttachmentRole', {
+        roleName: roleName,
         inlinePolicies: {
           default: new cdk.aws_iam.PolicyDocument({
             statements: [
@@ -116,19 +130,23 @@ export class TgwResources {
           },
         }),
       });
+      (role.node.defaultChild as cdk.aws_iam.CfnRole).addMetadata(MetadataKeys.LZA_LOOKUP, {
+        roleName,
+      });
       // AwsSolutions-IAM5: The IAM entity contains wildcard permissions and does not have a cdk_nag rule suppression with evidence for those permission.
       // rule suppression with evidence for this permission.
       NagSuppressions.addResourceSuppressionsByPath(
         this.stack,
-        `${this.stack.stackName}/DescribeTgwAttachRole/Resource`,
+        `${this.stack.stackName}/GetTgwAttachmentRole/Resource`,
         [
           {
             id: 'AwsSolutions-IAM5',
             reason:
-              'DescribeTgwAttachRole needs access to every describe each transit gateway attachment in the account',
+              'GetTgwAttachmentRole needs access to every describe each transit gateway attachment in the account',
           },
         ],
       );
+
       return role;
     }
     return undefined;
@@ -183,9 +201,30 @@ export class TgwResources {
 
     for (const vpcItem of vpcResources) {
       for (const tgwAttachmentItem of vpcItem.transitGatewayAttachments ?? []) {
+        // Determine the TGW-VPC resource type based on partition
+        const resourceType =
+          partition === 'aws'
+            ? LZAResourceLookupType.TRANSIT_GATEWAY_VPC_ATTACHMENT
+            : LZAResourceLookupType.TRANSIT_GATEWAY_ATTACHMENT;
+        if (
+          !this.lzaLookup.resourceExists({
+            resourceType,
+            lookupValues: {
+              vpcName: vpcItem.name,
+              transitGatewayName: tgwAttachmentItem.transitGateway.name,
+              transitGatewayAttachmentName: tgwAttachmentItem.name,
+            },
+          })
+        ) {
+          continue;
+        }
+
         // Retrieve resources from maps
         const transitGatewayId = getTransitGatewayId(transitGatewayIds, tgwAttachmentItem.transitGateway.name);
         const vpc = getVpc(vpcMap, vpcItem.name) as Vpc;
+        if (!vpc) {
+          continue;
+        }
         const subnetIds = this.getAttachmentSubnetIds(tgwAttachmentItem, vpcItem.name, subnetMap);
 
         this.stack.addLogs(
@@ -224,6 +263,12 @@ export class TgwResources {
               tags: tgwAttachmentItem.tags,
             },
           );
+          const resource = attachment.node.defaultChild as cdk.CfnResource;
+          resource.addMetadata(MetadataKeys.LZA_LOOKUP, {
+            vpcName: vpc.name,
+            transitGatewayName: tgwAttachmentItem.transitGateway.name,
+            transitGatewayAttachmentName: tgwAttachmentItem.name,
+          });
           this.stack.addSsmParameter({
             logicalId: pascalCase(
               `SsmParam${pascalCase(vpcItem.name) + pascalCase(tgwAttachmentItem.name)}TransitGatewayAttachmentId`,
@@ -352,6 +397,18 @@ export class TgwResources {
     const principals = this.createAcceptorList(props);
 
     for (const transitGatewayPeeringItem of props.networkConfig.transitGatewayPeering ?? []) {
+      if (
+        this.stack.isManagedByAsea(
+          AseaResourceType.TRANSIT_GATEWAY_PEERING_REQUESTER,
+          `${transitGatewayPeeringItem.requester.transitGatewayName}/${transitGatewayPeeringItem.name}`,
+        )
+      ) {
+        this.stack.addLogs(
+          LogLevel.INFO,
+          `${transitGatewayPeeringItem.requester.transitGatewayName}/${transitGatewayPeeringItem.name} is managed by ASEA, skipping creation of resources.`,
+        );
+        continue;
+      }
       // Get account IDs
       const requesterAccountId = props.accountsConfig.getAccountId(transitGatewayPeeringItem.requester.account);
       const accepterAccountId = props.accountsConfig.getAccountId(transitGatewayPeeringItem.accepter.account);

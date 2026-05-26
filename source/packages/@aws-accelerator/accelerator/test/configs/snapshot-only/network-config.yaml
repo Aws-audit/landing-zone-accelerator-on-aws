@@ -20,6 +20,24 @@ transitGatewayConnects:
         value: CentralInspection
 
 transitGateways:
+  - name: MutlicastTgw
+    account: Network
+    region: *HOME_REGION
+    shareTargets:
+      organizationalUnits:
+        - Infrastructure
+    asn: 65426
+    dnsSupport: enable
+    vpnEcmpSupport: enable
+    defaultRouteTableAssociation: disable
+    defaultRouteTablePropagation: disable
+    autoAcceptSharingAttachments: enable
+    multicastSupport: enable
+    routeTables:
+      - name: Multicast-Core
+        routes: []
+      - name: Multicast-Isolated
+        routes: []
   - name: Network-Main
     account: Network
     region: *HOME_REGION
@@ -83,6 +101,40 @@ transitGateways:
           - destinationPrefixList: accelerator-prefix-list
             attachment:
               vpnConnectionName: same-account-tgw-vpn
+    transitGatewayFlowLogs:
+      maxAggregationInterval: 60
+      destinations:
+        - s3
+        - cloud-watch-logs
+      destinationsConfig:
+        s3:
+          lifecycleRules:
+            - enabled: true
+              id: TgwFlowLogsLifecycle
+              expiration: 365
+              transitions:
+                - storageClass: GLACIER
+                  transitionAfter: 90
+        cloudWatchLogs:
+          retentionInDays: 180
+      defaultFormat: false
+      customFields:
+        - version
+        - resource-type
+        - account-id
+        - tgw-id
+        - tgw-attachment-id
+        - tgw-src-vpc-account-id
+        - tgw-dst-vpc-account-id
+        - tgw-src-subnet-id
+        - tgw-dst-subnet-id
+        - protocol
+        - packets
+        - bytes
+        - start
+        - end
+        - log-status
+        - tcp-flags
   - name: Network-Main-2
     account: Network
     region: *HOME_REGION
@@ -450,6 +502,8 @@ centralNetworkServices:
           statefulRuleGroups:
             - name: accelerator-rule-group
             - name: domain-list-group
+            - managedStatefulRuleGroupName: AbusedLegitBotNetCommandAndControlDomainsActionOrder
+            - managedStatefulRuleGroupName: AttackInfrastructureActionOrder
         shareTargets:
           organizationalUnits:
             - Infrastructure
@@ -579,6 +633,22 @@ centralNetworkServices:
         subnets:
           - Network-Endpoints-A
           - Network-Endpoints-B
+      - name: accelerator-inbound-fips
+        type: INBOUND
+        vpc: Network-Endpoints
+        protocols:
+          - DoH-FIPS
+        subnets:
+          - Network-Endpoints-A
+          - Network-Endpoints-B
+      - name: accelerator-inbound-doh
+        type: INBOUND
+        vpc: Network-Endpoints
+        protocols:
+          - DoH
+        subnets:
+          - Network-Endpoints-A
+          - Network-Endpoints-B
       - name: accelerator-outbound
         type: OUTBOUND
         vpc: Network-Endpoints
@@ -701,6 +771,24 @@ vpcs:
         ipamAllocation:
           ipamPoolName: home-region-pool
           netmaskLength: 28
+    loadBalancers:
+      networkLoadBalancers:
+        - name: nlb-west-downstream
+          scheme: internal
+          crossZoneLoadBalancing: false
+          deletionProtection: true
+          subnets:
+            - SharedServices-B
+          listeners:
+            - name: http
+              port: 80
+              protocol: TCP
+              targetGroup: tg-downstream-http
+    targetGroups:
+      - name: tg-downstream-http
+        port: 80
+        protocol: TCP
+        type: instance
     gatewayEndpoints:
       defaultPolicy: Default
       endpoints:
@@ -756,6 +844,28 @@ vpcs:
         routes: []
       - name: Network-West-B-Rt
         routes: []
+    loadBalancers:
+      networkLoadBalancers:
+        - name: nlb-west-upstream
+          scheme: internal
+          crossZoneLoadBalancing: false
+          deletionProtection: true
+          subnets:
+            - Network-West-A
+          listeners:
+            - name: http
+              port: 80
+              protocol: TCP
+              targetGroup: tg-west-upstream
+    targetGroups:
+      - name: tg-west-upstream
+        port: 80
+        protocol: TCP
+        type: ip
+        targets:
+          - account: Network
+            region: us-west-2
+            nlbName: nlb-west-downstream
     subnets:
       - name: Network-West-A
         availabilityZone: a
@@ -997,6 +1107,24 @@ vpcs:
             toPort: -1
             protocol: -1
             destination: ::/0
+          - rule: 109
+            action: allow
+            icmp:
+              type: 10
+              code: 5
+            protocol: 1
+            destination:
+              account: Network
+              vpc: Network-Endpoints
+              subnet: Network-Endpoints-B
+              region: us-east-1
+          - rule: 110
+            action: allow
+            icmp:
+              type: 32
+              code: 5
+            protocol: 1
+            destination: 10.0.0.0/24
         inboundRules:
           - rule: 101
             action: allow
@@ -1070,6 +1198,42 @@ vpcs:
             toPort: -1
             protocol: -1
             source: ::/0
+          - rule: 109
+            action: allow
+            icmp:
+              type: 10
+              code: 5
+            protocol: 1
+            source:
+              account: Network
+              vpc: Network-Endpoints
+              subnet: Network-Endpoints-B
+              region: us-east-1
+          - rule: 110
+            action: allow
+            icmp:
+              type: 32
+              code: 5
+            protocol: 1
+            source: 10.0.0.0/24
+          - rule: 111
+            action: deny
+            fromPort: 3306
+            toPort: 3306
+            protocol: 6
+            source: 0.0.0.0/0
+    interfaceEndpoints:
+      defaultPolicy: Default
+      subnets:
+        - Network-Secondary-A
+        - Network-Secondary-B
+      endpoints:
+        - service: cloudformation
+        - service: application-autoscaling
+        - service: appmesh-envoy-management
+        - service: athena
+        - service: autoscaling
+        - service: autoscaling-plans
     gatewayEndpoints:
       defaultPolicy: Default
       endpoints:
@@ -1078,11 +1242,14 @@ vpcs:
     tags:
       - key: env
         value: prod
-
   - name: Network-Endpoints
     account: Network
     region: *HOME_REGION
     ipamAllocations:
+      - ipamPoolName: home-region-prod-pool
+        netmaskLength: 25
+      - ipamPoolName: home-region-prod-pool
+        netmaskLength: 25
       - ipamPoolName: home-region-prod-pool
         netmaskLength: 25
       - ipamPoolName: home-region-prod-pool
@@ -1253,64 +1420,13 @@ vpcs:
         - service: sagemaker.runtime
         - service: sagemaker.api
         - service: sagemaker.featurestore-runtime
+        - service: iam
         - service: eks
           applyPolicy: false
         - service: secretsmanager
           securityGroup: Network-Endpoints-CustomEndpointSg
         - service: access-analyzer
           securityGroup: Network-Endpoints-CustomEndpointSg
-        # - service: secretsmanager
-        # - service: cloudformation
-        # - service: application-autoscaling
-        # - service: appmesh-envoy-management
-        # - service: athena
-        # - service: autoscaling
-        # - service: autoscaling-plans
-        # - service: clouddirectory
-        # - service: cloudtrail
-        # - service: codebuild
-        # - service: codecommit
-        # - service: codepipeline
-        # - service: config
-        # - service: datasync
-        # - service: ecs
-        # - service: ecs-agent
-        # - service: ecs-telemetry
-        # - service: elasticfilesystem
-        # - service: elasticloadbalancing
-        # - service: elasticmapreduce
-        # - service: events
-        # - service: execute-api
-        # - service: git-codecommit
-        # - service: glue
-        # - service: kinesis-streams
-        # - service: kms
-        # - service: logs
-        # - service: monitoring
-        # - service: sagemaker.api
-        # - service: sagemaker.runtime
-        # - service: servicecatalog
-        # - service: sms
-        # - service: sns
-        # - service: sqs
-        # - service: storagegateway
-        # - service: sts
-        # - service: transfer
-        # - service: workspaces
-        # - service: awsconnector
-        # - service: kinesis-firehose
-        # - service: states
-        # - service: acm-pca
-        # - service: cassandra
-        # - service: ebs
-        # - service: elasticbeanstalk
-        # - service: elasticbeanstalk-health
-        # - service: email-smtp
-        # - service: license-manager
-        # - service: macie2
-        # - service: notebook
-        # - service: synthetics
-        # - service: transfer.server
     securityGroups:
       - name: 'Management'
         description: 'Management Security Group'
@@ -1678,6 +1794,19 @@ vpcs:
         localZone: atl-2a
         routeTable: Network-Inspection-Local-Rt-A
         ipv4CidrBlock: 10.3.0.0/24
+    loadBalancers:
+      networkLoadBalancers:
+        - name: new-sample-downstream
+          scheme: internal
+          crossZoneLoadBalancing: false
+          deletionProtection: true
+          subnets:
+            - Network-Inspection-A
+          listeners:
+            - name: http
+              port: 80
+              protocol: TCP
+              targetGroup: new-sample-downstream-http
     securityGroups:
       - name: Data
         description: Firewall data
@@ -1694,6 +1823,10 @@ vpcs:
             sources:
               - 0.0.0.0/0
     targetGroups:
+      - name: new-sample-downstream-http
+        port: 80
+        protocol: TCP
+        type: instance
       - name: deployed-tg-2
         port: 443
         protocol: HTTPS
@@ -2015,6 +2148,28 @@ vpcs:
         availabilityZone: b
         routeTable: SharedServices-appVpc-PrivRtB
         ipv4CidrBlock: 10.1.3.0/24
+    loadBalancers:
+      networkLoadBalancers:
+        - name: sample-upstream
+          scheme: internet-facing
+          crossZoneLoadBalancing: false
+          deletionProtection: true
+          subnets:
+            - SharedServices-appVpc-PublicSubnetA
+          listeners:
+            - name: http
+              port: 80
+              protocol: TCP
+              targetGroup: sample-upstream-http
+    targetGroups:
+      - name: sample-upstream-http
+        port: 80
+        protocol: TCP
+        type: ip
+        targets:
+          - account: Network
+            region: *HOME_REGION
+            nlbName: new-sample-downstream
     natGateways:
       - name: SharedServices-appVpc-NatGwA
         subnet: SharedServices-appVpc-PublicSubnetA
@@ -2894,6 +3049,23 @@ vpcPeering:
       - Security-Template-Full-Ipam-West
 
 customerGateways:
+  - name: accelerator-cgw-ipv6
+    account: Network
+    region: *HOME_REGION
+    ipAddress: "2803::f800"
+    asn: 65501
+    vpnConnections:
+      - name: accelerator-vpn-ipv6
+        amazonIpv6NetworkCidr: ::/128
+        customerIpv6NetworkCidr: ::/128
+        outsideIpAddressType: Ipv6
+        transitGateway: Network-Main
+        staticRoutesOnly: false
+        routeTableAssociations:
+          - Network-Main-Core
+        routeTablePropagations:
+          - Network-Main-Core
+          
   - name: accelerator-cgw
     account: Network
     region: *HOME_REGION

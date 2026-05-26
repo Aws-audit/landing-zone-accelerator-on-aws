@@ -1,5 +1,5 @@
 import { SSMClient, DescribeDocumentPermissionCommand, ModifyDocumentPermissionCommand } from '@aws-sdk/client-ssm';
-import { describe, beforeEach, expect, test } from '@jest/globals';
+import { describe, beforeEach, expect, test } from 'vitest';
 import { handler } from '../index';
 import { AcceleratorMockClient, EventType } from '../../../../test/unit-test/common/resources';
 import { StaticInput } from './static-input';
@@ -35,6 +35,20 @@ describe('Update Event', () => {
     const event = AcceleratorUnitTest.getEvent(EventType.UPDATE, {
       new: [StaticInput.updatePropsNew],
       old: [StaticInput.createProps],
+    });
+    ssmClient.on(DescribeDocumentPermissionCommand).resolves({
+      AccountIds: StaticInput.manyAccounts,
+    });
+
+    ssmClient.on(ModifyDocumentPermissionCommand).resolves({});
+
+    const response = await handler(event);
+    expect(response?.PhysicalResourceId).toEqual('share-document');
+  });
+  test('Update event - accountIds are same but in different order', async () => {
+    const event = AcceleratorUnitTest.getEvent(EventType.UPDATE, {
+      new: [StaticInput.updatePropsAscAccountArray1],
+      old: [StaticInput.updatePropsDescAccountArray1],
     });
     ssmClient.on(DescribeDocumentPermissionCommand).resolves({
       AccountIds: StaticInput.manyAccounts,

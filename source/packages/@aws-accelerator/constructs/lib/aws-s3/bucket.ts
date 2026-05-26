@@ -20,7 +20,7 @@ import { BucketReplication, BucketReplicationProps } from './bucket-replication'
 import { BucketPrefix, BucketPrefixProps } from './bucket-prefix';
 import { Construct } from 'constructs';
 import { pascalCase } from 'change-case';
-import { BucketAccessType } from '@aws-accelerator/utils/lib/common-resources';
+import { BucketAccessType } from '@aws-accelerator/utils';
 
 export enum BucketEncryptionType {
   SSE_S3 = 'sse-s3',
@@ -170,7 +170,7 @@ export class Bucket extends Construct {
     this.bucket = new s3.Bucket(this, 'Resource', {
       encryption: this.encryptionType,
       encryptionKey: this.cmk,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      removalPolicy: props.s3RemovalPolicy ?? cdk.RemovalPolicy.RETAIN,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       bucketName: props.s3BucketName,
       versioned: true,

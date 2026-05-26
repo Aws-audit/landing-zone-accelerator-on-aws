@@ -10,12 +10,14 @@
  *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions
  *  and limitations under the License.
  */
-import { describe, beforeEach, expect, test } from '@jest/globals';
+import { describe, beforeEach, expect, test, vi } from 'vitest';
 
 import {
   BaselineOperationStatus,
   ControlTowerClient,
   EnableBaselineCommand,
+  UpdateEnabledBaselineCommand,
+  ResetEnabledBaselineCommand,
   EnablementStatus,
   GetBaselineOperationCommand,
   LandingZoneStatus,
@@ -29,19 +31,21 @@ import { MODULE_EXCEPTIONS } from '../../../../common/enums';
 import { IRegisterOrganizationalUnitHandlerParameter } from '../../../../interfaces/control-tower/register-organizational-unit';
 
 // Mock dependencies
-jest.mock('@aws-sdk/client-controltower', () => {
+vi.mock('@aws-sdk/client-controltower', () => {
   return {
     BaselineOperationStatus: {
       IN_PROGRESS: 'IN_PROGRESS',
       SUCCEEDED: 'SUCCEEDED',
       FAILED: 'FAILED',
     },
-    ControlTowerClient: jest.fn(),
-    ListEnabledBaselines: jest.fn(),
-    paginateListBaselines: jest.fn(),
-    paginateListEnabledBaselines: jest.fn(),
-    EnableBaselineCommand: jest.fn(),
-    GetBaselineOperationCommand: jest.fn(),
+    ControlTowerClient: vi.fn(),
+    ListEnabledBaselines: vi.fn(),
+    paginateListBaselines: vi.fn(),
+    paginateListEnabledBaselines: vi.fn(),
+    EnableBaselineCommand: vi.fn(),
+    UpdateEnabledBaselineCommand: vi.fn(),
+    ResetEnabledBaselineCommand: vi.fn(),
+    GetBaselineOperationCommand: vi.fn(),
     LandingZoneStatus: {
       ACTIVE: 'ACTIVE',
       FAILED: 'FAILED',
@@ -55,27 +59,44 @@ jest.mock('@aws-sdk/client-controltower', () => {
   };
 });
 
-jest.mock('../../../../common/functions', () => ({
-  ...jest.requireActual('../../../../common/functions'),
-  delay: jest.fn().mockResolvedValue(undefined),
-}));
+vi.mock('../../../../common/functions', async () => {
+  const actual = await vi.importActual('../../../../common/functions');
+  return {
+    ...actual,
+    delay: vi.fn().mockResolvedValue(undefined),
+    getLandingZoneIdentifier: vi.fn(),
+    getLandingZoneDetails: vi.fn(),
+    getOrganizationalUnitArn: vi.fn(),
+    getOrganizationalUnitIdByPath: vi.fn(),
+  };
+});
 
 describe('RegisterOrganizationalUnitModule', () => {
-  const mockSend = jest.fn();
-  let getLandingZoneIdentifierSpy: jest.SpyInstance;
-  let getLandingZoneDetailsSpy: jest.SpyInstance;
-  let getOrganizationalUnitArnSpy: jest.SpyInstance;
-  let getOrganizationalUnitIdByPathSpy: jest.SpyInstance;
+  const mockSend = vi.fn();
+  let getLandingZoneIdentifierSpy: vi.SpyInstance;
+  let getLandingZoneDetailsSpy: vi.SpyInstance;
+  let getOrganizationalUnitArnSpy: vi.SpyInstance;
+  let getOrganizationalUnitIdByPathSpy: vi.SpyInstance;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+  beforeEach(async () => {
+    vi.clearAllMocks();
 
-    (ControlTowerClient as jest.Mock).mockImplementation(() => ({
+    (ControlTowerClient as vi.Mock).mockImplementation(() => ({
       send: mockSend,
     }));
 
     mockSend.mockImplementation(command => {
       if (command instanceof EnableBaselineCommand) {
+        return Promise.resolve({
+          operationIdentifier: MOCK_CONSTANTS.RegisterOrganizationalUnitModule.operationIdentifier,
+        });
+      }
+      if (command instanceof UpdateEnabledBaselineCommand) {
+        return Promise.resolve({
+          operationIdentifier: MOCK_CONSTANTS.RegisterOrganizationalUnitModule.operationIdentifier,
+        });
+      }
+      if (command instanceof ResetEnabledBaselineCommand) {
         return Promise.resolve({
           operationIdentifier: MOCK_CONSTANTS.RegisterOrganizationalUnitModule.operationIdentifier,
         });
@@ -88,10 +109,11 @@ describe('RegisterOrganizationalUnitModule', () => {
       return Promise.reject(MOCK_CONSTANTS.unknownError);
     });
 
-    getLandingZoneIdentifierSpy = jest.spyOn(require('../../../../common/functions'), 'getLandingZoneIdentifier');
+    const commonFunctions = await import('../../../../common/functions');
+    getLandingZoneIdentifierSpy = vi.mocked(commonFunctions.getLandingZoneIdentifier);
     getLandingZoneIdentifierSpy.mockResolvedValue(MOCK_CONSTANTS.RegisterOrganizationalUnitModule.existingLandingArn);
 
-    getLandingZoneDetailsSpy = jest.spyOn(require('../../../../common/functions'), 'getLandingZoneDetails');
+    getLandingZoneDetailsSpy = vi.mocked(commonFunctions.getLandingZoneDetails);
     getLandingZoneDetailsSpy.mockResolvedValue({
       landingZoneIdentifier: MOCK_CONSTANTS.RegisterOrganizationalUnitModule.existingLandingZoneIdentifier,
       status: LandingZoneStatus.ACTIVE,
@@ -100,20 +122,17 @@ describe('RegisterOrganizationalUnitModule', () => {
       version: MOCK_CONSTANTS.RegisterOrganizationalUnitModule.landingZoneVersion,
     });
 
-    getOrganizationalUnitArnSpy = jest.spyOn(require('../../../../common/functions'), 'getOrganizationalUnitArn');
+    getOrganizationalUnitArnSpy = vi.mocked(commonFunctions.getOrganizationalUnitArn);
     getOrganizationalUnitArnSpy.mockResolvedValue(
       MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOu.arn,
     );
 
-    getOrganizationalUnitIdByPathSpy = jest.spyOn(
-      require('../../../../common/functions'),
-      'getOrganizationalUnitIdByPath',
-    );
+    getOrganizationalUnitIdByPathSpy = vi.mocked(commonFunctions.getOrganizationalUnitIdByPath);
     getOrganizationalUnitIdByPathSpy.mockResolvedValue(
       MOCK_CONSTANTS.RegisterOrganizationalUnitModule.organizationalUnitId,
     );
 
-    (paginateListEnabledBaselines as jest.Mock).mockImplementation(() => [
+    (paginateListEnabledBaselines as vi.Mock).mockImplementation(() => [
       {
         enabledBaselines: [
           MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockTarget1,
@@ -123,7 +142,7 @@ describe('RegisterOrganizationalUnitModule', () => {
       },
     ]);
 
-    (paginateListBaselines as jest.Mock).mockImplementation(() => [
+    (paginateListBaselines as vi.Mock).mockImplementation(() => [
       {
         baselines: [
           MOCK_CONSTANTS.RegisterOrganizationalUnitModule.baselines.controlTowerBaseline,
@@ -140,13 +159,13 @@ describe('RegisterOrganizationalUnitModule', () => {
       ...MOCK_CONSTANTS.runnerParameters,
     };
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     test('should be successful when ou already registered successfully', async () => {
       // Setup
 
-      (paginateListEnabledBaselines as jest.Mock).mockImplementation(() => [
+      (paginateListEnabledBaselines as vi.Mock).mockImplementation(() => [
         {
           enabledBaselines: [
             MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOu,
@@ -236,7 +255,7 @@ describe('RegisterOrganizationalUnitModule', () => {
     test('should throw error with existing ou registration in failed status', async () => {
       // Setup
 
-      (paginateListEnabledBaselines as jest.Mock).mockImplementation(() => [
+      (paginateListEnabledBaselines as vi.Mock).mockImplementation(() => [
         {
           enabledBaselines: [
             MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOuFailed,
@@ -265,7 +284,7 @@ describe('RegisterOrganizationalUnitModule', () => {
     test('should be successful when registration ou has older baseline version', async () => {
       // Setup
 
-      (paginateListEnabledBaselines as jest.Mock).mockImplementation(() => [
+      (paginateListEnabledBaselines as vi.Mock).mockImplementation(() => [
         {
           enabledBaselines: [
             MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOuOldBaseLineVersion,
@@ -285,9 +304,46 @@ describe('RegisterOrganizationalUnitModule', () => {
       expect(paginateListEnabledBaselines).toHaveBeenCalledTimes(1);
       expect(paginateListBaselines).toHaveBeenCalledTimes(1);
       expect(EnableBaselineCommand).toHaveBeenCalledTimes(0);
-      expect(GetBaselineOperationCommand).toHaveBeenCalledTimes(0);
+      expect(UpdateEnabledBaselineCommand).toHaveBeenCalledTimes(1);
+      expect(GetBaselineOperationCommand).toHaveBeenCalled();
       expect(response).toEqual(
-        `AWS Organizations organizational unit (OU) "${input.configuration.name}" is already registered with AWS Control Tower, but the baseline version is "${MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOuOldBaseLineVersion.baselineVersion}" which is different from expected baseline version "${MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOu.baselineVersion}" and registration status is "${MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOuOldBaseLineVersion.statusSummary.status}", update baseline is required for OU, perform update baseline from console.`,
+        `Baseline update for AWS Organizations organizational unit (OU) "${input.configuration.name}" to version "${MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOu.baselineVersion}" is successful.`,
+      );
+    });
+
+    test('should reset baseline when reregisterOu is enabled', async () => {
+      // Setup
+      const inputWithReregister = {
+        ...input,
+        configuration: {
+          ...input.configuration,
+          reregisterOu: true,
+        },
+      };
+
+      (paginateListEnabledBaselines as vi.Mock).mockImplementation(() => [
+        {
+          enabledBaselines: [
+            MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOu,
+            MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockTarget2,
+            MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockIdentityCenterBaseline,
+          ],
+        },
+      ]);
+
+      // Execute
+      const response = await new RegisterOrganizationalUnitModule().handler(inputWithReregister);
+
+      // Verify
+      expect(ControlTowerClient).toHaveBeenCalledTimes(1);
+      expect(paginateListEnabledBaselines).toHaveBeenCalledTimes(1);
+      expect(paginateListBaselines).toHaveBeenCalledTimes(1);
+      expect(EnableBaselineCommand).toHaveBeenCalledTimes(0);
+      expect(UpdateEnabledBaselineCommand).toHaveBeenCalledTimes(0);
+      expect(ResetEnabledBaselineCommand).toHaveBeenCalledTimes(1);
+      expect(GetBaselineOperationCommand).toHaveBeenCalled();
+      expect(response).toEqual(
+        `Baseline reset for AWS Organizations organizational unit (OU) "${input.configuration.name}" to version "${MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOu.baselineVersion}" is successful.`,
       );
     });
 
@@ -488,7 +544,7 @@ describe('RegisterOrganizationalUnitModule', () => {
     test('should throw error when AWSControlTowerBaseline identifier not found', async () => {
       // Setup
 
-      (paginateListBaselines as jest.Mock).mockImplementation(() => [
+      (paginateListBaselines as vi.Mock).mockImplementation(() => [
         {
           baselines: undefined,
         },
@@ -510,7 +566,7 @@ describe('RegisterOrganizationalUnitModule', () => {
     test('should throw error when AWS Control Tower Landing Zone is configured with IAM Identity Center, but IdentityCenterBaseline not found', async () => {
       // Setup
 
-      (paginateListBaselines as jest.Mock).mockImplementation(() => [
+      (paginateListBaselines as vi.Mock).mockImplementation(() => [
         {
           baselines: [
             MOCK_CONSTANTS.RegisterOrganizationalUnitModule.baselines.auditBaseline,
@@ -576,7 +632,7 @@ describe('RegisterOrganizationalUnitModule', () => {
       dryRun: true,
     };
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     test('should throw error when control tower not found', async () => {
@@ -627,7 +683,7 @@ describe('RegisterOrganizationalUnitModule', () => {
     test('should be successful when ou already registered successfully', async () => {
       // Setup
 
-      (paginateListEnabledBaselines as jest.Mock).mockImplementation(() => [
+      (paginateListEnabledBaselines as vi.Mock).mockImplementation(() => [
         {
           enabledBaselines: [
             MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOu,
@@ -657,7 +713,7 @@ describe('RegisterOrganizationalUnitModule', () => {
     test('should be successfully register ou', async () => {
       // Setup
 
-      (paginateListEnabledBaselines as jest.Mock).mockImplementation(() => [
+      (paginateListEnabledBaselines as vi.Mock).mockImplementation(() => [
         {
           enabledBaselines: undefined,
         },
@@ -682,7 +738,7 @@ describe('RegisterOrganizationalUnitModule', () => {
     test('should throw error with existing ou registration in failed status', async () => {
       // Setup
 
-      (paginateListEnabledBaselines as jest.Mock).mockImplementation(() => [
+      (paginateListEnabledBaselines as vi.Mock).mockImplementation(() => [
         {
           enabledBaselines: [
             MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOuFailed,
@@ -711,7 +767,7 @@ describe('RegisterOrganizationalUnitModule', () => {
     test('should be successful when registration ou has older baseline version', async () => {
       // Setup
 
-      (paginateListEnabledBaselines as jest.Mock).mockImplementation(() => [
+      (paginateListEnabledBaselines as vi.Mock).mockImplementation(() => [
         {
           enabledBaselines: [
             MOCK_CONSTANTS.RegisterOrganizationalUnitModule.enabledBaselines.mockOuOldBaseLineVersion,
@@ -776,12 +832,12 @@ describe('RegisterOrganizationalUnitModule', () => {
       });
     });
 
-    test('should return default baseline version 4.0 for unknown landing zone version', () => {
-      const unknownVersions = ['1.9', '4.0', '3.2', 'invalid'];
+    test('should return default baseline version 5.0 for unknown landing zone version', () => {
+      const unknownVersions = ['1.9', '3.4', 'invalid'];
 
       unknownVersions.forEach(version => {
         const result = getBaselineVersion(version);
-        expect(result).toBe('4.0');
+        expect(result).toBe('5.0');
       });
     });
   });

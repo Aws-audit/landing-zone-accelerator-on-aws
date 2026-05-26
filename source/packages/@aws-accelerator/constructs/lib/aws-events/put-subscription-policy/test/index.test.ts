@@ -10,6 +10,7 @@
  *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions
  *  and limitations under the License.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   CloudWatchLogsClient,
   PutRetentionPolicyCommand,
@@ -17,10 +18,19 @@ import {
   DeleteSubscriptionFilterCommand,
   DescribeSubscriptionFiltersCommand,
   AssociateKmsKeyCommand,
-  DescribeLogGroupsCommand,
   SubscriptionFilter,
+  paginateDescribeLogGroups,
 } from '@aws-sdk/client-cloudwatch-logs';
-import { describe, beforeEach, expect, test } from '@jest/globals';
+
+// Mock paginateDescribeLogGroups
+vi.mock('@aws-sdk/client-cloudwatch-logs', async () => {
+  const actual = await vi.importActual('@aws-sdk/client-cloudwatch-logs');
+  return {
+    ...actual,
+    paginateDescribeLogGroups: vi.fn(),
+  };
+});
+import { describe, beforeEach, afterEach, expect, test, vi } from 'vitest';
 import {
   handler,
   // updateRetentionPolicy,
@@ -33,7 +43,7 @@ import {
   deleteSubscription,
 } from '../index';
 import { AcceleratorMockClient } from '../../../../test/unit-test/common/resources';
-// import { SQSEvent } from '@aws-accelerator/utils/lib/common-types';
+import { SQSEvent } from '@aws-accelerator/utils';
 
 const logsClient = AcceleratorMockClient(CloudWatchLogsClient);
 const OLD_ENV = process.env;
@@ -41,6 +51,18 @@ const OLD_ENV = process.env;
 describe('CloudWatch Logs Handler', () => {
   beforeEach(() => {
     logsClient.reset();
+    // Add default mock for DescribeSubscriptionFiltersCommand to prevent undefined errors
+    logsClient.on(DescribeSubscriptionFiltersCommand).resolves({ subscriptionFilters: [] });
+    // Mock console methods to suppress output (except info and warn which are tested)
+    vi.spyOn(console, 'log').mockImplementation(() => {
+      /* mock implementation */
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {
+      /* mock implementation */
+    });
+    // Clear existing mocks
+    consoleWarnMock.mockClear();
+    consoleInfoMock.mockClear();
     process.env = {
       ...OLD_ENV,
       AcceleratorPrefix: 'AWSAccelerator',
@@ -82,7 +104,14 @@ describe('CloudWatch Logs Handler', () => {
       ],
     };
 
-    logsClient.on(DescribeLogGroupsCommand).resolves({ logGroups: [{ logGroupName: '/aws/lambda/my-function' }] });
+    // Mock the pagination function
+
+    vi.mocked(paginateDescribeLogGroups).mockReturnValue({
+      async *[Symbol.asyncIterator]() {
+        yield { logGroups: [{ logGroupName: '/aws/lambda/my-function' }] };
+      },
+    } as any);
+
     logsClient.on(PutRetentionPolicyCommand).resolves({});
     logsClient.on(DescribeSubscriptionFiltersCommand).resolves({ subscriptionFilters: [] });
     logsClient.on(PutSubscriptionFilterCommand).resolves({});
@@ -140,11 +169,21 @@ describe('CloudWatch Logs Handler', () => {
       ],
     };
 
-    logsClient
-      .on(DescribeLogGroupsCommand, { logGroupNamePrefix: '/aws/lambda/function1' })
-      .resolves({ logGroups: [{ logGroupName: '/aws/lambda/function1', retentionInDays: 30 }] })
-      .on(DescribeLogGroupsCommand, { logGroupNamePrefix: 'aws-controltower' })
-      .resolves({ logGroups: [{ logGroupName: 'aws-controltower1', retentionInDays: 365 }] });
+    // Mock pagination for multiple calls
+
+    vi.mocked(paginateDescribeLogGroups)
+      .mockReturnValueOnce({
+        async *[Symbol.asyncIterator]() {
+          yield { logGroups: [{ logGroupName: '/aws/lambda/function1', retentionInDays: 30 }] };
+        },
+      } as any)
+
+      .mockReturnValueOnce({
+        async *[Symbol.asyncIterator]() {
+          yield { logGroups: [{ logGroupName: 'aws-controltower1', retentionInDays: 365 }] };
+        },
+      } as any);
+
     logsClient.on(PutRetentionPolicyCommand).resolves({});
     logsClient.on(DescribeSubscriptionFiltersCommand).resolves({ subscriptionFilters: [] });
     logsClient.on(PutSubscriptionFilterCommand).resolves({});
@@ -179,7 +218,13 @@ describe('CloudWatch Logs Handler', () => {
       ],
     };
 
-    logsClient.on(DescribeLogGroupsCommand).rejects(new Error('API Error'));
+    // Mock pagination to throw error
+    vi.mocked(paginateDescribeLogGroups).mockReturnValue({
+      async *[Symbol.asyncIterator]() {
+        yield { logGroups: [] }; // Add yield to fix generator function error
+        throw new Error('API Error');
+      },
+    } as any);
 
     await expect(handler(sqsEvent)).rejects.toThrow('API Error');
   });
@@ -206,7 +251,8 @@ describe('CloudWatch Logs Handler', () => {
       ],
     };
 
-    await expect(handler(sqsEvent)).rejects.toThrow();
+    // More flexible error checking - just verify it contains key parts of the error
+    await expect(handler(sqsEvent)).rejects.toThrow(/Unexpected token.*invalid JSON/);
   });
 });
 
@@ -450,13 +496,14 @@ describe('isLogGroupExcluded', () => {
 });
 
 // Mock console.warn console.info
-const consoleWarnMock = jest.spyOn(console, 'warn').mockImplementation();
-const consoleInfoMock = jest.spyOn(console, 'info').mockImplementation();
+const consoleWarnMock = vi.spyOn(console, 'warn').mockImplementation();
+const consoleInfoMock = vi.spyOn(console, 'info').mockImplementation();
 
 describe('deleteSubscription', () => {
   beforeEach(() => {
     logsClient.reset();
     consoleWarnMock.mockClear();
+    consoleInfoMock.mockClear();
   });
 
   test('should successfully delete subscription filter', async () => {
@@ -506,8 +553,8 @@ describe('updateSubscriptionPolicy', () => {
       'ACCOUNT',
       logGroup,
       logExclusionSetting,
-      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
       'arn:aws:logs:us-west-2:123456789012:destination:MyDestination',
+      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
     );
 
     expect(logsClient.commandCalls(DescribeSubscriptionFiltersCommand)).toHaveLength(0);
@@ -531,8 +578,8 @@ describe('updateSubscriptionPolicy', () => {
       'LOG_GROUP',
       logGroup,
       logExclusionSetting,
-      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
       'arn:aws:logs:us-west-2:123456789012:destination:MyDestination',
+      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
     );
 
     expect(logsClient.commandCalls(PutSubscriptionFilterCommand)).toHaveLength(1);
@@ -557,8 +604,8 @@ describe('updateSubscriptionPolicy', () => {
       'LOG_GROUP',
       logGroup,
       logExclusionSetting,
-      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
       'arn:aws:logs:us-west-2:123456789012:destination:MyDestination',
+      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
     );
 
     expect(logsClient.commandCalls(DeleteSubscriptionFilterCommand)).toHaveLength(1);
@@ -582,8 +629,8 @@ describe('updateSubscriptionPolicy', () => {
       'LOG_GROUP',
       logGroup,
       logExclusionSetting,
-      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
       'arn:aws:logs:us-west-2:123456789012:destination:MyDestination',
+      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
     );
 
     expect(logsClient.commandCalls(PutSubscriptionFilterCommand)).toHaveLength(0);
@@ -605,8 +652,8 @@ describe('updateSubscriptionPolicy', () => {
       'LOG_GROUP',
       logGroup,
       logExclusionSetting,
-      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
       'arn:aws:logs:us-west-2:123456789012:destination:MyDestination',
+      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
     );
 
     expect(logsClient.commandCalls(PutSubscriptionFilterCommand)).toHaveLength(0);
@@ -623,8 +670,8 @@ describe('updateSubscriptionPolicy', () => {
       'LOG_GROUP',
       logGroup,
       undefined,
-      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
       'arn:aws:logs:us-west-2:123456789012:destination:MyDestination',
+      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
     );
 
     expect(logsClient.commandCalls(PutSubscriptionFilterCommand)).toHaveLength(1);
@@ -647,8 +694,8 @@ describe('updateSubscriptionPolicy', () => {
         'LOG_GROUP',
         logGroup,
         logExclusionSetting,
-        'arn:aws:iam::123456789012:role/LogSubscriptionRole',
         'arn:aws:logs:us-west-2:123456789012:destination:MyDestination',
+        'arn:aws:iam::123456789012:role/LogSubscriptionRole',
       ),
     ).rejects.toThrow('API Error');
   });
@@ -670,8 +717,8 @@ describe('updateSubscriptionPolicy', () => {
         'LOG_GROUP',
         logGroup,
         logExclusionSetting,
-        'arn:aws:iam::123456789012:role/LogSubscriptionRole',
         'arn:aws:logs:us-west-2:123456789012:destination:MyDestination',
+        'arn:aws:iam::123456789012:role/LogSubscriptionRole',
       ),
     ).rejects.toThrow('API Error');
   });
@@ -694,8 +741,8 @@ describe('updateSubscriptionPolicy', () => {
       'LOG_GROUP',
       logGroup,
       logExclusionSetting,
-      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
       'arn:aws:logs:us-west-2:123456789012:destination:MyDestination',
+      'arn:aws:iam::123456789012:role/LogSubscriptionRole',
     );
 
     expect(logsClient.commandCalls(DeleteSubscriptionFilterCommand)).toHaveLength(1);
@@ -745,7 +792,7 @@ describe('updateKmsKey', () => {
 
   test('should log appropriate message when no KMS key is provided', async () => {
     const logGroup = { logGroupName: '/aws/lambda/my-function' };
-    const consoleSpy = jest.spyOn(console, 'log');
+    const consoleSpy = vi.spyOn(console, 'log');
 
     await updateKmsKey(logGroup, undefined);
 
@@ -760,7 +807,7 @@ describe('updateKmsKey', () => {
       logGroupName: '/aws/lambda/my-function',
       kmsKeyId: 'arn:aws:kms:us-west-2:123456789012:key/existing-key',
     };
-    const consoleSpy = jest.spyOn(console, 'log');
+    const consoleSpy = vi.spyOn(console, 'log');
 
     await updateKmsKey(logGroup, 'new-key-arn');
 
@@ -795,7 +842,7 @@ describe('updateKmsKey', () => {
   test('should log setting KMS key message', async () => {
     const logGroup = { logGroupName: '/aws/lambda/my-function' };
     const kmsKeyArn = 'arn:aws:kms:us-west-2:123456789012:key/1234abcd-12ab-34cd-56ef-1234567890ab';
-    const consoleSpy = jest.spyOn(console, 'log');
+    const consoleSpy = vi.spyOn(console, 'log');
 
     logsClient.on(AssociateKmsKeyCommand).resolves({});
 
@@ -871,7 +918,12 @@ describe('LogExclusion Parsing', () => {
       logGroupNames: ['/aws/lambda/excluded'],
     });
 
-    logsClient.on(DescribeLogGroupsCommand).resolves({ logGroups: [{ logGroupName: '/aws/lambda/my-function' }] });
+    vi.mocked(paginateDescribeLogGroups).mockReturnValue({
+      async *[Symbol.asyncIterator]() {
+        yield { logGroups: [{ logGroupName: '/aws/lambda/my-function' }] };
+      },
+    } as any);
+
     logsClient.on(PutRetentionPolicyCommand).resolves({});
     logsClient.on(DescribeSubscriptionFiltersCommand).resolves({ subscriptionFilters: [] });
     logsClient.on(PutSubscriptionFilterCommand).resolves({});
@@ -910,7 +962,12 @@ describe('LogExclusion Parsing', () => {
 
     delete process.env['LogExclusion'];
 
-    logsClient.on(DescribeLogGroupsCommand).resolves({ logGroups: [{ logGroupName: '/aws/lambda/my-function' }] });
+    vi.mocked(paginateDescribeLogGroups).mockReturnValue({
+      async *[Symbol.asyncIterator]() {
+        yield { logGroups: [{ logGroupName: '/aws/lambda/my-function' }] };
+      },
+    } as any);
+
     logsClient.on(PutRetentionPolicyCommand).resolves({});
     logsClient.on(DescribeSubscriptionFiltersCommand).resolves({ subscriptionFilters: [] });
     logsClient.on(PutSubscriptionFilterCommand).resolves({});
@@ -985,7 +1042,12 @@ describe('LogExclusion Parsing', () => {
       // Missing excludeAll and logGroupNames
     });
 
-    logsClient.on(DescribeLogGroupsCommand).resolves({ logGroups: [{ logGroupName: '/aws/lambda/my-function' }] });
+    vi.mocked(paginateDescribeLogGroups).mockReturnValue({
+      async *[Symbol.asyncIterator]() {
+        yield { logGroups: [{ logGroupName: '/aws/lambda/my-function' }] };
+      },
+    } as any);
+
     logsClient.on(PutRetentionPolicyCommand).resolves({});
     logsClient.on(DescribeSubscriptionFiltersCommand).resolves({ subscriptionFilters: [] });
     logsClient.on(PutSubscriptionFilterCommand).resolves({});
@@ -1031,7 +1093,12 @@ describe('LogExclusion Parsing', () => {
       logGroupNames: ['/aws/lambda/excluded1', '/aws/lambda/excluded2'],
     });
 
-    logsClient.on(DescribeLogGroupsCommand).resolves({ logGroups: [{ logGroupName: '/aws/lambda/my-function' }] });
+    vi.mocked(paginateDescribeLogGroups).mockReturnValue({
+      async *[Symbol.asyncIterator]() {
+        yield { logGroups: [{ logGroupName: '/aws/lambda/my-function' }] };
+      },
+    } as any);
+
     logsClient.on(PutRetentionPolicyCommand).resolves({});
     logsClient.on(DescribeSubscriptionFiltersCommand).resolves({ subscriptionFilters: [] });
     logsClient.on(DeleteSubscriptionFilterCommand).resolves({});
@@ -1040,5 +1107,127 @@ describe('LogExclusion Parsing', () => {
 
     // Verify excludeAll:true prevents subscription creation
     expect(logsClient.commandCalls(PutSubscriptionFilterCommand)).toHaveLength(0);
+  });
+  test('verify log group retention is set even when SQS contains error', async () => {
+    // Mock CloudWatch Logs client
+    logsClient.reset();
+
+    vi.mocked(paginateDescribeLogGroups).mockReturnValue({
+      async *[Symbol.asyncIterator]() {
+        yield { logGroups: [{ logGroupName: '/aws/lambda/test-function' }] };
+      },
+    } as any);
+
+    logsClient.on(PutRetentionPolicyCommand).resolves({});
+    logsClient.on(DescribeSubscriptionFiltersCommand).resolves({
+      subscriptionFilters: [],
+    });
+
+    // Create an SQS event with an error message
+    const sqsEvent: SQSEvent = {
+      Records: [
+        {
+          messageId: '12345',
+          receiptHandle: 'handle1',
+          body: JSON.stringify({
+            requestParameters: {
+              logGroupName: '/aws/lambda/test-function',
+            },
+          }),
+          attributes: {
+            ApproximateReceiveCount: '1',
+            SentTimestamp: '1523232000000',
+            SenderId: '123456789012',
+            ApproximateFirstReceiveTimestamp: '1523232000001',
+          },
+          messageAttributes: {},
+          md5OfBody: 'md5',
+          eventSource: 'aws:sqs',
+          eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:MyQueue',
+          awsRegion: 'us-east-1',
+        },
+      ],
+    };
+
+    // Set environment variables
+    process.env['LogRetention'] = '14';
+
+    // Call the handler
+    await handler(sqsEvent);
+
+    // Verify PutRetentionPolicy was called
+    expect(logsClient.commandCalls(PutRetentionPolicyCommand)).toHaveLength(1);
+
+    // Verify the correct parameters were used
+    const putRetentionCall = logsClient.commandCalls(PutRetentionPolicyCommand)[0];
+    expect(putRetentionCall.args[0].input).toEqual({
+      logGroupName: '/aws/lambda/test-function',
+      retentionInDays: 14,
+    });
+  });
+
+  test('should handle SQS message with error information', async () => {
+    // Mock CloudWatch Logs client
+    logsClient.reset();
+
+    vi.mocked(paginateDescribeLogGroups).mockReturnValue({
+      async *[Symbol.asyncIterator]() {
+        yield { logGroups: [{ logGroupName: '/aws/lambda/test-function' }] };
+      },
+    } as any);
+
+    logsClient.on(PutRetentionPolicyCommand).resolves({});
+    logsClient.on(DescribeSubscriptionFiltersCommand).resolves({
+      subscriptionFilters: [],
+    });
+
+    // Create an SQS event with error information
+    const sqsEvent: SQSEvent = {
+      Records: [
+        {
+          messageId: '12345',
+          receiptHandle: 'handle1',
+          body: JSON.stringify({
+            requestParameters: {
+              logGroupName: '/aws/lambda/test-function',
+            },
+            errorMessage: 'Failed to process log group',
+            errorType: 'LogGroupProcessingError',
+            stackTrace: [
+              'Error: Failed to process log group',
+              '    at processLogGroup (/path/to/file.ts:123:45)',
+              '    at async handler (/path/to/file.ts:67:89)',
+            ],
+          }),
+          attributes: {
+            ApproximateReceiveCount: '1',
+            SentTimestamp: '1523232000000',
+            SenderId: '123456789012',
+            ApproximateFirstReceiveTimestamp: '1523232000001',
+          },
+          messageAttributes: {},
+          md5OfBody: 'md5',
+          eventSource: 'aws:sqs',
+          eventSourceARN: 'arn:aws:sqs:us-east-1:123456789012:MyQueue',
+          awsRegion: 'us-east-1',
+        },
+      ],
+    };
+
+    // Set environment variables
+    process.env['LogRetention'] = '14';
+
+    // Call the handler
+    await handler(sqsEvent);
+
+    // Verify PutRetentionPolicy was called despite error in message
+    expect(logsClient.commandCalls(PutRetentionPolicyCommand)).toHaveLength(1);
+
+    // Verify the correct parameters were used
+    const putRetentionCall = logsClient.commandCalls(PutRetentionPolicyCommand)[0];
+    expect(putRetentionCall.args[0].input).toEqual({
+      logGroupName: '/aws/lambda/test-function',
+      retentionInDays: 14,
+    });
   });
 });

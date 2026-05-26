@@ -55,7 +55,7 @@ export interface IDefaultVpcsConfig {
    * @remarks
    * Note: The regions included in the array must exist in the `enabledRegions` section of the global-config.yaml.
    */
-  readonly excludeRegions?: t.Region[];
+  readonly excludeRegions?: string[];
 }
 
 /**
@@ -341,7 +341,7 @@ export interface ITransitGatewayPeeringRequesterConfig {
    *
    * @see {@link TransitGatewayConfig}
    */
-  readonly region: t.Region;
+  readonly region: string;
   /**
    * The friendly name of TGW route table to associate with this peering attachment.
    *
@@ -401,7 +401,7 @@ export interface ITransitGatewayPeeringAccepterConfig {
    *
    * @see {@link TransitGatewayConfig}
    */
-  readonly region: t.Region;
+  readonly region: string;
   /**
    * The friendly name of TGW route table to associate with this peering attachment.
    *
@@ -553,7 +553,7 @@ export interface ITransitGatewayConfig {
   /**
    * The region name to deploy the Transit Gateway.
    */
-  readonly region: t.Region;
+  readonly region: string;
   /**
    * (OPTIONAL) Resource Access Manager (RAM) share targets.
    *
@@ -623,11 +623,40 @@ export interface ITransitGatewayConfig {
    */
   readonly autoAcceptSharingAttachments: t.EnableDisable;
   /**
+   * (OPTIONAL) Enable this option to turn on multicast on the Transit Gateway.
+   *
+   * @remarks
+   * Note: Changing the value on an existing Transit Gateway will result in a replacement of the resource.
+   *
+   * Default - disable
+   */
+  readonly multicastSupport?: t.EnableDisable;
+  /**
+   * (OPTIONAL) Enable security group referencing support for the Transit Gateway.
+   *
+   * @remarks
+   * Allows security groups in VPCs attached to this Transit Gateway to reference
+   * security groups in other attached VPCs, eliminating the need to manage CIDR blocks.
+   *
+   * Default - disable
+   */
+  readonly securityGroupReferencingSupport?: t.EnableDisable;
+  /**
    * An array of Transit Gateway route table configuration objects.
    *
    * @see {@link TransitGatewayRouteTableConfig}
    */
   readonly routeTables: ITransitGatewayRouteTableConfig[];
+  /**
+   * (OPTIONAL) Transit Gateway flow logs configuration.
+   *
+   * @remarks
+   * Use this configuration to enable flow logs for the Transit Gateway.
+   * Flow logs capture information about IP traffic going to and from Transit Gateway network interfaces.
+   *
+   * @see {@link t.ITransitGatewayFlowLogsConfig}
+   */
+  readonly transitGatewayFlowLogs?: t.ITransitGatewayFlowLogsConfig;
   /**
    * (OPTIONAL) An array of tag objects for the Transit Gateway.
    */
@@ -719,7 +748,7 @@ export interface IDxVirtualInterfaceConfig {
    * @remarks
    * Please note this region must match the region where the physical connection is hosted.
    */
-  readonly region: t.Region;
+  readonly region: string;
   /**
    * The type of the virtual interface
    *
@@ -1090,7 +1119,7 @@ export interface IIpamPoolConfig {
    * A base (top-level) pool does not require a locale.
    * A regional pool requires a locale.
    */
-  readonly locale?: t.Region;
+  readonly locale?: string;
   /**
    * An array of CIDR ranges to provision for the IPAM pool.
    *
@@ -1173,7 +1202,7 @@ export interface IIpamConfig {
    * Note that IPAMs must be deployed to a single region but may be used to manage allocations in multiple regions.
    * Configure the `operatingRegions` property to define multiple regions to manage.
    */
-  readonly region: t.Region;
+  readonly region: string;
   /**
    * (OPTIONAL) A description for the IPAM.
    */
@@ -1181,7 +1210,7 @@ export interface IIpamConfig {
   /**
    * (OPTIONAL) An array of regions that the IPAM will manage.
    */
-  readonly operatingRegions?: t.Region[];
+  readonly operatingRegions?: string[];
   /**
    * (OPTIONAL) An array of IPAM scope configurations to create under the IPAM.
    *
@@ -1882,6 +1911,14 @@ export interface ITransitGatewayAttachmentOptionsConfig {
    * @see {@link https://docs.aws.amazon.com/vpc/latest/tgw/transit-gateway-appliance-scenario.html}
    */
   readonly applianceModeSupport?: t.EnableDisable;
+  /**
+   * (OPTIONAL) Enable security group referencing support for the attachment. This option is disabled by default.
+   *
+   * @remarks
+   * Allows security groups in this VPC to reference security groups in other VPCs attached to the same Transit Gateway.
+   * The Transit Gateway must also have securityGroupReferencingSupport enabled.
+   */
+  readonly securityGroupReferencingSupport?: t.EnableDisable;
 }
 
 /**
@@ -2145,10 +2182,8 @@ export interface IPrefixListConfig {
    *
    * @remarks
    * **NOTE**: This property is deprecated as of v1.4.0. It is recommended to use `deploymentTargets` instead.
-   *
-   * @see {@link Region}
    */
-  readonly regions?: t.Region[];
+  readonly regions?: string[];
   /**
    * Prefix List deployment targets
    *
@@ -2356,6 +2391,11 @@ export interface IInterfaceEndpointConfig {
    *
    * @remarks
    * This is the logical `name` property of the VPC subnet as defined in network-config.yaml.
+   *
+   * For global services like `iam`, the centralized endpoint architecture is not supported. You will have to define an
+   * interface endpoint for each VPC where you require private communication to the service control plane. Some endpoints that are global
+   * can only be created in the Region where the control plane is located.
+   *
    *
    * @see {@link SubnetConfig}
    */
@@ -2803,7 +2843,50 @@ export interface INetworkAclSubnetSelection {
    * This property only needs to be defined if targeting a subnet in a different region
    * than the one in which this VPC is deployed.
    */
-  readonly region?: t.Region;
+  readonly region?: string;
+}
+
+/**
+ * *{@link NetworkConfig} / {@link VpcConfig} | {@link VpcTemplatesConfig} / {@link NetworkAclConfig} / {@link IcmpRuleConfig}*
+ *
+ *
+ * @description
+ * Use this configuration to define ICMP rules for your network ACLs.
+ *
+ * The following example allows inbound ICMP traffic for Mobile Host Redirect
+ * @example
+ * ```
+ * - rule: 200
+ *   protocol: 1
+ *   icmp:
+ *     type: 32
+ *     code: 5
+ *   action: allow
+ *   source: 10.0.0.0/16
+ * ```
+ * This example allows all ICMP types and codes
+ * ```
+ * - rule: 201
+ *   protocol: 1
+ *   icmp:
+ *     type: -1
+ *     code: -1
+ *   action: allow
+ *   source: 10.0.50.0/28
+ * ```
+ *
+ * * @remarks
+ * For possible ICMP Code Types reference this {@link https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml | documentation}.
+ */
+export interface IIcmpRuleConfig {
+  /**
+   * The ICMP type number. A value of -1 indicates all types.
+   */
+  readonly type: number;
+  /**
+   * The ICMP code number. A value of -1 indicates all types.
+   */
+  readonly code: number;
 }
 
 /**
@@ -2847,11 +2930,11 @@ export interface INetworkAclInboundRuleConfig {
   /**
    * The port to start from in the network ACL rule.
    */
-  readonly fromPort: number;
+  readonly fromPort?: number;
   /**
    * The port to end with in the network ACL rule.
    */
-  readonly toPort: number;
+  readonly toPort?: number;
   /**
    * The action for the network ACL rule.
    */
@@ -2865,6 +2948,11 @@ export interface INetworkAclInboundRuleConfig {
    * @see {@link NetworkAclSubnetSelection}
    */
   readonly source: t.NonEmptyString | INetworkAclSubnetSelection;
+  /**
+   * (OPTIONAL) The Internet Control Message Protocol (ICMP) code and type. Required if specifying 1 (ICMP) for the protocol parameter.
+   *
+   */
+  readonly icmp?: t.NonEmptyString | IIcmpRuleConfig;
 }
 
 /**
@@ -2908,11 +2996,11 @@ export interface INetworkAclOutboundRuleConfig {
   /**
    * The port to start from in the network ACL rule.
    */
-  readonly fromPort: number;
+  readonly fromPort?: number;
   /**
    * The port to end with in the network ACL rule.
    */
-  readonly toPort: number;
+  readonly toPort?: number;
   /**
    * The action for the network ACL rule.
    */
@@ -2926,6 +3014,11 @@ export interface INetworkAclOutboundRuleConfig {
    * @see {@link NetworkAclSubnetSelection}
    */
   readonly destination: t.NonEmptyString | INetworkAclSubnetSelection;
+  /**
+   * (OPTIONAL) The Internet Control Message Protocol (ICMP) code and type. Required if specifying 1 (ICMP) for the protocol parameter.
+   *
+   */
+  readonly icmp?: t.NonEmptyString | IIcmpRuleConfig;
 }
 
 /**
@@ -3048,10 +3141,8 @@ export interface IDhcpOptsConfig {
   readonly accounts: t.NonEmptyString[];
   /**
    * An array of regions to deploy the options set.
-   *
-   * @see {@link Region}
    */
-  readonly regions: t.Region[];
+  readonly regions: string[];
   /**
    * (OPTIONAL) A domain name to assign to hosts using the options set.
    *
@@ -3292,6 +3383,7 @@ export type Phase2DhGroupType = 2 | 5 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 
 export type EncryptionAlgorithmType = 'AES128' | 'AES256' | 'AES128-GCM-16' | 'AES256-GCM-16';
 export type IntegrityAlgorithmType = 'SHA1' | 'SHA2-256' | 'SHA2-384' | 'SHA2-512';
 export type VpnLoggingOutputFormatType = 'json' | 'text';
+export type OutsideIpAddressType = 'PublicIpv4' | 'Ipv6';
 
 /**
  * *{@link NetworkConfig} / {@link CustomerGatewayConfig} / {@link VpnConnectionConfig} / {@link VpnTunnelOptionsSpecificationsConfig} / {@link Phase1Config}*
@@ -3731,6 +3823,17 @@ export interface IVpnTunnelOptionsSpecificationsConfig {
    */
   readonly tunnelInsideCidr?: t.NonEmptyString;
   /**
+   * (OPTIONAL): The range of inside IPv6 addresses for the tunnel. Any specified CIDR blocks must be unique across
+   * all VPN connections that use the same virtual private gateway.
+   *
+   * @remarks
+   * **CAUTION**: Changing this property value after initial deployment causes the VPN to be recreated.
+   * Please be aware that any downstream dependencies may cause this property update to fail.
+   *
+   * Constraints: from the local fd00::/8 range.
+   */
+  readonly tunnelInsideIpv6Cidr?: t.NonEmptyString;
+  /**
    * (OPTIONAL) Enable tunnel endpoint lifecycle control. This feature provides control over the schedule of endpoint replacements.
    * For more information, see {@link https://docs.aws.amazon.com/vpn/latest/s2svpn/tunnel-endpoint-lifecycle.html | Tunnel Endpoint Lifecycle Control}.
    *
@@ -3845,6 +3948,51 @@ export interface IVpnConnectionConfig {
    * Use CIDR notation, i.e. 10.0.0.0/16.
    */
   readonly customerIpv4NetworkCidr?: t.NonEmptyString;
+  /**
+   * (OPTIONAL) The Amazon-side IPv6 CIDR range that is allowed through the site-to-site VPN tunnel.
+   * Configuring this option restricts the Amazon-side CIDR range that can communicate with your
+   * local network.
+   *
+   * Default - `::/0`
+   *
+   * @remarks
+   * **CAUTION:** if you configure this property on a VPN connection that was deployed prior to v1.5.0, your VPN connection
+   * will be recreated. Please be aware that any downstream dependencies may cause this property update to fail. To ensure
+   * a clean replacement, we highly recommend deleting the original connection and its downstream dependencies prior to making this change.
+   *
+   * If you update this property after deployment, both of your VPN tunnel endpoints will become temporarily unavailable. Please see
+   * {@link https://docs.aws.amazon.com/vpn/latest/s2svpn/endpoint-replacements.html#endpoint-replacements-for-vpn-modifications | Customer initiated endpoint replacements} for
+   * additional details.
+   *
+   * Use CIDR notation, i.e. ::/128.
+   */
+  readonly amazonIpv6NetworkCidr?: t.NonEmptyString;
+  /**
+   * (OPTIONAL) The customer-side IPv6 CIDR range that is allowed through the site-to-site VPN tunnel.
+   * Configuring this option restricts the local CIDR range that can communicate with your AWS environment.
+   *
+   * Default - `::/0`
+   *
+   * @remarks
+   * **CAUTION:** if you configure this property on a VPN connection that was deployed prior to v1.5.0, your VPN connection
+   * will be recreated. Please be aware that any downstream dependencies may cause this property update to fail. To ensure
+   * a clean replacement, we highly recommend deleting the original connection and its downstream dependencies prior to making this change.
+   *
+   * If you update this property after deployment, both of your VPN tunnel endpoints will become temporarily unavailable. Please see
+   * {@link https://docs.aws.amazon.com/vpn/latest/s2svpn/endpoint-replacements.html#endpoint-replacements-for-vpn-modifications | Customer initiated endpoint replacements} for
+   * additional details.
+   *
+   * Use CIDR notation, i.e. ::/128.
+   */
+  readonly customerIpv6NetworkCidr?: t.NonEmptyString;
+  /**
+   * (OPTIONALThe type of IP address assigned to the outside interface of the customer gateway device.
+   * Valid values include `PublicIpv4` or `Ipv6`.
+   *
+   * @remarks
+   * *Note: If this property is not specified, this will default to `PublicIpv4`.
+   */
+  readonly outsideIpAddressType?: OutsideIpAddressType;
   /**
    * (OPTIONAL) Enable Site-to-Site VPN Acceleration.
    * For more information, see {@link https://docs.aws.amazon.com/vpn/latest/s2svpn/accelerated-vpn.html | Accelerated Site-to-Site VPN connections}.
@@ -3977,7 +4125,7 @@ export interface ICustomerGatewayConfig {
   /**
    * The AWS region to provision the customer gateway in
    */
-  readonly region: t.Region;
+  readonly region: string;
   /**
    * Defines the IP address of the Customer Gateway
    *
@@ -4224,7 +4372,7 @@ export interface IVpcConfig {
   /**
    * The AWS region to deploy the VPC to
    */
-  readonly region: t.Region;
+  readonly region: string;
   /**
    * (OPTIONAL) A list of IPv4 CIDRs to associate with the VPC.
    *
@@ -4367,7 +4515,11 @@ export interface IVpcConfig {
    * (OPTIONAL) When set to true, this VPC will be configured to utilize centralized
    * endpoints. This includes having the Route 53 Private Hosted Zone
    * associated with this VPC. Centralized endpoints are configured per
-   * region, and can span to spoke accounts
+   * region, and can span to spoke accounts.
+   *
+   * NOTE: The AWS partition and regions must support the creation of Route 53 private hosted zones and DNS alias records for
+   * AWS VPC Endpoint resource types or the pipeline will fail. Ensure your partition and regions will support useCentralEndpoints
+   * before enabling it.
    *
    * @default false
    *
@@ -4490,9 +4642,9 @@ export interface IVpcConfig {
   /**
    * A Route 53 resolver configuration local to the VPC.
    *
-   * @see {@link ResolverConfig}
+   * @see {@link VpcResolverConfig}
    */
-  readonly vpcRoute53Resolver?: IResolverConfig;
+  readonly vpcRoute53Resolver?: IVpcResolverConfig;
 }
 
 /**
@@ -4582,7 +4734,7 @@ export interface IVpcTemplatesConfig {
   /**
    * The AWS region to deploy the VPCs to
    */
-  readonly region: t.Region;
+  readonly region: string;
   /**
    * VPC deployment targets.
    *
@@ -4899,7 +5051,7 @@ export interface IResolverRuleConfig {
    * Only define this property if creating a `SYSTEM` rule type.
    * This does not apply to rules of type `FORWARD`.
    */
-  readonly excludedRegions?: t.Region[];
+  readonly excludedRegions?: string[];
   /**
    * (OPTIONAL) The friendly name of an inbound endpoint to target.
    *
@@ -4961,6 +5113,7 @@ export interface IResolverRuleConfig {
 }
 
 export type ResolverEndpointType = 'INBOUND' | 'OUTBOUND';
+export type ResolverProtocol = 'DoH-FIPS' | 'DoH' | 'Do53';
 
 /**
  * *{@link NetworkConfig} / {@link CentralNetworkServicesConfig} / {@link ResolverConfig} / {@link ResolverEndpointConfig}*
@@ -5063,6 +5216,38 @@ export interface IResolverEndpointConfig {
    */
   readonly rules?: IResolverRuleConfig[];
   /**
+   * (OPTIONAL) An array of DNS Queries over HTTPS (DoH) Protocols to apply to the
+   * Route 53 Resolver Endpoints.
+   *
+   * @remarks
+   * DoH uses TLS encryption and increases privacy and security by preventing eavesdropping and manipulation of DNS
+   * data as it is exchanged between a DoH client and the DoH-based DNS resolver. This helps you implement a
+   * zero-trust architecture where no actor, system, network, or service operating outside or within your security
+   * perimeter is trusted and all network traffic is encrypted.
+   *
+   * For more information, please see: {@link https://datatracker.ietf.org/doc/html/rfc8484}
+   *
+   * Valid configurations are available here: {@link https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-route53resolver-resolverendpoint.html#cfn-route53resolver-resolverendpoint-protocols}
+   *
+   * Note: Not specifying the protocol property for an endpoint, defaults to the `Do53` protocol.
+   *
+   * @example
+   *
+   * To implement an INBOUND resolver endpoint using the DoH protocol.
+   *
+   * ```
+   * - name: accelerator-inbound
+   *   type: INBOUND
+   *   vpc: Network-Endpoints
+   *   protocols:
+   *     - DoH
+   *   subnets:
+   *     - Network-Endpoints-A
+   *     - Network-Endpoints-B
+   * ```
+   */
+  readonly protocols?: ResolverProtocol[];
+  /**
    * (OPTIONAL) An array of tags for the resolver endpoint.
    */
   readonly tags?: t.ITag[];
@@ -5119,7 +5304,7 @@ export interface IDnsQueryLogsConfig {
    * @see {@link ShareTargets}
    */
   readonly shareTargets?: t.IShareTargets;
-  readonly excludedRegions?: t.Region[];
+  readonly excludedRegions?: string[];
 }
 
 export type DnsFirewallRuleActionType = 'ALLOW' | 'ALERT' | 'BLOCK';
@@ -5272,10 +5457,8 @@ export interface IDnsFirewallRuleGroupConfig {
   readonly name: t.NonEmptyString;
   /**
    * The regions to deploy the rule group to.
-   *
-   * @see {@link Region}
    */
-  readonly regions: t.Region[];
+  readonly regions: string[];
   /**
    * An array of DNS firewall rule configurations.
    *
@@ -6332,10 +6515,8 @@ export interface INfwRuleGroupConfig {
   readonly name: t.NonEmptyString;
   /**
    * The regions to deploy the rule group to.
-   *
-   * @see {@link Region}
    */
-  readonly regions: t.Region[];
+  readonly regions: string[];
   /**
    * The capacity of the rule group.
    */
@@ -6385,21 +6566,35 @@ export interface INfwRuleGroupConfig {
  * ```
  * - name: accelerator-stateful-group
  * ```
+ *  Specifying an AWS Managed Rule Group
+ * ```
+ * - managedStatefulRuleGroups: AbusedLegitBotNetCommandAndControlDomainsActionOrder
+ * ```
  */
 export interface INfwStatefulRuleGroupReferenceConfig {
   /**
    * The friendly name of the rule group.
    *
    * @remarks
-   * This is the logical `name` property of the rule group as defined in network-config.yaml.
+   * (OPTIONAL) This is the logical `name` property of the rule group as defined in network-config.yaml.
+   *
+   * Note: For each entry, this or the `managedStatefulRuleGroupName` property must be provided.
    *
    * @see {@link NfwRuleGroupConfig}
    */
-  readonly name: t.NonEmptyString;
+  readonly name?: t.NonEmptyString;
   /**
    * (OPTIONAL) If using strict ordering, a priority number for the rule.
    */
   readonly priority?: number;
+  /**
+   * (OPTIONAL) Specifies the name of an AWS Managed Rule Group. AWS Managed Rule Groups are predefined, ready-to-use collections of rules that are written and maintained by AWS.
+   *
+   * Note: For each entry, you must specify either this property or the `name` property, which references a custom rule group defined in network-config.yaml.
+   *
+   * @see {@link https://docs.aws.amazon.com/network-firewall/latest/developerguide/nwfw-managed-rule-groups.html | Managed rule groups in AWS Network Firewall} for more information
+   */
+  readonly managedStatefulRuleGroupName?: t.NonEmptyString;
 }
 
 /**
@@ -6554,10 +6749,8 @@ export interface INfwFirewallPolicyConfig {
   readonly firewallPolicy: INfwFirewallPolicyPolicyConfig;
   /**
    * The regions to deploy the policy to.
-   *
-   * @see {@link Region}
    */
-  readonly regions: t.Region[];
+  readonly regions: string[];
   /**
    * (OPTIONAL) A description for the policy.
    */
@@ -7221,6 +7414,8 @@ export interface ICertificateConfig {
 /**
  * Network Configuration.
  * Used to define a network configuration for the accelerator.
+ *
+ * @category Network Configuration
  */
 export interface INetworkConfig {
   /**
@@ -7231,7 +7426,7 @@ export interface INetworkConfig {
    * homeRegion: &HOME_REGION us-east-1
    * ```
    */
-  readonly homeRegion?: t.Region;
+  readonly homeRegion?: string;
   /**
    * A default VPC configuration.
    *

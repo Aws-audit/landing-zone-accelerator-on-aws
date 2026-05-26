@@ -11,69 +11,69 @@
  *  and limitations under the License.
  */
 
+import { AccountsConfig } from '../lib/accounts-config';
 import {
-  GlobalConfig,
-  CostAndUsageReportConfig,
-  BudgetReportConfig,
-  ServiceQuotaLimitsConfig,
-  SsmParameterConfig,
-  SsmParametersConfig,
-  SsmInventoryConfig,
-  AcceleratorSettingsConfig,
   AcceleratorMetadataConfig,
+  AcceleratorSettingsConfig,
+  AccessLogBucketConfig,
+  AccountCloudTrailConfig,
+  BackupConfig,
+  BudgetReportConfig,
+  CentralLogBucketConfig,
+  CloudWatchLogsConfig,
+  CloudWatchLogsExclusionConfig,
+  CostAndUsageReportConfig,
+  ElbLogBucketConfig,
+  GlobalConfig,
+  ReportConfig,
+  ServiceQuotaLimitsConfig,
   SnsConfig,
   SnsTopicConfig,
-  BackupConfig,
+  SsmInventoryConfig,
+  SsmParameterConfig,
+  SsmParametersConfig,
   VaultConfig,
-  ReportConfig,
-  externalLandingZoneResourcesConfig,
   centralizeCdkBucketsConfig,
-  AccountCloudTrailConfig,
-  AccessLogBucketConfig,
-  CentralLogBucketConfig,
-  ElbLogBucketConfig,
-  CloudWatchLogsExclusionConfig,
-  CloudWatchLogsConfig,
+  externalLandingZoneResourcesConfig,
 } from '../lib/global-config';
-import { describe, it, expect } from '@jest/globals';
+import { ReplacementsConfig } from '../lib/replacements-config';
+import { describe, it, expect } from 'vitest';
 import * as path from 'path';
 import * as fs from 'fs';
+import { SNAPSHOT_CONFIG } from './config-test-helper';
+
+const configDir = SNAPSHOT_CONFIG;
 
 describe('GlobalConfig', () => {
   describe('Test config', () => {
     it('has loaded successfully', () => {
-      // const globalConfig = new GlobalConfig({
-      //   homeRegion: 'us-east-1',
-      // });
-      const globalConfigFromFile = GlobalConfig.load(path.resolve('../accelerator/test/configs/snapshot-only'));
+      const globalConfigFromFile = GlobalConfig.loadRawGlobalConfig(configDir);
 
       expect(globalConfigFromFile.ssmParameters?.length).toBe(1);
       expect(globalConfigFromFile.ssmParameters?.at(0)?.parameters?.at(0)?.name).toBe('parameterTest');
       expect(globalConfigFromFile.ssmParameters?.at(0)?.parameters?.at(0)?.path).toBe('/my/parameter/structure');
       expect(globalConfigFromFile.ssmParameters?.at(0)?.parameters?.at(0)?.value).toBe('parameterTestValue');
-
-      //   expect(globalConfig.accountNames).toStrictEqual([]);
-      //   expect(globalConfigFromFile.accountNames).toStrictEqual([
-      //     'Management',
-      //     'LogArchive',
-      //     'Audit',
-      //     'SharedServices',
-      //     'Network',
-      //   ]);
     });
 
-    it('loads from string', () => {
-      const buffer = fs.readFileSync(
-        path.join('../accelerator/test/configs/snapshot-only', GlobalConfig.FILENAME),
-        'utf8',
-      );
-      const globalConfigFromString = GlobalConfig.loadFromString(buffer);
-      if (!globalConfigFromString) {
-        throw new Error('globalConfigFromString is not defined');
-      }
-      // expect(globalConfigFromString.accountNames).toStrictEqual([]);
+    it('can load raw config without accounts-config file present', () => {
+      const accountConfigPath = path.join(configDir, AccountsConfig.FILENAME);
+      fs.renameSync(accountConfigPath, `${accountConfigPath}.bak`);
+      const globalConfigFromFile = GlobalConfig.loadRawGlobalConfig(configDir);
 
-      //expect(GlobalConfig.loadFromString('corrupt str')).toBe(undefined);
+      expect(globalConfigFromFile.ssmParameters?.length).toBe(1);
+      expect(globalConfigFromFile.ssmParameters?.at(0)?.parameters?.at(0)?.name).toBe('parameterTest');
+      expect(globalConfigFromFile.ssmParameters?.at(0)?.parameters?.at(0)?.path).toBe('/my/parameter/structure');
+      expect(globalConfigFromFile.ssmParameters?.at(0)?.parameters?.at(0)?.value).toBe('parameterTestValue');
+      fs.renameSync(`${accountConfigPath}.bak`, accountConfigPath);
+    });
+
+    it('loads from file', () => {
+      const accountsConfig = AccountsConfig.load(configDir);
+      const replacementsConfig = ReplacementsConfig.load(configDir, accountsConfig);
+      const globalConfig = GlobalConfig.load(configDir, replacementsConfig);
+      if (!globalConfig) {
+        throw new Error('globalConfig is not defined');
+      }
     });
 
     it('tests CostAndUsageReportConfig', () => {
@@ -136,14 +136,24 @@ describe('GlobalConfig', () => {
       expect(new VaultConfig().policy).toEqual('');
       expect(new SsmParameterConfig().name).toEqual('');
       expect(new SsmParametersConfig().parameters).toEqual([]);
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       expect(new SsmInventoryConfig().enable).toBeFalsy;
-
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       expect(new AcceleratorSettingsConfig().maxConcurrentStacks).toBeUndefined;
-
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       expect(new AcceleratorMetadataConfig().enable).toBeFalsy;
       expect(new SnsConfig().topics).toEqual([]);
       expect(new SnsTopicConfig().emailAddresses).toEqual([]);
       expect(new BackupConfig().vaults).toEqual([]);
+    });
+
+    it('yaml !include works', () => {
+      const accountsConfig = AccountsConfig.load(configDir);
+      const replacementsConfig = ReplacementsConfig.load(configDir, accountsConfig);
+      const globalConfig = GlobalConfig.load(configDir, replacementsConfig);
+
+      expect(globalConfig.controlTower.landingZone!.logging.loggingBucketRetentionDays).toBe(365);
+      expect(globalConfig.controlTower.landingZone!.logging.accessLoggingBucketRetentionDays).toBe(365);
     });
   });
 });

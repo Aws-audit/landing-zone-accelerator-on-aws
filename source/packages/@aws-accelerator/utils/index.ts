@@ -11,21 +11,25 @@
  *  and limitations under the License.
  */
 
-export * from './lib/common-resources';
+export * from './lib/check-stack-diffs';
 export * from './lib/common-functions';
-export * from './lib/logger';
-export * from './lib/policy-replacements';
-export * from './lib/set-organizations-client';
-export * from './lib/ssm-parameter-path';
-export * from './lib/throttle';
-export * from './lib/load-organization-config';
-export * from './lib/get-template';
-export * from './lib/diff-stack';
-export * from './lib/regions';
-export * from './lib/set-token-preferences';
-export * from './lib/evaluate-limits';
+export * from './lib/common-resources';
 export * from './lib/common-types';
 export * from './lib/control-tower';
+export * from './lib/diff-stack';
+export * from './lib/evaluate-limits';
+export * from './lib/get-template';
+export * from './lib/get-value-from-ssm';
+export * from './lib/is-arn';
+export * from './lib/load-organization-config';
+export * from './lib/logger';
+export * from './lib/policy-replacements';
+export * from './lib/query-config-table';
+export * from './lib/regions';
+export * from './lib/set-organizations-client';
+export * from './lib/set-token-preferences';
+export * from './lib/ssm-parameter-path';
+export * from './lib/throttle';
 
 //
 // Common integration test utilities
@@ -37,3 +41,4 @@ export * from './lib/test-util/common/integration-test';
 // Security integration test suite
 //
 export * from './lib/test-util/common/test-suite';
+export * from './lib/lambda';

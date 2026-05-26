@@ -37,7 +37,8 @@ import { TgwCrossAccountResources } from '../asea-resources/tgw-cross-account-re
 import { TransitGatewayRoutes } from '../asea-resources/transit-gateway-routes';
 import { VpcEndpoints } from '../asea-resources/vpc-endpoints';
 import { SsmInventory } from '../asea-resources/ssm-inventory';
-import { createLogger } from '@aws-accelerator/utils/lib/logger';
+import { Lambda } from '../asea-resources/lambda';
+import { createLogger } from '@aws-accelerator/utils';
 import { FirewallResources } from '../asea-resources/firewall-resources';
 import { Route53ResolverQueryLogging } from '../asea-resources/route-53-query-logging';
 import { Route53ResolverQueryLoggingAssociation } from '../asea-resources/route-53-query-logging-association';
@@ -47,6 +48,7 @@ import { ApplicationLoadBalancerResources } from '../asea-resources/application-
 import path from 'path';
 import { ImportStackResources } from '../../utils/import-stack-resources';
 import { NestedStack } from '@aws-accelerator/config';
+import { TransitGatewayPeeringAttachments } from '../asea-resources/transit-gateway-peering-attachments';
 
 /**
  * Enum for log level
@@ -124,6 +126,7 @@ export class ImportAseaResourcesStack extends NetworkStack {
     new SharedSecurityGroups(this, { ...props });
     new TgwCrossAccountResources(this, props);
     new TransitGatewayRoutes(this, { ...props });
+    new TransitGatewayPeeringAttachments(this, { ...props });
     new VpcEndpoints(this, props);
     new SsmInventory(this, props);
     new ManagedAdResources(this, props);
@@ -132,7 +135,7 @@ export class ImportAseaResourcesStack extends NetworkStack {
     new Route53ResolverQueryLoggingAssociation(this, props);
     new Route53ResolverEndpoint(this, props);
     new ApplicationLoadBalancerResources(this, props);
-
+    new Lambda(this, props);
     this.addSsmParameter({
       logicalId: `SSMParamLZAUpgrade`,
       parameterName: `/${this.acceleratorPrefix}/LZAUpgrade/${cdk.Stack.of(this).stackName}`,
@@ -259,6 +262,7 @@ export class ImportAseaResourcesStack extends NetworkStack {
           this.logger.debug(`Updating ${parameterItem.logicalId} ssm Parameter`);
           cfnParameter.addPropertyOverride('Name', parameterItem.parameterName);
           cfnParameter.addPropertyOverride('Value', parameterItem.stringValue);
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
           this.logger.debug(`${parameterItem.logicalId} not found creating new ssm Parameter`);
           cfnParameter = new cdk.aws_ssm.CfnParameter(this, parameterItem.logicalId, {
@@ -313,6 +317,7 @@ export class ImportAseaResourcesStack extends NetworkStack {
           this.logger.debug(`Updating ${parameterItem.logicalId} ssm Parameter`);
           cfnParameter.addPropertyOverride('Name', parameterItem.parameterName);
           cfnParameter.addPropertyOverride('Value', parameterItem.stringValue);
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
           this.logger.debug(`${parameterItem.logicalId} not found creating new ssm Parameter`);
           cfnParameter = new cdk.aws_ssm.CfnParameter(nestedStack.stack, parameterItem.logicalId, {

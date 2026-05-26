@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = `
+exports[`AccountsStack us-east-1 > Construct(AccountsStack):  Snapshot Test 1`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -17,7 +17,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "CustomOrganizationsCreatePolicyCustomResourceProviderLogGroup019B74A9",
-        "enablePolicyTypeScpB4BC96BE",
+        "enableSERVICECONTROLPOLICY8F20A574",
       ],
       "Properties": {
         "ServiceToken": {
@@ -43,7 +43,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "CustomOrganizationsCreatePolicyCustomResourceProviderLogGroup019B74A9",
-        "enablePolicyTypeScpB4BC96BE",
+        "enableSERVICECONTROLPOLICY8F20A574",
       ],
       "Properties": {
         "ServiceToken": {
@@ -76,6 +76,11 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to create service linked role",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Ref": "SsmParameterValueacceleratorkmslambdakeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -87,7 +92,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -203,6 +208,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-AccountsStack-111111111111-us-east-1/AccessAnalyzerServiceLinkedRole/CreateServiceLinkedRoleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "AccessAnalyzerServiceLinkedRoleCreateServiceLinkedRoleFunctionA23D700D",
@@ -212,13 +218,18 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AccessAnalyzerServiceLinkedRoleCreateServiceLinkedRoleProviderframeworkonEventServiceRole9D827C09",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -304,6 +315,16 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AccessAnalyzerServiceLinkedRoleCreateServiceLinkedRoleFunctionA23D700D",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -339,7 +360,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "CustomOrganizationsCreatePolicyCustomResourceProviderLogGroup019B74A9",
-        "enablePolicyTypeScpB4BC96BE",
+        "enableSERVICECONTROLPOLICY8F20A574",
       ],
       "Properties": {
         "ServiceToken": {
@@ -367,6 +388,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       "DependsOn": [
         "AcceleratorGuardrails10AD44C7D",
         "CustomOrganizationsAttachPolicyCustomResourceProviderLogGroup03FEC039",
+        "enableSERVICECONTROLPOLICY8F20A574",
       ],
       "Properties": {
         "ServiceToken": {
@@ -398,6 +420,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       "DependsOn": [
         "AcceleratorGuardrails26DF90F53",
         "CustomOrganizationsAttachPolicyCustomResourceProviderLogGroup03FEC039",
+        "enableSERVICECONTROLPOLICY8F20A574",
       ],
       "Properties": {
         "ServiceToken": {
@@ -428,6 +451,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       "DependsOn": [
         "AllowList6FC5040C",
         "CustomOrganizationsAttachPolicyCustomResourceProviderLogGroup03FEC039",
+        "enableSERVICECONTROLPOLICY8F20A574",
       ],
       "Properties": {
         "ServiceToken": {
@@ -438,6 +462,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
         },
         "configPolicyNames": [
           "AllowList",
+          "DeputyAttackRcp",
         ],
         "partition": {
           "Ref": "AWS::Partition",
@@ -459,6 +484,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       "DependsOn": [
         "CustomOrganizationsAttachPolicyCustomResourceProviderLogGroup03FEC039",
         "DataPerimeter67F0B7E1",
+        "enableSERVICECONTROLPOLICY8F20A574",
       ],
       "Properties": {
         "ServiceToken": {
@@ -485,6 +511,70 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       "Type": "Custom::AttachPolicy",
       "UpdateReplacePolicy": "Delete",
     },
+    "AttachDeputyAttackRcpSecureWorkloads9D4EBCE2": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomOrganizationsAttachPolicyCustomResourceProviderLogGroup03FEC039",
+        "DeputyAttackRcp52CD2596",
+        "enableRESOURCECONTROLPOLICY2452560F",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomOrganizationsAttachPolicyCustomResourceProviderHandlerB3233202",
+            "Arn",
+          ],
+        },
+        "configPolicyNames": [
+          "AllowList",
+          "DeputyAttackRcp",
+        ],
+        "partition": {
+          "Ref": "AWS::Partition",
+        },
+        "policyId": {
+          "Ref": "DeputyAttackRcp52CD2596",
+        },
+        "policyTagKey": "AWSAcceleratorManaged",
+        "targetId": "ou-asdf-33333333",
+        "type": "RESOURCE_CONTROL_POLICY",
+        "uuid": "REPLACED-MD5",
+      },
+      "Type": "Custom::AttachPolicy",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AttachEc2SettingsInfrastructureDF515771": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomOrganizationsAttachPolicyCustomResourceProviderLogGroup03FEC039",
+        "EC2Settings4848FB11",
+        "enableDECLARATIVEPOLICYEC202BC8878",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomOrganizationsAttachPolicyCustomResourceProviderHandlerB3233202",
+            "Arn",
+          ],
+        },
+        "configPolicyNames": [
+          "AcceleratorGuardrails1",
+          "DataPerimeter",
+        ],
+        "partition": {
+          "Ref": "AWS::Partition",
+        },
+        "policyId": {
+          "Ref": "EC2Settings4848FB11",
+        },
+        "policyTagKey": "AWSAcceleratorManaged",
+        "targetId": "ou-asdf-22222222",
+        "type": "DECLARATIVE_POLICY_EC2",
+        "uuid": "REPLACED-MD5",
+      },
+      "Type": "Custom::AttachPolicy",
+      "UpdateReplacePolicy": "Delete",
+    },
     "AttachQuarantineScpFunctionC9C93005": {
       "DependsOn": [
         "AttachQuarantineScpFunctionServiceRoleDefaultPolicyE25B3D06",
@@ -499,19 +589,21 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
         "Environment": {
           "Variables": {
             "SCP_POLICY_NAME": "Quarantine",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Ref": "SsmParameterValueacceleratorkmslambdakeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
         },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AttachQuarantineScpFunctionServiceRole7B57F1A9",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -771,15 +863,20 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomEnablePolicyTypeCustomResourceProviderRoleAE71B2CA",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -878,15 +975,20 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomOrganizationsAttachPolicyCustomResourceProviderRole051E00A6",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -966,15 +1068,20 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Organizations create policy",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomOrganizationsCreatePolicyCustomResourceProviderRoleBA0ADB43",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1068,7 +1175,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "CustomOrganizationsCreatePolicyCustomResourceProviderLogGroup019B74A9",
-        "enablePolicyTypeScpB4BC96BE",
+        "enableSERVICECONTROLPOLICY8F20A574",
       ],
       "Properties": {
         "ServiceToken": {
@@ -1090,6 +1197,58 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       "Type": "Custom::CreatePolicy",
       "UpdateReplacePolicy": "Delete",
     },
+    "DeputyAttackRcp52CD2596": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomOrganizationsCreatePolicyCustomResourceProviderLogGroup019B74A9",
+        "enableRESOURCECONTROLPOLICY2452560F",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomOrganizationsCreatePolicyCustomResourceProviderHandler7A188619",
+            "Arn",
+          ],
+        },
+        "bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
+        "description": "Enforce Deputy Attack RCP
+",
+        "key": "REPLACED-JSON-PATH.json",
+        "name": "DeputyAttackRcp",
+        "partition": "aws",
+        "policyTagKey": "AWSAcceleratorManaged",
+        "type": "RESOURCE_CONTROL_POLICY",
+        "uuid": "REPLACED-MD5",
+      },
+      "Type": "Custom::CreatePolicy",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "EC2Settings4848FB11": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomOrganizationsCreatePolicyCustomResourceProviderLogGroup019B74A9",
+        "enableDECLARATIVEPOLICYEC202BC8878",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomOrganizationsCreatePolicyCustomResourceProviderHandler7A188619",
+            "Arn",
+          ],
+        },
+        "bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
+        "description": "EC2 settings enablement
+",
+        "key": "REPLACED-JSON-PATH.json",
+        "name": "EC2Settings",
+        "partition": "aws",
+        "policyTagKey": "AWSAcceleratorManaged",
+        "type": "DECLARATIVE_POLICY_EC2",
+        "uuid": "REPLACED-MD5",
+      },
+      "Type": "Custom::CreatePolicy",
+      "UpdateReplacePolicy": "Delete",
+    },
     "GuardDutyServiceLinkedRoleCreateServiceLinkedRoleFunction151BCBCB": {
       "DependsOn": [
         "GuardDutyServiceLinkedRoleCreateServiceLinkedRoleFunctionServiceRoleDefaultPolicy17F37920",
@@ -1101,6 +1260,11 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to create service linked role",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Ref": "SsmParameterValueacceleratorkmslambdakeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -1112,7 +1276,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1228,6 +1392,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-AccountsStack-111111111111-us-east-1/GuardDutyServiceLinkedRole/CreateServiceLinkedRoleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "GuardDutyServiceLinkedRoleCreateServiceLinkedRoleFunction151BCBCB",
@@ -1237,13 +1402,18 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "GuardDutyServiceLinkedRoleCreateServiceLinkedRoleProviderframeworkonEventServiceRoleF626C82F",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1287,6 +1457,16 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "GuardDutyServiceLinkedRoleCreateServiceLinkedRoleFunction151BCBCB",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -1372,6 +1552,11 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to create service linked role",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Ref": "SsmParameterValueacceleratorkmslambdakeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -1383,7 +1568,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1499,6 +1684,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-AccountsStack-111111111111-us-east-1/MacieServiceLinkedRole/CreateServiceLinkedRoleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "MacieServiceLinkedRoleCreateServiceLinkedRoleFunction64213ACA",
@@ -1508,13 +1694,18 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "MacieServiceLinkedRoleCreateServiceLinkedRoleProviderframeworkonEventServiceRole6ACF14A7",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1600,6 +1791,16 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "MacieServiceLinkedRoleCreateServiceLinkedRoleFunction64213ACA",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -1676,17 +1877,23 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Opt-in Regions isComplete handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Ref": "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
         },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsIsCompleteServiceRole88C6992C",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -1801,17 +2008,23 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Opt-in Regions onEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Ref": "SsmParameterValueacceleratorkmscloudwatchkeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
         },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsOnEventServiceRoleD4B35886",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 60,
       },
       "Type": "AWS::Lambda::Function",
@@ -1928,6 +2141,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
         "Description": "AWS CDK resource provider framework - isComplete (AWSAccelerator-AccountsStack-111111111111-us-east-1/OptInRegions/OptInRegionsProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_IS_COMPLETE_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "OptInRegionsOptInRegionsIsComplete20A899A2",
@@ -1943,13 +2157,18 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           },
         },
         "Handler": "framework.isComplete",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsProviderframeworkisCompleteServiceRole3768088A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2036,6 +2255,16 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
               ],
             },
             {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsOnEventDF9D2B80",
+                  "Arn",
+                ],
+              },
+            },
+            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -2060,6 +2289,16 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsIsComplete20A899A2",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -2086,6 +2325,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-AccountsStack-111111111111-us-east-1/OptInRegions/OptInRegionsProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_IS_COMPLETE_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "OptInRegionsOptInRegionsIsComplete20A899A2",
@@ -2104,13 +2344,18 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsProviderframeworkonEventServiceRoleE512B52D",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2156,6 +2401,16 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
               ],
             },
             {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsOnEventDF9D2B80",
+                  "Arn",
+                ],
+              },
+            },
+            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -2180,6 +2435,16 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsIsComplete20A899A2",
+                  "Arn",
+                ],
+              },
             },
             {
               "Action": "states:StartExecution",
@@ -2254,6 +2519,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
         "Description": "AWS CDK resource provider framework - onTimeout (AWSAccelerator-AccountsStack-111111111111-us-east-1/OptInRegions/OptInRegionsProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_IS_COMPLETE_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "OptInRegionsOptInRegionsIsComplete20A899A2",
@@ -2269,13 +2535,18 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           },
         },
         "Handler": "framework.onTimeout",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsProviderframeworkonTimeoutServiceRoleC3734E22",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2362,6 +2633,16 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
               ],
             },
             {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsOnEventDF9D2B80",
+                  "Arn",
+                ],
+              },
+            },
+            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -2386,6 +2667,16 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsIsComplete20A899A2",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -2441,22 +2732,6 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
             ],
           ],
         },
-        "LoggingConfiguration": {
-          "Destinations": [
-            {
-              "CloudWatchLogsLogGroup": {
-                "LogGroupArn": {
-                  "Fn::GetAtt": [
-                    "OptInRegionsOptInRegionsProviderwaiterstatemachineLogGroupDDB06910",
-                    "Arn",
-                  ],
-                },
-              },
-            },
-          ],
-          "IncludeExecutionData": false,
-          "Level": "ERROR",
-        },
         "RoleArn": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsProviderwaiterstatemachineRoleB3284282",
@@ -2465,26 +2740,6 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
         },
       },
       "Type": "AWS::StepFunctions::StateMachine",
-    },
-    "OptInRegionsOptInRegionsProviderwaiterstatemachineLogGroupDDB06910": {
-      "DeletionPolicy": "Retain",
-      "Properties": {
-        "LogGroupName": {
-          "Fn::Join": [
-            "",
-            [
-              "/aws/vendedlogs/states/waiter-state-machine-",
-              {
-                "Ref": "OptInRegionsOptInRegionsProviderframeworkisCompleteA55ADDD8",
-              },
-              "-c89b2dfca3e059f2ded794f91a23ea9a1d3a777a0d",
-            ],
-          ],
-        },
-        "RetentionInDays": 731,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Retain",
     },
     "OptInRegionsOptInRegionsProviderwaiterstatemachineRoleB3284282": {
       "Properties": {
@@ -2569,22 +2824,6 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
                 },
               ],
             },
-            {
-              "Action": [
-                "logs:CreateLogDelivery",
-                "logs:CreateLogStream",
-                "logs:GetLogDelivery",
-                "logs:UpdateLogDelivery",
-                "logs:DeleteLogDelivery",
-                "logs:ListLogDeliveries",
-                "logs:PutLogEvents",
-                "logs:PutResourcePolicy",
-                "logs:DescribeResourcePolicies",
-                "logs:DescribeLogGroups",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
           ],
           "Version": "2012-10-17",
         },
@@ -2601,7 +2840,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "CustomOrganizationsCreatePolicyCustomResourceProviderLogGroup019B74A9",
-        "enablePolicyTypeScpB4BC96BE",
+        "enableSERVICECONTROLPOLICY8F20A574",
       ],
       "Properties": {
         "ServiceToken": {
@@ -2634,6 +2873,11 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to create service linked role",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Ref": "SsmParameterValueacceleratorkmslambdakeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -2645,7 +2889,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2761,6 +3005,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-AccountsStack-111111111111-us-east-1/SecurityHubServiceLinkedRole/CreateServiceLinkedRoleProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "SecurityHubServiceLinkedRoleCreateServiceLinkedRoleFunction4EC1E85D",
@@ -2770,13 +3015,18 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "SecurityHubServiceLinkedRoleCreateServiceLinkedRoleProviderframeworkonEventServiceRole57AAF85D",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2862,6 +3112,16 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "SecurityHubServiceLinkedRoleCreateServiceLinkedRoleFunction4EC1E85D",
+                  "Arn",
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -2898,7 +3158,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-AccountsStack-111111111111-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -2922,7 +3182,47 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
       },
       "Type": "AWS::SSM::Parameter",
     },
-    "enablePolicyTypeScpB4BC96BE": {
+    "enableDECLARATIVEPOLICYEC202BC8878": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomEnablePolicyTypeCustomResourceProviderLogGroup81BE8EF5",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomEnablePolicyTypeCustomResourceProviderHandlerC244F9E1",
+            "Arn",
+          ],
+        },
+        "partition": {
+          "Ref": "AWS::Partition",
+        },
+        "policyType": "DECLARATIVE_POLICY_EC2",
+      },
+      "Type": "Custom::EnablePolicyType",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "enableRESOURCECONTROLPOLICY2452560F": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomEnablePolicyTypeCustomResourceProviderLogGroup81BE8EF5",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomEnablePolicyTypeCustomResourceProviderHandlerC244F9E1",
+            "Arn",
+          ],
+        },
+        "partition": {
+          "Ref": "AWS::Partition",
+        },
+        "policyType": "RESOURCE_CONTROL_POLICY",
+      },
+      "Type": "Custom::EnablePolicyType",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "enableSERVICECONTROLPOLICY8F20A574": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
         "CustomEnablePolicyTypeCustomResourceProviderLogGroup81BE8EF5",
@@ -2946,7 +3246,7 @@ exports[`AccountsStack us-east-1 Construct(AccountsStack):  Snapshot Test 1`] = 
 }
 `;
 
-exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test 1`] = `
+exports[`AccountsStack us-west-2 > Construct(AccountsStackUsWest2):  Snapshot Test 1`] = `
 {
   "Resources": {
     "OptInRegions8611CE24": {
@@ -2994,14 +3294,20 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Opt-in Regions isComplete handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsIsCompleteServiceRole88C6992C",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
@@ -3113,14 +3419,20 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Opt-in Regions onEvent handler",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsOnEventServiceRoleD4B35886",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 60,
       },
       "Type": "AWS::Lambda::Function",
@@ -3234,6 +3546,7 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
         "Description": "AWS CDK resource provider framework - isComplete (AWSAccelerator-AccountsStack-111111111111-us-west-2/OptInRegions/OptInRegionsProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_IS_COMPLETE_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "OptInRegionsOptInRegionsIsComplete20A899A2",
@@ -3249,13 +3562,18 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
           },
         },
         "Handler": "framework.isComplete",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsProviderframeworkisCompleteServiceRole3768088A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3342,6 +3660,16 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
               ],
             },
             {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsOnEventDF9D2B80",
+                  "Arn",
+                ],
+              },
+            },
+            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -3366,6 +3694,16 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsIsComplete20A899A2",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -3392,6 +3730,7 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-AccountsStack-111111111111-us-west-2/OptInRegions/OptInRegionsProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_IS_COMPLETE_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "OptInRegionsOptInRegionsIsComplete20A899A2",
@@ -3410,13 +3749,18 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsProviderframeworkonEventServiceRoleE512B52D",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3462,6 +3806,16 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
               ],
             },
             {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsOnEventDF9D2B80",
+                  "Arn",
+                ],
+              },
+            },
+            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -3486,6 +3840,16 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsIsComplete20A899A2",
+                  "Arn",
+                ],
+              },
             },
             {
               "Action": "states:StartExecution",
@@ -3560,6 +3924,7 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
         "Description": "AWS CDK resource provider framework - onTimeout (AWSAccelerator-AccountsStack-111111111111-us-west-2/OptInRegions/OptInRegionsProvider)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_IS_COMPLETE_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "OptInRegionsOptInRegionsIsComplete20A899A2",
@@ -3575,13 +3940,18 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
           },
         },
         "Handler": "framework.onTimeout",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsProviderframeworkonTimeoutServiceRoleC3734E22",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3668,6 +4038,16 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
               ],
             },
             {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsOnEventDF9D2B80",
+                  "Arn",
+                ],
+              },
+            },
+            {
               "Action": "lambda:InvokeFunction",
               "Effect": "Allow",
               "Resource": [
@@ -3692,6 +4072,16 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OptInRegionsOptInRegionsIsComplete20A899A2",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -3747,22 +4137,6 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
             ],
           ],
         },
-        "LoggingConfiguration": {
-          "Destinations": [
-            {
-              "CloudWatchLogsLogGroup": {
-                "LogGroupArn": {
-                  "Fn::GetAtt": [
-                    "OptInRegionsOptInRegionsProviderwaiterstatemachineLogGroupDDB06910",
-                    "Arn",
-                  ],
-                },
-              },
-            },
-          ],
-          "IncludeExecutionData": false,
-          "Level": "ERROR",
-        },
         "RoleArn": {
           "Fn::GetAtt": [
             "OptInRegionsOptInRegionsProviderwaiterstatemachineRoleB3284282",
@@ -3771,26 +4145,6 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
         },
       },
       "Type": "AWS::StepFunctions::StateMachine",
-    },
-    "OptInRegionsOptInRegionsProviderwaiterstatemachineLogGroupDDB06910": {
-      "DeletionPolicy": "Retain",
-      "Properties": {
-        "LogGroupName": {
-          "Fn::Join": [
-            "",
-            [
-              "/aws/vendedlogs/states/waiter-state-machine-",
-              {
-                "Ref": "OptInRegionsOptInRegionsProviderframeworkisCompleteA55ADDD8",
-              },
-              "-c85034ab39f34991f85f596b311352eee576ba4356",
-            ],
-          ],
-        },
-        "RetentionInDays": 731,
-      },
-      "Type": "AWS::Logs::LogGroup",
-      "UpdateReplacePolicy": "Retain",
     },
     "OptInRegionsOptInRegionsProviderwaiterstatemachineRoleB3284282": {
       "Properties": {
@@ -3875,22 +4229,6 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
                 },
               ],
             },
-            {
-              "Action": [
-                "logs:CreateLogDelivery",
-                "logs:CreateLogStream",
-                "logs:GetLogDelivery",
-                "logs:UpdateLogDelivery",
-                "logs:DeleteLogDelivery",
-                "logs:ListLogDeliveries",
-                "logs:PutLogEvents",
-                "logs:PutResourcePolicy",
-                "logs:DescribeResourcePolicies",
-                "logs:DescribeLogGroups",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
-            },
           ],
           "Version": "2012-10-17",
         },
@@ -3907,7 +4245,7 @@ exports[`AccountsStack us-west-2 Construct(AccountsStackUsWest2):  Snapshot Test
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-AccountsStack-111111111111-us-west-2/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },

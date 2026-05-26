@@ -15,7 +15,7 @@ import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
 
-import { createLogger } from '@aws-accelerator/utils/lib/logger';
+import { createLogger } from '@aws-accelerator/utils';
 
 import * as t from './common';
 import * as i from './models/security-config';
@@ -26,6 +26,15 @@ const logger = createLogger(['security-config']);
 export class S3PublicAccessBlockConfig implements i.IS3PublicAccessBlockConfig {
   readonly enable = false;
   readonly excludeAccounts: string[] = [];
+}
+
+export class BlockPublicDocumentSharingConfig implements i.IBlockPublicDocumentSharingConfig {
+  readonly enable = false;
+  readonly excludeAccounts: string[] = [];
+}
+
+export class SsmSettingsConfig implements i.ISsmSettingsConfig {
+  readonly blockPublicDocumentSharing: BlockPublicDocumentSharingConfig | undefined = undefined;
 }
 
 export class ScpRevertChangesConfig implements i.IScpRevertChangesConfig {
@@ -81,7 +90,7 @@ export class ResourcePolicyEnforcementConfig implements i.IResourcePolicyEnforce
 
 export class MacieConfig implements i.IMacieConfig {
   readonly enable = false;
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
   readonly policyFindingsPublishingFrequency = 'FIFTEEN_MINUTES';
   readonly publishSensitiveDataFindings = false;
   readonly publishPolicyFindings: boolean | undefined = undefined;
@@ -90,29 +99,29 @@ export class MacieConfig implements i.IMacieConfig {
 
 export class GuardDutyS3ProtectionConfig implements i.IGuardDutyS3ProtectionConfig {
   readonly enable: boolean = false;
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
 }
 
 export class GuardDutyEksProtectionConfig implements i.IGuardDutyEksProtectionConfig {
   readonly enable: boolean = false;
   readonly manageAgent?: boolean | undefined = false;
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
 }
 
 export class GuardDutyEc2ProtectionConfig implements i.IGuardDutyEc2ProtectionConfig {
   readonly enable: boolean = false;
   readonly keepSnapshots: boolean = false;
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
 }
 
 export class GuardDutyRdsProtectionConfig implements i.IGuardDutyRdsProtectionConfig {
   readonly enable: boolean = false;
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
 }
 
 export class GuardDutyLambdaProtectionConfig implements i.IGuardDutyLambdaProtectionConfig {
   readonly enable: boolean = false;
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
 }
 
 export class GuardDutyExportFindingsConfig implements i.IGuardDutyExportFindingsConfig {
@@ -123,12 +132,27 @@ export class GuardDutyExportFindingsConfig implements i.IGuardDutyExportFindings
   readonly overrideGuardDutyPrefix: t.PrefixConfig | undefined = undefined;
 }
 
+export class GuardDutyS3MalwareProtectionConfig implements i.IGuardDutyS3MalwareProtectionConfig {
+  readonly enable: boolean = false;
+  readonly s3Configurations: MalwareProtectionConfig[] | undefined = undefined;
+}
+
+export class MalwareProtectionConfig implements i.IMalwareProtectionConfig {
+  readonly account: string = '';
+  readonly region: string = '';
+  readonly s3BucketName: string = '';
+  readonly objectPrefixes: string[] | undefined = undefined;
+  readonly enableMalwareProtectionTags: boolean | undefined = false;
+  readonly tags = undefined;
+}
+
 export class GuardDutyConfig implements i.IGuardDutyConfig {
   readonly enable: boolean = false;
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
   readonly deploymentTargets: t.DeploymentTargets | undefined = undefined;
   readonly autoEnableOrgMembers: boolean | undefined = undefined;
   readonly s3Protection: GuardDutyS3ProtectionConfig = new GuardDutyS3ProtectionConfig();
+  readonly s3MalwareProtection: GuardDutyS3MalwareProtectionConfig | undefined = undefined;
   readonly eksProtection: GuardDutyEksProtectionConfig | undefined = undefined;
   readonly ec2Protection: GuardDutyEc2ProtectionConfig | undefined = undefined;
   readonly rdsProtection: GuardDutyRdsProtectionConfig | undefined = undefined;
@@ -144,7 +168,7 @@ export class AuditManagerDefaultReportsDestinationConfig implements i.IAuditMana
 
 export class AuditManagerConfig implements i.IAuditManagerConfig {
   readonly enable = false;
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
   readonly defaultReportsConfiguration: AuditManagerDefaultReportsDestinationConfig =
     new AuditManagerDefaultReportsDestinationConfig();
   readonly lifecycleRules: t.LifeCycleRule[] | undefined = undefined;
@@ -152,7 +176,7 @@ export class AuditManagerConfig implements i.IAuditManagerConfig {
 
 export class DetectiveConfig implements i.IDetectiveConfig {
   readonly enable = false;
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
 }
 
 export class SecurityHubStandardConfig implements i.ISecurityHubStandardConfig {
@@ -165,11 +189,93 @@ export class SecurityHubStandardConfig implements i.ISecurityHubStandardConfig {
 export class SecurityHubLoggingCloudwatchConfig implements i.ISecurityHubLoggingCloudwatchConfig {
   readonly enable = true;
   readonly logGroupName? = undefined;
-  readonly logLevel? = undefined;
+  readonly logLevel = 'HIGH';
 }
 
 export class SecurityHubLoggingConfig implements i.ISecurityHubLoggingConfig {
-  readonly cloudWatch: SecurityHubLoggingCloudwatchConfig | undefined = undefined;
+  readonly cloudWatch: SecurityHubLoggingCloudwatchConfig = new SecurityHubLoggingCloudwatchConfig();
+}
+
+export class SecurityHubAutomationRulesStringFilter implements i.ISecurityHubAutomationRulesStringFilter {
+  readonly value: string = '';
+  readonly comparison:
+    | 'EQUALS'
+    | 'PREFIX'
+    | 'NOT_EQUALS'
+    | 'PREFIX_NOT_EQUALS'
+    | 'CONTAINS'
+    | 'NOT_CONTAINS'
+    | 'CONTAINS_WORD' = 'EQUALS';
+}
+
+export class SecurityHubAutomationRulesNumberFilter implements i.ISecurityHubAutomationRulesNumberFilter {
+  readonly gte?: number;
+  readonly lte?: number;
+  readonly gt?: number;
+  readonly lt?: number;
+  readonly eq?: number;
+}
+
+export class SecurityHubAutomationRulesDateFilter implements i.ISecurityHubAutomationRulesDateFilter {
+  readonly start?: string;
+  readonly end?: string;
+  readonly dateRange?: {
+    value: number;
+    unit: 'DAYS';
+  };
+}
+
+export class SecurityHubAutomationRulesKeyValueFilter implements i.ISecurityHubAutomationRulesKeyValueFilter {
+  readonly key: string = '';
+  readonly value: string = '';
+  readonly comparison: 'EQUALS' | 'NOT_EQUALS' | 'CONTAINS' | 'NOT_CONTAINS' = 'EQUALS';
+}
+
+export class SecurityHubAutomationRuleNote implements i.ISecurityHubAutomationRuleNote {
+  readonly text: string = '';
+  readonly updatedBy: string = '';
+}
+
+export class SecurityHubAutomationRuleRelatedFinding implements i.ISecurityHubAutomationRuleRelatedFinding {
+  readonly productArn: string = '';
+  readonly id: string = '';
+}
+
+export class SecurityHubAutomationRuleFindingFieldsUpdate implements i.ISecurityHubAutomationRuleFindingFieldsUpdate {
+  readonly note?: SecurityHubAutomationRuleNote;
+  readonly severityLabel?: string;
+  readonly verificationState?: string;
+  readonly confidence?: number;
+  readonly criticality?: number;
+  readonly types?: string[];
+  readonly userDefinedFields?: Record<string, string>;
+  readonly workflowStatus?: string;
+  readonly relatedFindings?: SecurityHubAutomationRuleRelatedFinding[];
+}
+
+export class SecurityhubAutomationRuleAction implements i.ISecurityHubAutomationRuleAction {
+  readonly type: string = 'FINDING_FIELDS_UPDATE';
+  readonly findingFieldsUpdate?: SecurityHubAutomationRuleFindingFieldsUpdate;
+}
+
+export class SecurityHubAutomationRuleCriteria implements i.ISecurityHubAutomationRuleCriteria {
+  readonly key: string = '';
+  readonly filter:
+    | SecurityHubAutomationRulesStringFilter[]
+    | SecurityHubAutomationRulesNumberFilter[]
+    | SecurityHubAutomationRulesDateFilter[]
+    | SecurityHubAutomationRulesKeyValueFilter[] = [];
+}
+
+export class SecurityhubAutomationRuleConfig implements i.ISecurityHubAutomationRuleConfig {
+  readonly name: string = '';
+  readonly description: string = '';
+  readonly enabled: boolean = false;
+  readonly actions: SecurityhubAutomationRuleAction[] = [];
+  readonly criteria: SecurityHubAutomationRuleCriteria[] = [];
+  readonly ruleOrder?: number = undefined;
+  readonly isTerminal?: boolean = undefined;
+  readonly excludeRegions?: string[] = undefined;
 }
 
 export class SecurityHubConfig implements i.ISecurityHubConfig {
@@ -177,11 +283,12 @@ export class SecurityHubConfig implements i.ISecurityHubConfig {
   readonly regionAggregation = false;
   readonly snsTopicName = undefined;
   readonly notificationLevel = undefined;
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
   readonly deploymentTargets: t.DeploymentTargets | undefined = undefined;
   readonly autoEnableOrgMembers: boolean | undefined = undefined;
   readonly standards: SecurityHubStandardConfig[] = [];
-  readonly logging: SecurityHubLoggingConfig | undefined = undefined;
+  readonly logging: SecurityHubLoggingConfig = new SecurityHubLoggingConfig();
+  readonly automationRules: SecurityhubAutomationRuleConfig[] = [];
 }
 
 export class SnsSubscriptionConfig implements i.ISnsSubscriptionConfig {
@@ -193,7 +300,7 @@ export class EbsDefaultVolumeEncryptionConfig implements i.IEbsDefaultVolumeEncr
   readonly enable = false;
   readonly kmsKey: undefined | string = undefined;
   readonly deploymentTargets?: t.DeploymentTargets | undefined;
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
 }
 
 export class DocumentConfig implements i.IDocumentConfig {
@@ -208,7 +315,7 @@ export class DocumentSetConfig implements i.IDocumentSetConfig {
 }
 
 export class SsmAutomationConfig implements i.ISsmAutomationConfig {
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
   readonly documentSets: DocumentSetConfig[] = [];
 }
 
@@ -216,6 +323,7 @@ export class CentralSecurityServicesConfig implements i.ICentralSecurityServices
   readonly delegatedAdminAccount = 'Audit';
   readonly ebsDefaultVolumeEncryption: EbsDefaultVolumeEncryptionConfig = new EbsDefaultVolumeEncryptionConfig();
   readonly s3PublicAccessBlock: S3PublicAccessBlockConfig = new S3PublicAccessBlockConfig();
+  readonly ssmSettings: SsmSettingsConfig | undefined = undefined;
   readonly scpRevertChangesConfig: ScpRevertChangesConfig = new ScpRevertChangesConfig();
   readonly snsSubscriptions: SnsSubscriptionConfig[] = [];
   readonly macie: MacieConfig = new MacieConfig();
@@ -263,7 +371,29 @@ export class ConfigRuleRemediation implements i.IConfigRuleRemediationType {
   readonly retryAttemptSeconds = 0;
   readonly maximumAutomaticAttempts = 0;
   readonly parameters = [];
-  readonly excludeRegions: t.Region[] = [];
+  readonly excludeRegions: string[] = [];
+}
+
+export class CustomRuleLambda implements i.ICustomRuleLambdaType {
+  readonly sourceFilePath: t.NonEmptyString = '';
+  readonly handler: t.NonEmptyString = '';
+  readonly runtime: t.NonEmptyString = '';
+  readonly rolePolicyFile: t.NonEmptyString = '';
+  readonly timeout?: number;
+}
+
+export class TriggeringResource implements i.ITriggeringResourceType {
+  readonly lookupType: string = 'ResourceId';
+  readonly lookupKey: t.NonEmptyString = '';
+  readonly lookupValue: t.NonEmptyString[] = [];
+}
+
+export class CustomRuleConfig implements i.ICustomRuleConfigType {
+  readonly lambda: i.ICustomRuleLambdaType = new CustomRuleLambda();
+  readonly periodic?: boolean;
+  readonly maximumExecutionFrequency: string = 'TwentyFour_Hours';
+  readonly configurationChanges?: boolean;
+  readonly triggeringResources: i.ITriggeringResourceType = new TriggeringResource();
 }
 
 export class ConfigRule implements i.IConfigRule {
@@ -274,23 +404,7 @@ export class ConfigRule implements i.IConfigRule {
   readonly complianceResourceTypes: string[] = [];
   readonly type = '';
   readonly tags = [];
-  readonly customRule = {
-    lambda: {
-      sourceFilePath: '',
-      handler: '',
-      runtime: '',
-      rolePolicyFile: '',
-      timeout: 3,
-    },
-    periodic: true,
-    maximumExecutionFrequency: 'TwentyFour_Hours',
-    configurationChanges: true,
-    triggeringResources: {
-      lookupType: '',
-      lookupKey: '',
-      lookupValue: [],
-    },
-  };
+  readonly customRule: CustomRuleConfig | undefined;
   readonly remediation: ConfigRuleRemediation = new ConfigRuleRemediation();
 }
 
@@ -317,10 +431,11 @@ export class MetricConfig implements i.IMetricConfig {
   readonly metricName: string = '';
   readonly metricValue: string = '';
   readonly treatMissingData: string | undefined = undefined;
+  readonly defaultValue?: number | undefined = undefined;
 }
 
 export class MetricSetConfig implements i.IMetricSetConfig {
-  readonly regions: t.Region[] | undefined = undefined;
+  readonly regions: string[] | undefined = undefined;
   readonly deploymentTargets: t.DeploymentTargets = new t.DeploymentTargets();
   readonly metrics: MetricConfig[] = [];
 }
@@ -341,7 +456,7 @@ export class AlarmConfig implements i.IAlarmConfig {
 }
 
 export class AlarmSetConfig implements i.IAlarmSetConfig {
-  readonly regions: t.Region[] | undefined = undefined;
+  readonly regions: string[] | undefined = undefined;
   readonly deploymentTargets: t.DeploymentTargets = new t.DeploymentTargets();
   readonly alarms: AlarmConfig[] = [];
 }
@@ -356,7 +471,7 @@ export class LogGroupsConfig implements i.ILogGroupsConfig {
   readonly deploymentTargets: t.DeploymentTargets = new t.DeploymentTargets();
   readonly encryption: EncryptionConfig | undefined = undefined;
   readonly logGroupName: string = '';
-  readonly logRetentionInDays = 3653;
+  readonly logRetentionInDays = 365;
   readonly terminationProtected: boolean | undefined = undefined;
 }
 
@@ -404,20 +519,29 @@ export class SecurityConfig implements i.ISecurityConfig {
    * @returns
    */
 
-  static load(dir: string, replacementsConfig?: ReplacementsConfig): SecurityConfig {
+  static load(dir: string, replacementsConfig: ReplacementsConfig): SecurityConfig {
     const initialBuffer = fs.readFileSync(path.join(dir, SecurityConfig.FILENAME), 'utf8');
     const buffer = replacementsConfig ? replacementsConfig.preProcessBuffer(initialBuffer) : initialBuffer;
-    const values = t.parseSecurityConfig(yaml.load(buffer));
-    return new SecurityConfig(values);
+    // Create schema with custom !include tag that supports replacement tokens
+    const schema = t.createSchema(dir, replacementsConfig);
+    // Load YAML with custom schema
+    try {
+      const values = t.parseSecurityConfig(yaml.load(buffer, { schema }));
+      return new SecurityConfig(values);
+    } catch (e) {
+      logger.error('parsing security-config failed', e);
+      throw new Error('Could not parse security configuration');
+    }
   }
 
   /**
    * Load from string content
    * @param content
    */
-  static loadFromString(content: string): SecurityConfig | undefined {
+  static loadFromString(content: string, replacementsConfig: ReplacementsConfig): SecurityConfig | undefined {
+    const buffer = replacementsConfig ? replacementsConfig.preProcessBuffer(content) : content;
     try {
-      const values = t.parseSecurityConfig(yaml.load(content));
+      const values = t.parseSecurityConfig(yaml.load(buffer));
       return new SecurityConfig(values);
     } catch (e) {
       logger.error('Error parsing input, security config undefined');

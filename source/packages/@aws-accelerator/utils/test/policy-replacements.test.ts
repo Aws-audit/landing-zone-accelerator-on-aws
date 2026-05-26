@@ -1,4 +1,26 @@
-import { expect, describe, it } from '@jest/globals';
+import { expect, describe, it, vi } from 'vitest';
+
+// Mock the entire config module to prevent winston.add error
+vi.mock('@aws-accelerator/config', () => ({
+  AccountsConfig: vi.fn().mockImplementation(() => ({
+    getAccountIds: vi.fn(() => ['111111111111', '222222222222', '333333333333', '444444444444', '555555555555']),
+    getAccountId: vi.fn((name: string) => {
+      const accountMap: { [key: string]: string } = {
+        Network: '555555555555',
+        SharedServices: '444444444444',
+        Management: '111111111111',
+        Audit: '222222222222',
+        LogArchive: '333333333333',
+      };
+      return accountMap[name];
+    }),
+    getAccounts: vi.fn(() => [
+      { name: 'SharedServices', organizationalUnit: 'Infrastructure' },
+      { name: 'Network', organizationalUnit: 'Infrastructure' },
+    ]),
+  })),
+}));
+
 import { AccountsConfig } from '@aws-accelerator/config';
 import { policyReplacements } from '../lib/policy-replacements';
 
@@ -69,6 +91,8 @@ const partition = 'aws';
 const acceleratorName = 'AWS-Accelerator';
 const additionalReplacements = {
   '\\${ADDITIONAL_REPLACEMENT}': 'replaced-value',
+  '\\${ACCEL_LOOKUP::CUSTOM:EnabledRegions}': ['us-east-1'],
+  '\\${ACCEL_LOOKUP::CUSTOM:ALLOWED_CORPORATE_CIDRS}': ['10.0.1.0/24', '10.0.2.0/24'],
 };
 
 const accountsConfig = new AccountsConfig(
@@ -151,5 +175,33 @@ describe('ACCOUNT_ID lookup test ', () => {
     });
     expect(result).toBe(`"555555555555"
 "555555555555"`);
+  });
+
+  it('should load arrays of length 1 while maintaining type array', () => {
+    const content = '${ACCEL_LOOKUP::CUSTOM:EnabledRegions}';
+    const result = policyReplacements({
+      content,
+      acceleratorPrefix,
+      managementAccountAccessRole,
+      partition,
+      additionalReplacements,
+      acceleratorName,
+      accountsConfig,
+    });
+    expect(result).toBe('["us-east-1"]');
+  });
+
+  it('should load arrays of length > 1 while maintaining type array', () => {
+    const content = '${ACCEL_LOOKUP::CUSTOM:ALLOWED_CORPORATE_CIDRS}';
+    const result = policyReplacements({
+      content,
+      acceleratorPrefix,
+      managementAccountAccessRole,
+      partition,
+      additionalReplacements,
+      acceleratorName,
+      accountsConfig,
+    });
+    expect(result).toBe('["10.0.1.0/24","10.0.2.0/24"]');
   });
 });

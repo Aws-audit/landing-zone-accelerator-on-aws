@@ -17,9 +17,17 @@ import { SetupLandingZoneModule } from '../lib/control-tower/setup-landing-zone/
 import { IRegisterOrganizationalUnitHandlerParameter } from '../interfaces/control-tower/register-organizational-unit';
 import { RegisterOrganizationalUnitModule } from '../lib/control-tower/register-organizational-unit';
 
+import { IEnrollAccountsHandlerParameter } from '../interfaces/control-tower/enroll-accounts';
+import { EnrollAccountsModule } from '../lib/control-tower/enroll-accounts';
+
+import { createLogger } from '../common/logger';
+import path from 'path';
+
 process.on('uncaughtException', err => {
   throw err;
 });
+
+const logger = createLogger([path.parse(path.basename(__filename)).name]);
 
 /**
  * Function to setup Accelerator AWS Control Tower landing zone
@@ -56,7 +64,7 @@ process.on('uncaughtException', err => {
  *     enable: true,
  *     version: '3.3',
  *     enabledRegions: ['us-east-1', 'us-west-2'],
- *     logging: { organizationTrail: true, retention: { loggingBucket: 3650, accessLoggingBucket: 365 } },
+ *     logging: { organizationTrail: true, retention: { loggingBucket: 365, accessLoggingBucket: 365 } },
  *     security: { enableIdentityCenterAccess: true },
  *     sharedAccounts: {
  *       management: { name: 'Management', email: '<management-account>@example.com' },
@@ -76,7 +84,7 @@ export async function setupControlTowerLandingZone(input: ISetupLandingZoneHandl
   try {
     return await new SetupLandingZoneModule().handler(input);
   } catch (e: unknown) {
-    console.error(e);
+    logger.error(e);
     throw e;
   }
 }
@@ -112,6 +120,39 @@ export async function setupControlTowerLandingZone(input: ISetupLandingZoneHandl
     return await new RegisterOrganizationalUnitModule().handler(input);
   } catch (e: unknown) {
     console.error(e);
+    throw e;
+  }
+}
+
+/**
+ * Function to enroll accounts across the entire Control Tower organization
+ * @param input {@link IEnrollAccountsHandlerParameter}
+ *
+ * @description
+ * Use this function to enroll accounts by listing all enabled baselines (with children),
+ * resetting any OUs with inheritance drift, and waiting for all account enrollments to complete.
+ * This module executes once for the whole organization instead of per OU.
+ *
+ * @example
+ *
+ * ```
+ * const param: IEnrollAccountsHandlerParameter = {
+ *   partition: 'aws',
+ *   region: 'us-east-1',
+ *   configuration: {}
+ * }
+ *
+ * const status = await enrollAccounts(param);
+ *
+ * ```
+ *
+ * @returns status string
+ */
+export async function enrollAccounts(input: IEnrollAccountsHandlerParameter): Promise<string> {
+  try {
+    return await new EnrollAccountsModule().handler(input);
+  } catch (e: unknown) {
+    logger.error(e);
     throw e;
   }
 }

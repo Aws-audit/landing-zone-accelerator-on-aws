@@ -15,7 +15,7 @@ import * as cdk from 'aws-cdk-lib';
 import { BucketAccessType } from '@aws-accelerator/utils';
 import { Bucket, BucketEncryptionType } from '../../lib/aws-s3/bucket';
 import { snapShotTest } from '../snapshot-test';
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 
 const testNamePrefix = 'Construct(Bucket): ';
 
@@ -49,6 +49,27 @@ describe('Bucket', () => {
     // the values are cdk tokens so just check if they are string
     expect(standardTest.getKey().keyArn).toBeDefined();
     expect(standardTest.getS3Bucket().bucketName).toBeDefined();
+  });
+  it('test when removalpolicy is provided', () => {
+    new Bucket(stack, 'BucketWithRemovalPolicy', {
+      encryptionType: BucketEncryptionType.SSE_KMS,
+      s3BucketName: `aws-accelerator-macie-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
+      kmsKey: new cdk.aws_kms.Key(stack, 'CustomKeyRemovalPolicy', {}),
+      serverAccessLogsBucketName: `aws-accelerator-s3-access-logs-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
+      replicationProps: {
+        destination: {
+          bucketName: `aws-accelerator-central-logs-bucket`,
+          accountId: cdk.Aws.ACCOUNT_ID,
+          keyArn: `arn:aws:kms:us-east-1:${cdk.Aws.ACCOUNT_ID}:key/ksm-key-arn`,
+        },
+        kmsKey: new cdk.aws_kms.Key(stack, 'CWLKeyRemovalPolicy', {}),
+        logRetentionInDays: 3653,
+        useExistingRoles: false,
+        acceleratorPrefix: 'AWSAccelerator',
+      },
+      nagSuppressionPrefix: 'BucketPrefix/Resource',
+      s3RemovalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
+    });
   });
   it('test awsPrincipals', () => {
     new Bucket(stack, 'BucketAwsPrincipalAccess', {
@@ -129,6 +150,7 @@ describe('Bucket', () => {
           acceleratorPrefix: 'AWSAccelerator',
         },
       });
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       noKmsBucket.getKey().keyArn;
       return noKmsBucket.getS3Bucket().bucketName;
     }

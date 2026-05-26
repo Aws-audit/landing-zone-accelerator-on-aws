@@ -4,6 +4,7 @@ import {
   AssumeRoleCommandInput,
   AssumeRoleCommandOutput,
   GetCallerIdentityCommand,
+  Credentials,
 } from '@aws-sdk/client-sts';
 import { throttlingBackOff } from './throttle';
 import { ConfiguredRetryStrategy } from '@aws-sdk/util-retry';
@@ -11,6 +12,8 @@ import { createLogger } from './logger';
 import { glob } from 'glob';
 import { dirname } from 'path';
 import * as fs from 'fs';
+import { config } from '../../../../package.json';
+
 const logger = createLogger(['utils-common-functions']);
 
 export function chunkArray<Type>(array: Type[], chunkSize: number): Type[][] {
@@ -31,6 +34,11 @@ export async function getCrossAccountCredentials(
   managementAccountAccessRole: string,
   sessionName?: string,
 ) {
+  logger.debug(`Getting credentials for account ${accountId} using role ${managementAccountAccessRole}`);
+  if (region === 'undefined') {
+    logger.debug(`Region was undefined, defaulting to creating STS client in the global region`);
+    region = getGlobalRegion(partition);
+  }
   const stsClient = new STSClient({
     region: region,
     retryStrategy: setRetryStrategy(),
@@ -76,6 +84,100 @@ export async function getCurrentAccountId(partition: string, region: string): Pr
   }
 }
 
+export async function getManagementAccountCredentials(partition: string): Promise<Credentials | undefined> {
+  if (process.env['CREDENTIALS_PATH'] && fs.existsSync(process.env['CREDENTIALS_PATH'])) {
+    logger.info('Detected Debugging environment. Loading temporary credentials.');
+
+    const credentialsString = fs.readFileSync(process.env['CREDENTIALS_PATH']).toString();
+    const credentials = JSON.parse(credentialsString);
+
+    // Set environment variables for SDK v3
+    process.env['AWS_ACCESS_KEY_ID'] = credentials.AccessKeyId;
+    process.env['AWS_SECRET_ACCESS_KEY'] = credentials.SecretAccessKey;
+    if (credentials.SessionToken) {
+      process.env['AWS_SESSION_TOKEN'] = credentials.SessionToken;
+    }
+  }
+
+  if (process.env['MANAGEMENT_ACCOUNT_ID'] && process.env['MANAGEMENT_ACCOUNT_ROLE_NAME']) {
+    logger.info('set management account credentials');
+    logger.info(`managementAccountId => ${process.env['MANAGEMENT_ACCOUNT_ID']}`);
+    logger.info(`management account role name => ${process.env['MANAGEMENT_ACCOUNT_ROLE_NAME']}`);
+
+    const roleArn = `arn:${partition}:iam::${process.env['MANAGEMENT_ACCOUNT_ID']}:role/${process.env['MANAGEMENT_ACCOUNT_ROLE_NAME']}`;
+    const stsClient = new STSClient({
+      region: process.env['AWS_REGION'],
+      retryStrategy: setRetryStrategy(),
+      customUserAgent: process.env['SOLUTION_ID'] ?? '',
+    });
+    const callerIdentity = await throttlingBackOff(() => stsClient.send(new GetCallerIdentityCommand({})));
+    if (callerIdentity.Account && callerIdentity.Account === process.env['MANAGEMENT_ACCOUNT_ID']) {
+      logger.info(`Currently using management account credentials with role ${callerIdentity.Arn}`);
+      return undefined;
+    }
+    const assumeRoleCredential = await throttlingBackOff(() =>
+      stsClient.send(new AssumeRoleCommand({ RoleArn: roleArn, RoleSessionName: 'acceleratorAssumeRoleSession' })),
+    );
+    const acceleratorPrefix = process.env['ACCELERATOR_PREFIX'] ?? 'AWSAccelerator';
+    const lzaManagementRoleArn = `arn:${partition}:iam::${process.env['MANAGEMENT_ACCOUNT_ID']}:role/${acceleratorPrefix}-Management-Deployment-Role`;
+    logger.info(`management account role name => ${acceleratorPrefix}-Management-Deployment-Role`);
+    const managementStsClient = new STSClient({
+      region: process.env['AWS_REGION'],
+      retryStrategy: setRetryStrategy(),
+      customUserAgent: process.env['SOLUTION_ID'] ?? '',
+      credentials: {
+        accessKeyId: assumeRoleCredential.Credentials!.AccessKeyId!,
+        secretAccessKey: assumeRoleCredential.Credentials!.SecretAccessKey!,
+        sessionToken: assumeRoleCredential.Credentials!.SessionToken!,
+      },
+    });
+
+    const assumeLzaManagementRole = await throttlingBackOff(() =>
+      managementStsClient.send(
+        new AssumeRoleCommand({ RoleArn: lzaManagementRoleArn, RoleSessionName: 'lzaManagementRoleSession' }),
+      ),
+    );
+    return {
+      AccessKeyId: assumeLzaManagementRole.Credentials!.AccessKeyId!,
+      SecretAccessKey: assumeLzaManagementRole.Credentials!.SecretAccessKey!,
+      SessionToken: assumeLzaManagementRole.Credentials!.SessionToken,
+    } as Credentials;
+  } else {
+    return undefined;
+  }
+}
+
+export function setEnvironmentCredentials(credentials: Credentials | undefined) {
+  if (!credentials) {
+    return;
+  }
+  process.env['AWS_ACCESS_KEY_ID'] = credentials.AccessKeyId;
+  process.env['AWS_ACCESS_KEY'] = credentials.AccessKeyId;
+  process.env['AWS_SECRET_KEY'] = credentials.SecretAccessKey;
+  process.env['AWS_SECRET_ACCESS_KEY'] = credentials.SecretAccessKey;
+  process.env['AWS_SESSION_TOKEN'] = credentials.SessionToken;
+}
+
+export async function setExternalManagementAccountCredentials(
+  partition: string,
+  region: string,
+): Promise<Credentials | undefined> {
+  if (!process.env['PIPELINE_ACCOUNT_ID'] || !process.env['MANAGEMENT_ACCOUNT_ID']) {
+    return undefined;
+  }
+
+  const currentAccountId = await getCurrentAccountId(partition, region);
+  if (
+    currentAccountId === process.env['PIPELINE_ACCOUNT_ID'] &&
+    process.env['MANAGEMENT_ACCOUNT_ID'] !== process.env['PIPELINE_ACCOUNT_ID']
+  ) {
+    const credentials = await getManagementAccountCredentials(partition);
+    setEnvironmentCredentials(credentials);
+  }
+
+  return undefined;
+}
+
 export function setRetryStrategy() {
   const numberOfRetries = Number(process.env['ACCELERATOR_SDK_MAX_ATTEMPTS'] ?? 800);
   return new ConfiguredRetryStrategy(numberOfRetries, (attempt: number) => 100 + attempt * 1000);
@@ -92,6 +194,8 @@ export function getStsEndpoint(partition: string, region: string): string {
     return `https://sts.${region}.csp.hci.ic.gov`;
   } else if (partition === 'aws-iso-e') {
     return `https://sts.${region}.cloud.adc-e.uk`;
+  } else if (partition === 'aws-eusc') {
+    return `https://sts.${region}.amazonaws.eu`;
   }
   // both commercial and govCloud return this pattern
   return `https://sts.${region}.amazonaws.com`;
@@ -116,7 +220,7 @@ export async function getStsCredentials(
   stsClient: STSClient,
   roleArn: string,
 ): Promise<{ accessKeyId: string; secretAccessKey: string; sessionToken: string }> {
-  console.log(`Assuming role ${roleArn}...`);
+  logger.info(`Assuming role ${roleArn}...`);
   try {
     const response = await throttlingBackOff(() =>
       stsClient.send(new AssumeRoleCommand({ RoleArn: roleArn, RoleSessionName: 'AcceleratorAssumeRole' })),
@@ -152,11 +256,9 @@ export async function getAllFilesInPattern(dir: string, pattern: string, fullPat
   const files = await glob(`${dir}/**/*${pattern}`, {
     ignore: ['**/node_modules/**'],
   });
-  // logger.debug(`Found ${JSON.stringify(files)} files matching pattern ${pattern}`);
   const parsedFiles = files.map(file => {
     return file.replace(dirname(file), '').replace('/', '').replace(pattern, '');
   });
-  // logger.debug(`Parsed files ${JSON.stringify(parsedFiles)}`);
   if (fullPath) {
     return files;
   }
@@ -192,6 +294,8 @@ export function getGlobalRegion(partition: string): string {
       return 'us-isof-south-1';
     case 'aws-cn':
       return 'cn-northwest-1';
+    case 'aws-eusc':
+      return 'eusc-de-east-1';
     default:
       return 'us-east-1';
   }
@@ -202,6 +306,7 @@ export async function fileExists(filePath: string): Promise<boolean> {
     await fs.promises.stat(filePath);
     return true;
   } catch (err) {
+    logger.debug('file exists check', err);
     return false;
   }
 }
@@ -211,6 +316,55 @@ export async function directoryExists(directory: string): Promise<boolean> {
     const stats = await fs.promises.stat(directory);
     return stats.isDirectory();
   } catch (err) {
+    logger.debug('directory exists check', err);
     return false;
   }
+}
+
+/**
+ * Retrieves the Node.js version to be used in the accelerator.
+ *
+ * This function checks for a Node.js version specified in the 'ACCELERATOR_NODE_VERSION'
+ * environment variable. If not set, it falls back to a default version.
+ * The function also ensures that the version meets the minimum required version.
+ *
+ * @throws {Error} If the Node.js version is invalid (not a number) or below the minimum supported version.
+ *
+ * @returns {number} The Node.js version to be used.
+ */
+export function getNodeVersion(): number {
+  const defaultNodeVersion = config.node.version.default;
+  const minimumNodeVersion = config.node.version.minimum;
+
+  const nodeVersion = process.env['ACCELERATOR_NODE_VERSION']
+    ? Number(process.env['ACCELERATOR_NODE_VERSION'])
+    : defaultNodeVersion;
+
+  if (isNaN(nodeVersion) || nodeVersion < minimumNodeVersion) {
+    throw new Error(
+      `Invalid or unsupported Node.js version: ${nodeVersion}. Minimum supported version is ${minimumNodeVersion}.`,
+    );
+  }
+  return nodeVersion;
+}
+
+/**
+ * Helper function to remove the string that makes a vpc
+ * name unique when upgraded from ASEA. Will return the
+ * original string if the delimiter characters are not
+ * in the string
+ * @param vpcName
+ * @returns string
+ */
+export function getAseaVpcName(vpcName: string): string {
+  return removeAfterSequence(vpcName, '..');
+}
+
+export function getAseaConfigVpcName(vpcName: string): string {
+  return removeAfterSequence(vpcName, '..').replace('_vpc_vpc', '_vpc');
+}
+
+export function removeAfterSequence(text: string, sequence: string): string {
+  const index = text.indexOf(sequence);
+  return index === -1 ? text : text.substring(0, index);
 }

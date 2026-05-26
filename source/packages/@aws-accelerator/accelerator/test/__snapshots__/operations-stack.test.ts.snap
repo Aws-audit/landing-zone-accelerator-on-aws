@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`OperationsStack Construct(OperationsStack):  Snapshot Test 1`] = `
+exports[`OperationsStack > Construct(OperationsStack):  Snapshot Test 1`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratorassetskmskeyC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -216,7 +216,7 @@ exports[`OperationsStack Construct(OperationsStack):  Snapshot Test 1`] = `
     "BackupKey60B97760": {
       "DeletionPolicy": "Retain",
       "Properties": {
-        "Description": "AWS Accelerator Backup Kms Key",
+        "Description": "KMS key for encrypting AWS Backup vaults and recovery points",
         "EnableKeyRotation": true,
         "KeyPolicy": {
           "Statement": [
@@ -486,15 +486,20 @@ exports[`OperationsStack Construct(OperationsStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomServiceQuotaLimitsCustomResourceProviderRole024C3C88",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -678,15 +683,20 @@ exports[`OperationsStack Construct(OperationsStack):  Snapshot Test 1`] = `
           "S3Bucket": "cdk-hnb659fds-assets-111111111111-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmGetParameterValueCustomResourceProviderRoleB3AFDDB2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1117,7 +1127,7 @@ exports[`OperationsStack Construct(OperationsStack):  Snapshot Test 1`] = `
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-OperationsStack-111111111111-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -1298,8 +1308,10 @@ exports[`OperationsStack Construct(OperationsStack):  Snapshot Test 1`] = `
             },
             {
               "Action": [
-                "s3:PutObject",
-                "s3:PutObjectAcl",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:DescribeLogStreams",
+                "logs:DescribeLogGroups",
               ],
               "Effect": "Allow",
               "Resource": [
@@ -1311,7 +1323,7 @@ exports[`OperationsStack Construct(OperationsStack):  Snapshot Test 1`] = `
                       {
                         "Ref": "AWS::Partition",
                       },
-                      ":s3:::existing-central-log-bucket/session/111111111111/us-east-1/*",
+                      ":logs:us-east-1:111111111111:log-group:AWSAccelerator-sessionmanager-logs:*",
                     ],
                   ],
                 },
@@ -1323,133 +1335,12 @@ exports[`OperationsStack Construct(OperationsStack):  Snapshot Test 1`] = `
                       {
                         "Ref": "AWS::Partition",
                       },
-                      ":s3:::existing-central-log-bucket/session/111111111111/us-west-2/*",
+                      ":logs:us-west-2:111111111111:log-group:AWSAccelerator-sessionmanager-logs:*",
                     ],
                   ],
                 },
               ],
-              "Sid": "S3CentralLogs",
-            },
-            {
-              "Action": "s3:GetEncryptionConfiguration",
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":s3:::existing-central-log-bucket",
-                  ],
-                ],
-              },
-              "Sid": "S3CentralLogsEncryptionConfig",
-            },
-            {
-              "Action": [
-                "kms:Decrypt",
-                "kms:GenerateDataKey",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Ref": "AcceleratorImportedCentralLogBucketKeyLookupCDD7B719",
-              },
-              "Sid": "S3CentralLogsEncryption",
-            },
-            {
-              "Action": "kms:Decrypt",
-              "Condition": {
-                "ForAllValues:StringLike": {
-                  "kms:ResourceAliases": [
-                    "alias/accelerator/sessionmanager-logs/session",
-                  ],
-                },
-                "Null": {
-                  "kms:ResourceAliases": "false",
-                },
-              },
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":kms:us-east-1:111111111111:key/*",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-      },
-      "Type": "AWS::IAM::ManagedPolicy",
-    },
-    "SsmSessionManagerSettingsSessionManagerEC2Role83702F06": {
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM4",
-              "reason": "Create an IAM managed Policy for users to be able to use Session Manager with KMS encryption",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "ec2.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "Description": "IAM Role for an EC2 configured for Session Manager Logging",
-        "ManagedPolicyArns": [
-          {
-            "Ref": "SsmSessionManagerSettingsSessionManagerEC2Policy8ED295CA",
-          },
-        ],
-        "RoleName": "AWSAccelerator-SessionManagerEC2Role",
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "SsmSessionManagerSettingsSessionManagerPolicy2E1F5C10": {
-      "Metadata": {
-        "cdk_nag": {
-          "rules_to_suppress": [
-            {
-              "id": "AwsSolutions-IAM5",
-              "reason": "Allows only specific log group",
-            },
-          ],
-        },
-      },
-      "Properties": {
-        "Description": "",
-        "Path": "/",
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "ssmmessages:CreateControlChannel",
-                "ssmmessages:CreateDataChannel",
-                "ssmmessages:OpenControlChannel",
-                "ssmmessages:OpenDataChannel",
-                "ssm:UpdateInstanceInformation",
-              ],
-              "Effect": "Allow",
-              "Resource": "*",
+              "Sid": "CloudWatchLogs",
             },
             {
               "Action": [
@@ -1552,12 +1443,47 @@ exports[`OperationsStack Construct(OperationsStack):  Snapshot Test 1`] = `
                   ],
                 },
               ],
+              "Sid": "SessionManagerSessionKey",
             },
           ],
           "Version": "2012-10-17",
         },
       },
       "Type": "AWS::IAM::ManagedPolicy",
+    },
+    "SsmSessionManagerSettingsSessionManagerEC2Role83702F06": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-IAM4",
+              "reason": "Create an IAM managed Policy for users to be able to use Session Manager with KMS encryption",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ec2.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "IAM Role for an EC2 configured for Session Manager Logging",
+        "ManagedPolicyArns": [
+          {
+            "Ref": "SsmSessionManagerSettingsSessionManagerEC2Policy8ED295CA",
+          },
+        ],
+        "RoleName": "AWSAccelerator-SessionManagerEC2Role",
+      },
+      "Type": "AWS::IAM::Role",
     },
     "StackSetAdminRole10A324D2": {
       "Metadata": {

@@ -9,16 +9,16 @@
     "packages/@aws-accelerator/constructs/lib/aws-*/*",
     "packages/@aws-accelerator/constructs/lib/data-perimeter/*",
     "packages/@aws-accelerator/installer",
+    "packages/@aws-accelerator/installer-container",
     "packages/@aws-accelerator/govcloud-account-vending",
     "packages/@aws-accelerator/govcloud-account-vending/lib/lambdas/*",
-    "packages/@aws-accelerator/lza-modules",
     "packages/@aws-accelerator/modules",
     "packages/@aws-accelerator/tester",
     "packages/@aws-accelerator/tester/lambdas",
     "packages/@aws-accelerator/tools",
     "packages/@aws-accelerator/utils",
-    "packages/@aws-cdk-extensions/cdk-extensions",
-    "packages/@aws-cdk-extensions/cdk-plugin-assume-role"
+    "packages/@aws-accelerator/cdk-utils",
+    "packages/@aws-cdk-extensions/cdk-extensions"
   ],
   "npmClient": "yarn"
 }

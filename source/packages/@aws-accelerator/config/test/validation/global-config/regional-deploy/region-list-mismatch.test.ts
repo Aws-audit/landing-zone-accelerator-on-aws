@@ -1,20 +1,23 @@
-import { GlobalConfigValidator } from '../../../../validator/global-config-validator';
-import { GlobalConfig } from '../../../../lib/global-config';
 import { AccountsConfig } from '../../../../lib/accounts-config';
-import { IamConfig } from '../../../../lib/iam-config';
+import { GlobalConfig } from '../../../../lib/global-config';
 import { OrganizationConfig } from '../../../../lib/organization-config';
 import { SecurityConfig } from '../../../../lib/security-config';
-import { describe, it, expect } from '@jest/globals';
+import { IamConfig } from '../../../../lib/iam-config';
+import { GlobalConfigValidator } from '../../../../validator/global-config-validator';
+import { ReplacementsConfig } from '../../../../lib/replacements-config';
+
+import { describe, it, expect } from 'vitest';
 import * as path from 'path';
 
 const setup = (deployOrder: string) => {
-  const configDir = './test/validation/global-config/regional-deploy/config';
+  const configDir = path.resolve(__dirname, 'config');
 
-  const globalConfig = GlobalConfig.load(path.resolve(configDir));
-  const accountsConfig = AccountsConfig.load(path.resolve(configDir));
-  const iamConfig = IamConfig.load(path.resolve(configDir));
-  const orgConfig = OrganizationConfig.load(path.resolve(configDir));
-  const securityConfig = SecurityConfig.load(path.resolve(configDir));
+  const accountsConfig = AccountsConfig.load(configDir);
+  const replacementsConfig = ReplacementsConfig.load(configDir, accountsConfig);
+  const globalConfig = GlobalConfig.load(configDir, replacementsConfig);
+  const iamConfig = IamConfig.load(configDir, replacementsConfig);
+  const orgConfig = OrganizationConfig.load(configDir, replacementsConfig);
+  const securityConfig = SecurityConfig.load(configDir, replacementsConfig);
 
   return function regionalDeployOrderMismatchError() {
     new GlobalConfigValidator(

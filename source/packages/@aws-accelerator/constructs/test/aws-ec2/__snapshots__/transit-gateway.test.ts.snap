@@ -1,128 +1,146 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`] = `
+exports[`ImportTransitGateway > Construct(ImportTransitGateway):  Snapshot Test 1`] = `
 {
   "Mappings": {
     "LatestNodeRuntimeMap": {
       "af-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "ap-east-2": {
+        "value": "nodejs22.x",
       },
       "ap-northeast-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-northeast-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-northeast-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-south-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-4": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-5": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "ap-southeast-6": {
+        "value": "nodejs22.x",
       },
       "ap-southeast-7": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ca-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ca-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "cn-north-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "cn-northwest-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "eu-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-central-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-isoe-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "eu-north-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-south-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "eusc-de-east-1": {
+        "value": "nodejs22.x",
       },
       "il-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "me-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "me-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "mx-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "sa-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-east-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-gov-east-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-gov-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-iso-east-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-iso-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-isob-east-1": {
         "value": "nodejs18.x",
       },
+      "us-isob-west-1": {
+        "value": "nodejs18.x",
+      },
+      "us-isof-east-1": {
+        "value": "nodejs22.x",
+      },
+      "us-isof-south-1": {
+        "value": "nodejs22.x",
+      },
       "us-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-west-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
     },
   },
@@ -138,15 +156,20 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetTransitGatewayAttachmentCustomResourceProviderRoleA6A22C3D",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -235,24 +258,26 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
             "Arn",
           ],
         },
-        "name": "name",
-        "region": {
-          "Ref": "AWS::Region",
-        },
-        "roleArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":iam::owningAccountId:role/roleName",
-            ],
-          ],
-        },
-        "transitGatewayId": "transitGatewayId",
-        "type": "vpc",
+        "attachments": [
+          {
+            "name": "name",
+            "owningAccountId": "owningAccountId",
+            "roleArn": {
+              "Fn::Join": [
+                "",
+                [
+                  "arn:",
+                  {
+                    "Ref": "AWS::Partition",
+                  },
+                  ":iam::owningAccountId:role/roleName",
+                ],
+              ],
+            },
+            "transitGatewayId": "transitGatewayId",
+            "type": "vpc",
+          },
+        ],
         "uuid": "REPLACED-UUID",
       },
       "Type": "Custom::GetTransitGatewayAttachment",
@@ -300,6 +325,7 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
         "DefaultRouteTableAssociation": "enable",
         "DefaultRouteTablePropagation": "enable",
         "DnsSupport": "enable",
+        "MulticastSupport": "enable",
         "Tags": [
           {
             "Key": "key",
@@ -338,6 +364,7 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
           "ApplianceModeSupport": "enable",
           "DnsSupport": "disable",
           "Ipv6Support": "enable",
+          "SecurityGroupReferencingSupport": "disable",
         },
         "SubnetIds": [
           "one",
@@ -361,6 +388,7 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
           "ApplianceModeSupport": "disable",
           "DnsSupport": "enable",
           "Ipv6Support": "disable",
+          "SecurityGroupReferencingSupport": "disable",
         },
         "SubnetIds": [
           "one",
@@ -384,6 +412,7 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
           "ApplianceModeSupport": "enable",
           "DnsSupport": "enable",
           "Ipv6Support": "disable",
+          "SecurityGroupReferencingSupport": "disable",
         },
         "SubnetIds": [
           "one",
@@ -400,6 +429,30 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
         "VpcId": "vpcId",
       },
       "Type": "AWS::EC2::TransitGatewayAttachment",
+    },
+    "TransitGatewayAttachmentWithSgRef3271DAD0": {
+      "Properties": {
+        "Options": {
+          "ApplianceModeSupport": "disable",
+          "DnsSupport": "enable",
+          "Ipv6Support": "disable",
+          "SecurityGroupReferencingSupport": "enable",
+        },
+        "SubnetIds": [
+          "one",
+          "two",
+          "three",
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "name-with-sg-ref",
+          },
+        ],
+        "TransitGatewayId": "transitGatewayId",
+        "VpcId": "vpcId",
+      },
+      "Type": "AWS::EC2::TransitGatewayVpcAttachment",
     },
     "TransitGatewayRouteTableAssociation19E386E4": {
       "Properties": {
@@ -438,6 +491,7 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
         "Description": "AWS CDK resource provider framework - onEvent (Default/TransitGatewayRouteTableAssociationCustom/CustomResource/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::Join": [
                 "",
@@ -461,21 +515,18 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "TransitGatewayRouteTableAssociationCustomCustomResourceframeworkonEventServiceRoleF3DD7C87",
             "Arn",
           ],
         },
-        "Runtime": {
-          "Fn::FindInMap": [
-            "LatestNodeRuntimeMap",
-            {
-              "Ref": "AWS::Region",
-            },
-            "value",
-          ],
-        },
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -539,6 +590,30 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":lambda:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":function:test",
+                  ],
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -630,6 +705,7 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
         "Description": "AWS CDK resource provider framework - onEvent (Default/TransitGatewayRouteTablePropagationCustom/CustomResource/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::Join": [
                 "",
@@ -653,21 +729,18 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "TransitGatewayRouteTablePropagationCustomCustomResourceframeworkonEventServiceRole483D3ED1",
             "Arn",
           ],
         },
-        "Runtime": {
-          "Fn::FindInMap": [
-            "LatestNodeRuntimeMap",
-            {
-              "Ref": "AWS::Region",
-            },
-            "value",
-          ],
-        },
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -773,6 +846,30 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":lambda:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":function:test",
+                  ],
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -785,133 +882,169 @@ exports[`ImportTransitGateway Construct(ImportTransitGateway):  Snapshot Test 1`
       },
       "Type": "AWS::IAM::Policy",
     },
+    "TransitGatewayWithSgRefE01FEDAF": {
+      "Properties": {
+        "AmazonSideAsn": 1234,
+        "AutoAcceptSharedAttachments": "enable",
+        "DefaultRouteTableAssociation": "enable",
+        "DefaultRouteTablePropagation": "enable",
+        "DnsSupport": "enable",
+        "SecurityGroupReferencingSupport": "enable",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "name-with-sg-ref",
+          },
+        ],
+        "VpnEcmpSupport": "enable",
+      },
+      "Type": "AWS::EC2::TransitGateway",
+    },
   },
 }
 `;
 
-exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
+exports[`TransitGateway > Construct(TransitGateway):  Snapshot Test 1`] = `
 {
   "Mappings": {
     "LatestNodeRuntimeMap": {
       "af-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "ap-east-2": {
+        "value": "nodejs22.x",
       },
       "ap-northeast-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-northeast-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-northeast-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-south-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-4": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-5": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "ap-southeast-6": {
+        "value": "nodejs22.x",
       },
       "ap-southeast-7": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ca-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ca-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "cn-north-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "cn-northwest-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "eu-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-central-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-isoe-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "eu-north-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-south-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "eusc-de-east-1": {
+        "value": "nodejs22.x",
       },
       "il-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "me-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "me-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "mx-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "sa-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-east-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-gov-east-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-gov-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-iso-east-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-iso-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-isob-east-1": {
         "value": "nodejs18.x",
       },
+      "us-isob-west-1": {
+        "value": "nodejs18.x",
+      },
+      "us-isof-east-1": {
+        "value": "nodejs22.x",
+      },
+      "us-isof-south-1": {
+        "value": "nodejs22.x",
+      },
       "us-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-west-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
     },
   },
@@ -927,15 +1060,20 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetTransitGatewayAttachmentCustomResourceProviderRoleA6A22C3D",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1024,24 +1162,26 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
             "Arn",
           ],
         },
-        "name": "name",
-        "region": {
-          "Ref": "AWS::Region",
-        },
-        "roleArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":iam::owningAccountId:role/roleName",
-            ],
-          ],
-        },
-        "transitGatewayId": "transitGatewayId",
-        "type": "vpc",
+        "attachments": [
+          {
+            "name": "name",
+            "owningAccountId": "owningAccountId",
+            "roleArn": {
+              "Fn::Join": [
+                "",
+                [
+                  "arn:",
+                  {
+                    "Ref": "AWS::Partition",
+                  },
+                  ":iam::owningAccountId:role/roleName",
+                ],
+              ],
+            },
+            "transitGatewayId": "transitGatewayId",
+            "type": "vpc",
+          },
+        ],
         "uuid": "REPLACED-UUID",
       },
       "Type": "Custom::GetTransitGatewayAttachment",
@@ -1089,6 +1229,7 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
         "DefaultRouteTableAssociation": "enable",
         "DefaultRouteTablePropagation": "enable",
         "DnsSupport": "enable",
+        "MulticastSupport": "enable",
         "Tags": [
           {
             "Key": "key",
@@ -1127,6 +1268,7 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
           "ApplianceModeSupport": "enable",
           "DnsSupport": "disable",
           "Ipv6Support": "enable",
+          "SecurityGroupReferencingSupport": "disable",
         },
         "SubnetIds": [
           "one",
@@ -1150,6 +1292,7 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
           "ApplianceModeSupport": "disable",
           "DnsSupport": "enable",
           "Ipv6Support": "disable",
+          "SecurityGroupReferencingSupport": "disable",
         },
         "SubnetIds": [
           "one",
@@ -1173,6 +1316,7 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
           "ApplianceModeSupport": "enable",
           "DnsSupport": "enable",
           "Ipv6Support": "disable",
+          "SecurityGroupReferencingSupport": "disable",
         },
         "SubnetIds": [
           "one",
@@ -1189,6 +1333,30 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
         "VpcId": "vpcId",
       },
       "Type": "AWS::EC2::TransitGatewayAttachment",
+    },
+    "TransitGatewayAttachmentWithSgRef3271DAD0": {
+      "Properties": {
+        "Options": {
+          "ApplianceModeSupport": "disable",
+          "DnsSupport": "enable",
+          "Ipv6Support": "disable",
+          "SecurityGroupReferencingSupport": "enable",
+        },
+        "SubnetIds": [
+          "one",
+          "two",
+          "three",
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "name-with-sg-ref",
+          },
+        ],
+        "TransitGatewayId": "transitGatewayId",
+        "VpcId": "vpcId",
+      },
+      "Type": "AWS::EC2::TransitGatewayVpcAttachment",
     },
     "TransitGatewayRouteTableAssociation19E386E4": {
       "Properties": {
@@ -1227,6 +1395,7 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - onEvent (Default/TransitGatewayRouteTableAssociationCustom/CustomResource/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::Join": [
                 "",
@@ -1250,21 +1419,18 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "TransitGatewayRouteTableAssociationCustomCustomResourceframeworkonEventServiceRoleF3DD7C87",
             "Arn",
           ],
         },
-        "Runtime": {
-          "Fn::FindInMap": [
-            "LatestNodeRuntimeMap",
-            {
-              "Ref": "AWS::Region",
-            },
-            "value",
-          ],
-        },
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1328,6 +1494,30 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":lambda:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":function:test",
+                  ],
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -1419,6 +1609,7 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
         "Description": "AWS CDK resource provider framework - onEvent (Default/TransitGatewayRouteTablePropagationCustom/CustomResource/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::Join": [
                 "",
@@ -1442,21 +1633,18 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "TransitGatewayRouteTablePropagationCustomCustomResourceframeworkonEventServiceRole483D3ED1",
             "Arn",
           ],
         },
-        "Runtime": {
-          "Fn::FindInMap": [
-            "LatestNodeRuntimeMap",
-            {
-              "Ref": "AWS::Region",
-            },
-            "value",
-          ],
-        },
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1562,6 +1750,30 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":lambda:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":function:test",
+                  ],
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -1574,133 +1786,169 @@ exports[`TransitGateway Construct(TransitGateway):  Snapshot Test 1`] = `
       },
       "Type": "AWS::IAM::Policy",
     },
+    "TransitGatewayWithSgRefE01FEDAF": {
+      "Properties": {
+        "AmazonSideAsn": 1234,
+        "AutoAcceptSharedAttachments": "enable",
+        "DefaultRouteTableAssociation": "enable",
+        "DefaultRouteTablePropagation": "enable",
+        "DnsSupport": "enable",
+        "SecurityGroupReferencingSupport": "enable",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "name-with-sg-ref",
+          },
+        ],
+        "VpnEcmpSupport": "enable",
+      },
+      "Type": "AWS::EC2::TransitGateway",
+    },
   },
 }
 `;
 
-exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot Test 1`] = `
+exports[`TransitGatewayAttachment > Construct(TransitGatewayAttachment):  Snapshot Test 1`] = `
 {
   "Mappings": {
     "LatestNodeRuntimeMap": {
       "af-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "ap-east-2": {
+        "value": "nodejs22.x",
       },
       "ap-northeast-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-northeast-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-northeast-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-south-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-4": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-5": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "ap-southeast-6": {
+        "value": "nodejs22.x",
       },
       "ap-southeast-7": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ca-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ca-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "cn-north-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "cn-northwest-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "eu-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-central-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-isoe-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "eu-north-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-south-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "eusc-de-east-1": {
+        "value": "nodejs22.x",
       },
       "il-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "me-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "me-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "mx-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "sa-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-east-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-gov-east-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-gov-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-iso-east-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-iso-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-isob-east-1": {
         "value": "nodejs18.x",
       },
+      "us-isob-west-1": {
+        "value": "nodejs18.x",
+      },
+      "us-isof-east-1": {
+        "value": "nodejs22.x",
+      },
+      "us-isof-south-1": {
+        "value": "nodejs22.x",
+      },
       "us-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-west-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
     },
   },
@@ -1716,15 +1964,20 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetTransitGatewayAttachmentCustomResourceProviderRoleA6A22C3D",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1813,24 +2066,26 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
             "Arn",
           ],
         },
-        "name": "name",
-        "region": {
-          "Ref": "AWS::Region",
-        },
-        "roleArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":iam::owningAccountId:role/roleName",
-            ],
-          ],
-        },
-        "transitGatewayId": "transitGatewayId",
-        "type": "vpc",
+        "attachments": [
+          {
+            "name": "name",
+            "owningAccountId": "owningAccountId",
+            "roleArn": {
+              "Fn::Join": [
+                "",
+                [
+                  "arn:",
+                  {
+                    "Ref": "AWS::Partition",
+                  },
+                  ":iam::owningAccountId:role/roleName",
+                ],
+              ],
+            },
+            "transitGatewayId": "transitGatewayId",
+            "type": "vpc",
+          },
+        ],
         "uuid": "REPLACED-UUID",
       },
       "Type": "Custom::GetTransitGatewayAttachment",
@@ -1878,6 +2133,7 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
         "DefaultRouteTableAssociation": "enable",
         "DefaultRouteTablePropagation": "enable",
         "DnsSupport": "enable",
+        "MulticastSupport": "enable",
         "Tags": [
           {
             "Key": "key",
@@ -1916,6 +2172,7 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
           "ApplianceModeSupport": "enable",
           "DnsSupport": "disable",
           "Ipv6Support": "enable",
+          "SecurityGroupReferencingSupport": "disable",
         },
         "SubnetIds": [
           "one",
@@ -1939,6 +2196,7 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
           "ApplianceModeSupport": "disable",
           "DnsSupport": "enable",
           "Ipv6Support": "disable",
+          "SecurityGroupReferencingSupport": "disable",
         },
         "SubnetIds": [
           "one",
@@ -1962,6 +2220,7 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
           "ApplianceModeSupport": "enable",
           "DnsSupport": "enable",
           "Ipv6Support": "disable",
+          "SecurityGroupReferencingSupport": "disable",
         },
         "SubnetIds": [
           "one",
@@ -1978,6 +2237,30 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
         "VpcId": "vpcId",
       },
       "Type": "AWS::EC2::TransitGatewayAttachment",
+    },
+    "TransitGatewayAttachmentWithSgRef3271DAD0": {
+      "Properties": {
+        "Options": {
+          "ApplianceModeSupport": "disable",
+          "DnsSupport": "enable",
+          "Ipv6Support": "disable",
+          "SecurityGroupReferencingSupport": "enable",
+        },
+        "SubnetIds": [
+          "one",
+          "two",
+          "three",
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "name-with-sg-ref",
+          },
+        ],
+        "TransitGatewayId": "transitGatewayId",
+        "VpcId": "vpcId",
+      },
+      "Type": "AWS::EC2::TransitGatewayVpcAttachment",
     },
     "TransitGatewayRouteTableAssociation19E386E4": {
       "Properties": {
@@ -2016,6 +2299,7 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
         "Description": "AWS CDK resource provider framework - onEvent (Default/TransitGatewayRouteTableAssociationCustom/CustomResource/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::Join": [
                 "",
@@ -2039,21 +2323,18 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "TransitGatewayRouteTableAssociationCustomCustomResourceframeworkonEventServiceRoleF3DD7C87",
             "Arn",
           ],
         },
-        "Runtime": {
-          "Fn::FindInMap": [
-            "LatestNodeRuntimeMap",
-            {
-              "Ref": "AWS::Region",
-            },
-            "value",
-          ],
-        },
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2117,6 +2398,30 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":lambda:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":function:test",
+                  ],
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -2208,6 +2513,7 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
         "Description": "AWS CDK resource provider framework - onEvent (Default/TransitGatewayRouteTablePropagationCustom/CustomResource/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::Join": [
                 "",
@@ -2231,21 +2537,18 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "TransitGatewayRouteTablePropagationCustomCustomResourceframeworkonEventServiceRole483D3ED1",
             "Arn",
           ],
         },
-        "Runtime": {
-          "Fn::FindInMap": [
-            "LatestNodeRuntimeMap",
-            {
-              "Ref": "AWS::Region",
-            },
-            "value",
-          ],
-        },
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2351,6 +2654,30 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":lambda:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":function:test",
+                  ],
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -2367,129 +2694,147 @@ exports[`TransitGatewayAttachment Construct(TransitGatewayAttachment):  Snapshot
 }
 `;
 
-exports[`TransitGatewayRouteTableAssociation Construct(TransitGatewayRouteTableAssociation):  Snapshot Test 1`] = `
+exports[`TransitGatewayRouteTableAssociation > Construct(TransitGatewayRouteTableAssociation):  Snapshot Test 1`] = `
 {
   "Mappings": {
     "LatestNodeRuntimeMap": {
       "af-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "ap-east-2": {
+        "value": "nodejs22.x",
       },
       "ap-northeast-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-northeast-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-northeast-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-south-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-4": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-5": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "ap-southeast-6": {
+        "value": "nodejs22.x",
       },
       "ap-southeast-7": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ca-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ca-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "cn-north-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "cn-northwest-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "eu-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-central-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-isoe-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "eu-north-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-south-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "eusc-de-east-1": {
+        "value": "nodejs22.x",
       },
       "il-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "me-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "me-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "mx-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "sa-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-east-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-gov-east-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-gov-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-iso-east-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-iso-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-isob-east-1": {
         "value": "nodejs18.x",
       },
+      "us-isob-west-1": {
+        "value": "nodejs18.x",
+      },
+      "us-isof-east-1": {
+        "value": "nodejs22.x",
+      },
+      "us-isof-south-1": {
+        "value": "nodejs22.x",
+      },
       "us-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-west-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
     },
   },
@@ -2501,6 +2846,7 @@ exports[`TransitGatewayRouteTableAssociation Construct(TransitGatewayRouteTableA
         "DefaultRouteTableAssociation": "enable",
         "DefaultRouteTablePropagation": "enable",
         "DnsSupport": "enable",
+        "MulticastSupport": "enable",
         "Tags": [
           {
             "Key": "key",
@@ -2552,6 +2898,7 @@ exports[`TransitGatewayRouteTableAssociation Construct(TransitGatewayRouteTableA
         "Description": "AWS CDK resource provider framework - onEvent (Default/TransitGatewayRouteTableAssociationCustom/CustomResource/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::Join": [
                 "",
@@ -2575,21 +2922,18 @@ exports[`TransitGatewayRouteTableAssociation Construct(TransitGatewayRouteTableA
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "TransitGatewayRouteTableAssociationCustomCustomResourceframeworkonEventServiceRoleF3DD7C87",
             "Arn",
           ],
         },
-        "Runtime": {
-          "Fn::FindInMap": [
-            "LatestNodeRuntimeMap",
-            {
-              "Ref": "AWS::Region",
-            },
-            "value",
-          ],
-        },
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2653,6 +2997,30 @@ exports[`TransitGatewayRouteTableAssociation Construct(TransitGatewayRouteTableA
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":lambda:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":function:test",
+                  ],
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -2744,6 +3112,7 @@ exports[`TransitGatewayRouteTableAssociation Construct(TransitGatewayRouteTableA
         "Description": "AWS CDK resource provider framework - onEvent (Default/TransitGatewayRouteTablePropagationCustom/CustomResource/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::Join": [
                 "",
@@ -2767,21 +3136,18 @@ exports[`TransitGatewayRouteTableAssociation Construct(TransitGatewayRouteTableA
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "TransitGatewayRouteTablePropagationCustomCustomResourceframeworkonEventServiceRole483D3ED1",
             "Arn",
           ],
         },
-        "Runtime": {
-          "Fn::FindInMap": [
-            "LatestNodeRuntimeMap",
-            {
-              "Ref": "AWS::Region",
-            },
-            "value",
-          ],
-        },
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -2887,6 +3253,30 @@ exports[`TransitGatewayRouteTableAssociation Construct(TransitGatewayRouteTableA
                 },
               ],
             },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":lambda:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":function:test",
+                  ],
+                ],
+              },
+            },
           ],
           "Version": "2012-10-17",
         },
@@ -2903,129 +3293,147 @@ exports[`TransitGatewayRouteTableAssociation Construct(TransitGatewayRouteTableA
 }
 `;
 
-exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTablePropagation):  Snapshot Test 1`] = `
+exports[`TransitGatewayRouteTablePropagation > Construct(TransitGatewayRouteTablePropagation):  Snapshot Test 1`] = `
 {
   "Mappings": {
     "LatestNodeRuntimeMap": {
       "af-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "ap-east-2": {
+        "value": "nodejs22.x",
       },
       "ap-northeast-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-northeast-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-northeast-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-south-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-4": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ap-southeast-5": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "ap-southeast-6": {
+        "value": "nodejs22.x",
       },
       "ap-southeast-7": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ca-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "ca-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "cn-north-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "cn-northwest-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "eu-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-central-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-isoe-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "eu-north-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-south-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "eu-west-3": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
+      },
+      "eusc-de-east-1": {
+        "value": "nodejs22.x",
       },
       "il-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "me-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "me-south-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "mx-central-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "sa-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-east-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-east-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-gov-east-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-gov-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-iso-east-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-iso-west-1": {
-        "value": "nodejs18.x",
+        "value": "nodejs22.x",
       },
       "us-isob-east-1": {
         "value": "nodejs18.x",
       },
+      "us-isob-west-1": {
+        "value": "nodejs18.x",
+      },
+      "us-isof-east-1": {
+        "value": "nodejs22.x",
+      },
+      "us-isof-south-1": {
+        "value": "nodejs22.x",
+      },
       "us-west-1": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
       "us-west-2": {
-        "value": "nodejs20.x",
+        "value": "nodejs22.x",
       },
     },
   },
@@ -3041,15 +3449,20 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomGetTransitGatewayAttachmentCustomResourceProviderRoleA6A22C3D",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3138,24 +3551,26 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
             "Arn",
           ],
         },
-        "name": "name",
-        "region": {
-          "Ref": "AWS::Region",
-        },
-        "roleArn": {
-          "Fn::Join": [
-            "",
-            [
-              "arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":iam::owningAccountId:role/roleName",
-            ],
-          ],
-        },
-        "transitGatewayId": "transitGatewayId",
-        "type": "vpc",
+        "attachments": [
+          {
+            "name": "name",
+            "owningAccountId": "owningAccountId",
+            "roleArn": {
+              "Fn::Join": [
+                "",
+                [
+                  "arn:",
+                  {
+                    "Ref": "AWS::Partition",
+                  },
+                  ":iam::owningAccountId:role/roleName",
+                ],
+              ],
+            },
+            "transitGatewayId": "transitGatewayId",
+            "type": "vpc",
+          },
+        ],
         "uuid": "REPLACED-UUID",
       },
       "Type": "Custom::GetTransitGatewayAttachment",
@@ -3203,6 +3618,7 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
         "DefaultRouteTableAssociation": "enable",
         "DefaultRouteTablePropagation": "enable",
         "DnsSupport": "enable",
+        "MulticastSupport": "enable",
         "Tags": [
           {
             "Key": "key",
@@ -3241,6 +3657,7 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
           "ApplianceModeSupport": "enable",
           "DnsSupport": "disable",
           "Ipv6Support": "enable",
+          "SecurityGroupReferencingSupport": "disable",
         },
         "SubnetIds": [
           "one",
@@ -3264,6 +3681,7 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
           "ApplianceModeSupport": "disable",
           "DnsSupport": "enable",
           "Ipv6Support": "disable",
+          "SecurityGroupReferencingSupport": "disable",
         },
         "SubnetIds": [
           "one",
@@ -3287,6 +3705,7 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
           "ApplianceModeSupport": "enable",
           "DnsSupport": "enable",
           "Ipv6Support": "disable",
+          "SecurityGroupReferencingSupport": "disable",
         },
         "SubnetIds": [
           "one",
@@ -3303,6 +3722,30 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
         "VpcId": "vpcId",
       },
       "Type": "AWS::EC2::TransitGatewayAttachment",
+    },
+    "TransitGatewayAttachmentWithSgRef3271DAD0": {
+      "Properties": {
+        "Options": {
+          "ApplianceModeSupport": "disable",
+          "DnsSupport": "enable",
+          "Ipv6Support": "disable",
+          "SecurityGroupReferencingSupport": "enable",
+        },
+        "SubnetIds": [
+          "one",
+          "two",
+          "three",
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "name-with-sg-ref",
+          },
+        ],
+        "TransitGatewayId": "transitGatewayId",
+        "VpcId": "vpcId",
+      },
+      "Type": "AWS::EC2::TransitGatewayVpcAttachment",
     },
     "TransitGatewayRouteTableAssociation19E386E4": {
       "Properties": {
@@ -3341,6 +3784,7 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
         "Description": "AWS CDK resource provider framework - onEvent (Default/TransitGatewayRouteTableAssociationCustom/CustomResource/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::Join": [
                 "",
@@ -3364,21 +3808,18 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "TransitGatewayRouteTableAssociationCustomCustomResourceframeworkonEventServiceRoleF3DD7C87",
             "Arn",
           ],
         },
-        "Runtime": {
-          "Fn::FindInMap": [
-            "LatestNodeRuntimeMap",
-            {
-              "Ref": "AWS::Region",
-            },
-            "value",
-          ],
-        },
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3442,6 +3883,30 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":lambda:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":function:test",
+                  ],
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -3533,6 +3998,7 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
         "Description": "AWS CDK resource provider framework - onEvent (Default/TransitGatewayRouteTablePropagationCustom/CustomResource/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::Join": [
                 "",
@@ -3556,21 +4022,18 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "TransitGatewayRouteTablePropagationCustomCustomResourceframeworkonEventServiceRole483D3ED1",
             "Arn",
           ],
         },
-        "Runtime": {
-          "Fn::FindInMap": [
-            "LatestNodeRuntimeMap",
-            {
-              "Ref": "AWS::Region",
-            },
-            "value",
-          ],
-        },
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3675,6 +4138,30 @@ exports[`TransitGatewayRouteTablePropagation Construct(TransitGatewayRouteTableP
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":lambda:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":function:test",
+                  ],
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",

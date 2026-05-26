@@ -1,30 +1,24 @@
 import { AccountsConfigValidator } from '../../../../validator/accounts-config-validator';
 import { OrganizationConfig } from '../../../../lib/organization-config';
 import { AccountsConfig } from '../../../../lib/accounts-config';
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import * as path from 'path';
 
 describe('AccountsConfigValidator', () => {
-  const accountsDuplicateAliases = AccountsConfig.load(
-    path.resolve('./test/validation/accounts-config/account-aliases/duplicate-config'),
-  );
-  const accountsNoDuplicateAliases = AccountsConfig.load(
-    path.resolve('./test/validation/accounts-config/account-aliases/no-duplicate-config'),
-  );
-  const organization = OrganizationConfig.load(
-    path.resolve('./test/validation/accounts-config/account-aliases/duplicate-config'),
-  );
+  const accountsDuplicateAliases = AccountsConfig.load(path.resolve(__dirname, 'duplicate-config'));
+  const accountsNoDuplicateAliases = AccountsConfig.load(path.resolve(__dirname, 'no-duplicate-config'));
+  const organization = OrganizationConfig.loadRawOrganizationsConfig(path.resolve(__dirname, 'duplicate-config'));
 
   it('should throw error when duplicate aliases are found', () => {
     const errMsg = `Workload Account alias "tenant-alias" is duplicated. Account aliases must be unique across all accounts.`;
     expect(() => {
-      new AccountsConfigValidator(accountsDuplicateAliases, organization);
+      new AccountsConfigValidator(accountsDuplicateAliases, organization).validate();
     }).toThrow(errMsg);
   });
 
   it('should validate unique aliases successfully', () => {
     expect(() => {
-      new AccountsConfigValidator(accountsNoDuplicateAliases, organization);
+      new AccountsConfigValidator(accountsNoDuplicateAliases, organization).validate();
     }).not.toThrow();
   });
 
@@ -59,7 +53,7 @@ describe('AccountsConfigValidator', () => {
       `Account alias "Invalid-Alias-With-Uppercase" is invalid. Aliases must be between 3 and 63 characters long, ` +
       `contain only lowercase letters, numbers, and hyphens, and must start and end with a letter or number.`;
     expect(() => {
-      new AccountsConfigValidator(accountsInvalidAlias, organization);
+      new AccountsConfigValidator(accountsInvalidAlias, organization).validate();
     }).toThrow(errMsg);
   });
 
@@ -76,14 +70,17 @@ describe('AccountsConfigValidator', () => {
             name: 'Management',
             email: 'alias+root@example.com',
             accountAlias: 'valid-alias',
+            organizationalUnit: 'Root',
           },
           {
             name: 'LogArchive',
             email: 'alias+log@example.com',
+            organizationalUnit: 'Root',
           },
           {
             name: 'Audit',
             email: 'alias+audit@example.com',
+            organizationalUnit: 'Root',
           },
         ],
         workloadAccounts: [],
@@ -91,7 +88,7 @@ describe('AccountsConfigValidator', () => {
       },
     );
     expect(() => {
-      new AccountsConfigValidator(accountsValidAlias, organization);
+      new AccountsConfigValidator(accountsValidAlias, organization).validate();
     }).not.toThrow();
   });
 });

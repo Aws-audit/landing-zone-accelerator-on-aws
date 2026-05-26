@@ -20,7 +20,6 @@ import {
   Ec2FirewallAutoScalingGroupConfig,
   Ec2FirewallConfig,
   Ec2FirewallInstanceConfig,
-  Region,
   RoleConfig,
   RoleSetConfig,
   UserConfig,
@@ -38,7 +37,7 @@ import {
   SsmSessionManagerPolicy,
   WarmAccount,
 } from '@aws-accelerator/constructs';
-import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
+import { SsmResourceType } from '@aws-accelerator/utils';
 import {
   AcceleratorKeyType,
   AcceleratorStack,
@@ -184,7 +183,6 @@ export class OperationsStack extends AcceleratorStack {
    * Create Session Manager IAM Policy and Attach to IAM Role(s)
    */
   private createSessionManagerPolicy() {
-    const cloudWatchLogGroupList: string[] = this.getCloudWatchLogGroupList();
     const sessionManagerCloudWatchLogGroupList: string[] = this.getSessionManagerCloudWatchLogGroupList();
     const s3BucketList: string[] = this.getS3BucketList();
 
@@ -199,7 +197,6 @@ export class OperationsStack extends AcceleratorStack {
       attachPolicyToIamRoles: this.props.globalConfig.logging.sessionManager.attachPolicyToIamRoles,
       region: cdk.Stack.of(this).region,
       enabledRegions: this.props.globalConfig.enabledRegions,
-      cloudWatchLogGroupList: cloudWatchLogGroupList ?? undefined,
       sessionManagerCloudWatchLogGroupList: sessionManagerCloudWatchLogGroupList ?? undefined,
       s3BucketList: s3BucketList ?? undefined,
       prefixes: {
@@ -242,16 +239,6 @@ export class OperationsStack extends AcceleratorStack {
         },
       ],
     });
-
-    this.nagSuppressionInputs.push({
-      id: NagSuppressionRuleIds.IAM5,
-      details: [
-        {
-          path: `/${this.stackName}/SsmSessionManagerSettings/SessionManagerPolicy/Resource`,
-          reason: 'Allows only specific log group',
-        },
-      ],
-    });
   }
 
   /* Enable AWS Service Quota Limits
@@ -275,7 +262,7 @@ export class OperationsStack extends AcceleratorStack {
             logRetentionInDays: this.props.globalConfig.cloudwatchLogRetentionInDays,
           });
           // Specified Regions
-        } else if (limit.regions && limit.regions.includes(cdk.Stack.of(this).region as Region)) {
+        } else if (limit.regions && limit.regions.includes(cdk.Stack.of(this).region)) {
           this.logger.info(
             `Creating service quota increase ${limit.quotaCode} in specified region ${cdk.Stack.of(this).region}`,
           );
@@ -1153,6 +1140,7 @@ export class OperationsStack extends AcceleratorStack {
         encryptionType: this.isS3CMKEnabled ? BucketEncryptionType.SSE_KMS : BucketEncryptionType.SSE_S3,
         kmsKey: this.isS3CMKEnabled ? this.getAcceleratorKey(AcceleratorKeyType.S3_KEY)! : undefined,
         serverAccessLogsBucketName,
+        s3RemovalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
       });
 
       if (!serverAccessLogsBucketName) {
@@ -1395,63 +1383,26 @@ export class OperationsStack extends AcceleratorStack {
   }
 
   /**
-   * Function returns a list of CloudWatch Log Group ARNs
-   */
-  private getCloudWatchLogGroupList(): string[] {
-    const cloudWatchLogGroupListResources: string[] = [];
-    for (const regionItem of this.props.globalConfig.enabledRegions ?? []) {
-      const logGroupItem = `arn:${cdk.Stack.of(this).partition}:logs:${regionItem}:${
-        cdk.Stack.of(this).account
-      }:log-group:*`;
-
-      // Already in the list, skip
-      if (cloudWatchLogGroupListResources.includes(logGroupItem)) {
-        continue;
-      }
-
-      // Exclude regions is not used
-      if (this.props.globalConfig.logging.sessionManager.excludeRegions) {
-        // If exclude regions is defined, ensure not excluded
-        if (!this.props.globalConfig.logging.sessionManager.excludeRegions.includes(regionItem)) {
-          cloudWatchLogGroupListResources.push(logGroupItem);
-        }
-      }
-      // Exclude regions is not being used, add logGroupItem
-      else {
-        cloudWatchLogGroupListResources.push(logGroupItem);
-      }
-    }
-    return cloudWatchLogGroupListResources;
-  }
-
-  /**
    * Function returns a list of CloudWatch Log Group Name ARNs
    */
   private getSessionManagerCloudWatchLogGroupList(): string[] {
-    const logGroupName = `${this.props.prefixes.ssmLogName}-sessionmanager-logs`;
+    const logGroupName = `${this.props.prefixes.accelerator}-sessionmanager-logs`;
     const cloudWatchLogGroupListResources: string[] = [];
+    const excludedRegions = this.props.globalConfig.logging.sessionManager.excludeRegions ?? [];
+
     for (const regionItem of this.props.globalConfig.enabledRegions ?? []) {
-      const logGroupItem = `arn:${cdk.Stack.of(this).partition}:logs:${regionItem}:${
-        cdk.Stack.of(this).account
-      }:log-group:${logGroupName}:*`;
-      // Already in the list, skip
-      if (cloudWatchLogGroupListResources.includes(logGroupItem)) {
+      if (excludedRegions.includes(regionItem)) {
         continue;
       }
 
-      // Exclude regions is not used
-      if (this.props.globalConfig.logging.sessionManager.excludeRegions) {
-        // If exclude regions is defined, ensure not excluded
-        if (!this.props.globalConfig.logging.sessionManager.excludeRegions.includes(regionItem)) {
-          cloudWatchLogGroupListResources.push(logGroupItem);
-        }
-      }
-      // Exclude regions is not being used, add logGroupItem
-      else {
-        cloudWatchLogGroupListResources.push(logGroupItem);
-      }
+      const logGroupItem = `arn:${cdk.Stack.of(this).partition}:logs:${regionItem}:${
+        cdk.Stack.of(this).account
+      }:log-group:${logGroupName}:*`;
+
+      cloudWatchLogGroupListResources.push(logGroupItem);
     }
-    return cloudWatchLogGroupListResources;
+    //remove duplicate entries
+    return [...new Set(cloudWatchLogGroupListResources)];
   }
 
   /**

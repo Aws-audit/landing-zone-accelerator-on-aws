@@ -1,7 +1,13 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`AcceleratorMetadata Construct(AcceleratorMetadata):  Snapshot Test 1`] = `
+exports[`AcceleratorMetadata > Construct(AcceleratorMetadata):  Snapshot Test 1`] = `
 {
+  "Parameters": {
+    "SsmParameterValuetestArnPathC96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/testArnPath",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
   "Resources": {
     "AWSAcceleratormetadatacollectionLogGroup76F89C67": {
       "DeletionPolicy": "Delete",
@@ -40,6 +46,7 @@ exports[`AcceleratorMetadata Construct(AcceleratorMetadata):  Snapshot Test 1`] 
             "CONFIG_REPOSITORY_LOCATION": "codecommit",
             "CONFIG_REPOSITORY_NAME": "aws-config-test",
             "CROSS_ACCOUNT_ROLE": "testRole",
+            "DDB_CONFIG_TABLE_SSM_PARAMETER_PATH": "/testPath",
             "ELB_LOGGING_BUCKET": "elbLogBucketNameTest",
             "GLOBAL_REGION": "us-east-1",
             "LOG_ACCOUNT_ID": "111111111111",
@@ -48,17 +55,19 @@ exports[`AcceleratorMetadata Construct(AcceleratorMetadata):  Snapshot Test 1`] 
             "PARTITION": {
               "Ref": "AWS::Partition",
             },
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
           },
         },
         "FunctionName": "AWSAccelerator-metadata-collection",
         "Handler": "index.handler",
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AcceleratorMetadataMetadataLambdaC27FFAF6",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 600,
       },
       "Type": "AWS::Lambda::Function",
@@ -188,6 +197,7 @@ exports[`AcceleratorMetadata Construct(AcceleratorMetadata):  Snapshot Test 1`] 
               "Action": [
                 "codepipeline:GetPipelineExecution",
                 "codepipeline:ListPipelineExecutions",
+                "codepipeline:ListActionExecutions",
                 "codecommit:GetFolder",
                 "codecommit:GetFile",
                 "kms:DescribeKey",
@@ -199,13 +209,6 @@ exports[`AcceleratorMetadata Construct(AcceleratorMetadata):  Snapshot Test 1`] 
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
                 "logs:PutLogEvents",
-                "organizations:DescribeOrganizationalUnit",
-                "organizations:DescribeAccount",
-                "organizations:ListAccounts",
-                "organizations:ListChildren",
-                "organizations:ListOrganizationalUnitsForParent",
-                "organizations:ListParents",
-                "organizations:ListRoots",
                 "ssm:GetParameter",
                 "sts:AssumeRole",
               ],
@@ -224,6 +227,7 @@ exports[`AcceleratorMetadata Construct(AcceleratorMetadata):  Snapshot Test 1`] 
                 "s3:PutObjectRetention",
                 "s3:PutObjectTagging",
                 "s3:PutObjectVersionTagging",
+                "s3:ListBucketVersions",
                 "s3:Abort*",
               ],
               "Effect": "Allow",
@@ -276,7 +280,38 @@ exports[`AcceleratorMetadata Construct(AcceleratorMetadata):  Snapshot Test 1`] 
                     ],
                   ],
                 },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::aws-accelerator-pipeline-111111111111-us-east-1",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::aws-accelerator-pipeline-111111111111-us-east-1/*",
+                    ],
+                  ],
+                },
               ],
+            },
+            {
+              "Action": "dynamodb:Scan",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "SsmParameterValuetestArnPathC96584B6F00A464EAD1953AFF4B05118Parameter",
+              },
             },
           ],
           "Version": "2012-10-17",

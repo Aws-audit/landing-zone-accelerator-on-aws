@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`PropagatePortfolioAssociations Construct(PropagatePortfolioAssociations):  Snapshot Test 1`] = `
+exports[`PropagatePortfolioAssociations > Construct(PropagatePortfolioAssociations):  Snapshot Test 1`] = `
 {
   "Resources": {
     "CustomPropagatePortfolioAssociationsCustomResourceProviderHandler282C1D38": {
@@ -14,15 +14,20 @@ exports[`PropagatePortfolioAssociations Construct(PropagatePortfolioAssociations
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomPropagatePortfolioAssociationsCustomResourceProviderRole4C66847F",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",

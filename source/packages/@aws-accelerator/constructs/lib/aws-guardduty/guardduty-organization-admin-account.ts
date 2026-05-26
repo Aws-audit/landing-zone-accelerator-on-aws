@@ -11,12 +11,11 @@
  *  and limitations under the License.
  */
 
-import { PolicyStatementType } from '@aws-accelerator/utils/lib/common-resources';
+import { PolicyStatementType } from '@aws-accelerator/utils';
 import { CUSTOM_RESOURCE_PROVIDER_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-
-const path = require('path');
+import * as path from 'path';
 
 /**
  * Initialized GuardDutyOrganizationalAdminAccountProps properties
@@ -48,21 +47,11 @@ export const GuardDutyEnableOrganizationAdminAccountPolicyStatements: PolicyStat
       'organizations:ListAccounts',
       'organizations:ListDelegatedAdministrators',
       'organizations:RegisterDelegatedAdministrator',
-      'organizations:ServicePrincipal',
-      'organizations:UpdateOrganizationConfiguration',
     ],
     Resource: '*',
     Condition: {
       StringLikeIfExists: {
-        'organizations:DeregisterDelegatedAdministrator': ['guardduty.amazonaws.com'],
-        'organizations:DescribeOrganization': ['guardduty.amazonaws.com'],
-        'organizations:EnableAWSServiceAccess': ['guardduty.amazonaws.com'],
-        'organizations:ListAWSServiceAccessForOrganization': ['guardduty.amazonaws.com'],
-        'organizations:ListAccounts': ['guardduty.amazonaws.com'],
-        'organizations:ListDelegatedAdministrators': ['guardduty.amazonaws.com'],
-        'organizations:RegisterDelegatedAdministrator': ['guardduty.amazonaws.com'],
         'organizations:ServicePrincipal': ['guardduty.amazonaws.com'],
-        'organizations:UpdateOrganizationConfiguration': ['guardduty.amazonaws.com'],
       },
     },
   },

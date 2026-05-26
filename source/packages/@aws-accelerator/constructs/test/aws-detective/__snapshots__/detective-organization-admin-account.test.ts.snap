@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`DetectiveOrganizationAdminAccount Construct(DetectiveOrganizationAdminAccount):  Snapshot Test 1`] = `
+exports[`DetectiveOrganizationAdminAccount > Construct(DetectiveOrganizationAdminAccount):  Snapshot Test 1`] = `
 {
   "Resources": {
     "CustomDetectiveEnableOrganizationAdminAccountCustomResourceProviderHandlerAC80FDA1": {
@@ -14,15 +14,20 @@ exports[`DetectiveOrganizationAdminAccount Construct(DetectiveOrganizationAdminA
           },
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomDetectiveEnableOrganizationAdminAccountCustomResourceProviderRoleF6060FD6",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",

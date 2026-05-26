@@ -17,15 +17,16 @@ import {
   SsmParameterProps,
   TransitGateway,
   TransitGatewayRouteTable,
+  TransitGatewayFlowLogs,
 } from '@aws-accelerator/constructs';
-import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
+import { SsmResourceType } from '@aws-accelerator/utils';
 import * as cdk from 'aws-cdk-lib';
 import { NagSuppressions } from 'cdk-nag';
 import { pascalCase } from 'pascal-case';
 import { AcceleratorStackProps } from '../../accelerator-stack';
 import { LogLevel } from '../network-stack';
 import { getTgwConfig, getTgwRouteTableId, getTransitGatewayId } from '../utils/getter-utils';
-import { isIpv4 } from '../utils/validation-utils';
+import { isIpAddress } from '../utils/validation-utils';
 import { NetworkPrepStack } from './network-prep-stack';
 
 export class TgwResources {
@@ -102,6 +103,8 @@ export class TgwResources {
         defaultRouteTablePropagation: tgwItem.defaultRouteTablePropagation,
         dnsSupport: tgwItem.dnsSupport,
         vpnEcmpSupport: tgwItem.vpnEcmpSupport,
+        multicastSupport: tgwItem.multicastSupport,
+        securityGroupReferencingSupport: tgwItem.securityGroupReferencingSupport,
         transitGatewayCidrBlocks: transitGatewayCidrBlocks,
         tags: tgwItem.tags,
       });
@@ -117,7 +120,69 @@ export class TgwResources {
       this.stack.addLogs(LogLevel.INFO, `Share transit gateway ${tgwItem.name}`);
       this.stack.addResourceShare(tgwItem, `${tgwItem.name}_TransitGatewayShare`, [tgw.transitGatewayArn]);
     }
+
+    // Create Transit Gateway flow logs if configured
+    if (tgwItem.transitGatewayFlowLogs) {
+      this.createTgwFlowLogs(tgwItem, tgw.transitGatewayId);
+    }
+
     return tgw;
+  }
+
+  /**
+   * Create Transit Gateway flow logs
+   * @param tgwItem TransitGatewayConfig
+   * @param transitGatewayId string
+   */
+  private createTgwFlowLogs(tgwItem: TransitGatewayConfig, transitGatewayId: string): void {
+    const flowLogsConfig = tgwItem.transitGatewayFlowLogs!;
+    const logFormat = flowLogsConfig.defaultFormat ? undefined : `\${${flowLogsConfig.customFields.join('} ${')}}`;
+
+    for (const destination of flowLogsConfig.destinations) {
+      if (destination === 'cloud-watch-logs') {
+        const { logGroup, role } = TransitGatewayFlowLogs.createCloudWatchLogsDestination(
+          this.stack,
+          pascalCase(`${tgwItem.name}FlowLogsCw`),
+          {
+            transitGatewayName: tgwItem.name,
+            logRetentionInDays: flowLogsConfig.destinationsConfig?.cloudWatchLogs?.retentionInDays ?? 365,
+            encryptionKey: flowLogsConfig.destinationsConfig?.cloudWatchLogs?.kms
+              ? this.stack.getAcceleratorKey(flowLogsConfig.destinationsConfig.cloudWatchLogs.kms)
+              : this.stack.cloudwatchKey,
+            acceleratorPrefix: this.stack.acceleratorPrefix,
+          },
+        );
+
+        new TransitGatewayFlowLogs(this.stack, pascalCase(`${tgwItem.name}FlowLogsCwResource`), {
+          transitGatewayId,
+          maxAggregationInterval: flowLogsConfig.maxAggregationInterval,
+          logFormat,
+          logDestinationType: 'cloud-watch-logs',
+          logDestination: logGroup.logGroupArn,
+          deliverLogsPermissionArn: role.roleArn,
+          acceleratorPrefix: this.stack.acceleratorPrefix,
+          tags: tgwItem.tags,
+        });
+      }
+
+      if (destination === 's3') {
+        const bucketName = this.stack.getCentralLogBucketName();
+        const bucketArn = `arn:${cdk.Stack.of(this.stack).partition}:s3:::${bucketName}`;
+        const logPath = flowLogsConfig.destinationsConfig?.s3?.overrideS3LogPath
+          ? flowLogsConfig.destinationsConfig.s3.overrideS3LogPath
+          : `tgw-flow-logs/${tgwItem.name}`;
+
+        new TransitGatewayFlowLogs(this.stack, pascalCase(`${tgwItem.name}FlowLogsS3Resource`), {
+          transitGatewayId,
+          maxAggregationInterval: flowLogsConfig.maxAggregationInterval,
+          logFormat,
+          logDestinationType: 's3',
+          logDestination: `${bucketArn}/${logPath}`,
+          acceleratorPrefix: this.stack.acceleratorPrefix,
+          tags: tgwItem.tags,
+        });
+      }
+    }
   }
 
   /**
@@ -256,7 +321,7 @@ export class TgwResources {
       ? customerGateways.filter(cgw => cgw.vpnConnections?.filter(vpn => tgwNames.includes(vpn.transitGateway ?? '')))
       : [];
     const crossAcctFirewallReferenceCgws = tgwVpnCustomerGateways.filter(
-      cgw => !isIpv4(cgw.ipAddress) && !this.stack.firewallVpcInScope(cgw),
+      cgw => !isIpAddress(cgw.ipAddress) && !this.stack.firewallVpcInScope(cgw),
     );
 
     for (const crossAcctCgw of crossAcctFirewallReferenceCgws) {

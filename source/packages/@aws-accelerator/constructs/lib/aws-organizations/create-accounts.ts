@@ -15,7 +15,7 @@ import * as cdk from 'aws-cdk-lib';
 import { v4 as uuidv4 } from 'uuid';
 import { Construct } from 'constructs';
 
-import path = require('path');
+import * as path from 'path';
 import { DEFAULT_LAMBDA_RUNTIME } from '@aws-accelerator/utils/lib/lambda';
 
 /**
@@ -33,6 +33,7 @@ export interface CreateOrganizationAccountsProps {
    * Custom resource lambda log retention in days
    */
   readonly logRetentionInDays: number;
+  readonly configTable: cdk.aws_dynamodb.ITable;
 }
 
 export class CreateOrganizationAccounts extends Construct {
@@ -81,8 +82,15 @@ export class CreateOrganizationAccounts extends Construct {
         'organizations:DescribeCreateAccountStatus',
         'organizations:ListRoots',
         'organizations:MoveAccount',
+        'organizations:DescribeAccount',
       ],
       resources: ['*'],
+    });
+    const ddbConfigPolicy = new cdk.aws_iam.PolicyStatement({
+      sid: 'DynamoDbConfig',
+      effect: cdk.aws_iam.Effect.ALLOW,
+      actions: ['dynamodb:GetItem', 'dynamodb:UpdateItem'],
+      resources: [props.configTable.tableArn],
     });
 
     this.isComplete = new cdk.aws_lambda.Function(this, 'CreateOrganizationAccountStatus', {
@@ -95,8 +103,9 @@ export class CreateOrganizationAccounts extends Construct {
         NewOrgAccountsTableName: props.newOrgAccountsTable.tableName,
         GovCloudAccountMappingTableName: props.govCloudAccountMappingTable?.tableName || '',
         AccountRoleName: props.accountRoleName,
+        ConfigTableName: props.configTable.tableName,
       },
-      initialPolicy: [ddbPolicy, ddbKmsPolicy, orgPolicy],
+      initialPolicy: [ddbPolicy, ddbKmsPolicy, orgPolicy, ddbConfigPolicy],
       environmentEncryption: props.kmsKey,
     });
     const isCompleteLogGroup = new cdk.aws_logs.LogGroup(this, `${this.isComplete.node.id}LogGroup`, {

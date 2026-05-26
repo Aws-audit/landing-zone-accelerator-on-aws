@@ -22,12 +22,14 @@ import {
   LandingZoneStatus,
   ResetLandingZoneCommand,
   UpdateLandingZoneCommand,
+  ValidationException,
 } from '@aws-sdk/client-controltower';
 import { Account } from '@aws-sdk/client-organizations';
 
 import {
   ControlTowerLandingZoneConfigType,
   ControlTowerLandingZoneDetailsType,
+  IControlTowerKmsKeys,
   LandingZoneUpdateOrResetRequiredType,
 } from './resources';
 
@@ -46,6 +48,7 @@ import {
   getModuleDefaultParameters,
   setRetryStrategy,
 } from '../../../common/functions';
+import { putParametersValue } from '../../common/ssm-functions';
 import { createLogger } from '../../../common/logger';
 import { throttlingBackOff } from '../../../common/throttle';
 import { AcceleratorModuleName, IModuleDefaultParameter } from '../../../common/resources';
@@ -158,7 +161,6 @@ export class SetupLandingZoneModule implements ISetupLandingZoneModule {
     );
 
     const landingZoneDetails = await getLandingZoneDetails(client, props.region, landingZoneIdentifier);
-
     if (landingZoneDetails) {
       return await this.handleUpdateResetOperation(
         props,
@@ -169,12 +171,7 @@ export class SetupLandingZoneModule implements ISetupLandingZoneModule {
         landingZoneIdentifier,
       );
     } else {
-      return await LandingZoneOperation.createLandingZone(
-        client,
-        landingZoneConfiguration,
-        preRequisitesResources!.kmsKeyArn,
-        defaultProps.moduleName,
-      );
+      return await LandingZoneOperation.createLandingZone(client, landingZoneConfiguration, preRequisitesResources!);
     }
   }
 
@@ -210,6 +207,7 @@ export class SetupLandingZoneModule implements ISetupLandingZoneModule {
       loggingBucketRetentionDays: landingZoneConfig.logging.retention.loggingBucket,
       accessLoggingBucketRetentionDays: landingZoneConfig.logging.retention.accessLoggingBucket,
       enableOrganizationTrail: landingZoneConfig.logging.organizationTrail,
+      accountAutoEnrollment: landingZoneConfig.accountAutoEnrollment,
     };
   }
 
@@ -250,6 +248,37 @@ export class SetupLandingZoneModule implements ISetupLandingZoneModule {
   }
 
   /**
+   * Function to set SSM parameter when governed regions are updated
+   * @param reason - The reason string from landingZoneUpdateOrResetStatus
+   * @param props {@link ISetupLandingZoneHandlerParameter}
+   * @returns Promise<void>
+   */
+  private async setGovernedRegionsUpdatedParameter(
+    reason: string,
+    props: ISetupLandingZoneHandlerParameter,
+  ): Promise<void> {
+    if (reason.includes('Changes made in governed regions')) {
+      const parameterName = `${props.ssmParamPrefix}/control-tower/govern-regions-updated`;
+
+      await putParametersValue(
+        [
+          {
+            name: parameterName,
+            value: 'true',
+            type: 'String',
+          },
+        ],
+        props.region,
+        'setGovernedRegionsUpdatedParameter',
+        undefined,
+        props.solutionId,
+        props.credentials,
+      );
+      logger.info(`Set SSM parameter ${parameterName} to true`);
+    }
+  }
+
+  /**
    * Function to handle update and reset operation
    * @param props {@link ISetupLandingZoneHandlerParameter}
    * @param defaultProps {@link IModuleDefaultParameter}
@@ -271,7 +300,6 @@ export class SetupLandingZoneModule implements ISetupLandingZoneModule {
       landingZoneConfiguration,
       landingZoneDetails,
     );
-
     if (defaultProps.dryRun) {
       return this.getDryRunResponse(
         defaultProps.moduleName,
@@ -288,34 +316,69 @@ export class SetupLandingZoneModule implements ISetupLandingZoneModule {
       );
     }
 
-    if (landingZoneDetails.status === LandingZoneStatus.FAILED && !defaultProps.dryRun) {
-      throw new Error(
-        `${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: AWS Control Tower Landing Zone Module has status of "${LandingZoneStatus.FAILED}". Before continuing, proceed to AWS Control Tower and evaluate the status`,
-      );
-    }
+    if (landingZoneUpdateOrResetStatus.updateRequired || landingZoneUpdateOrResetStatus.resetRequired) {
+      logger.info(`The Landing Zone will be ${landingZoneUpdateOrResetStatus.resetRequired ? 'reset' : 'updated'}`);
+      logger.info(`The reason(s) for the change is/are: ${landingZoneUpdateOrResetStatus.reason}`);
 
-    if (landingZoneUpdateOrResetStatus.updateRequired) {
-      return await LandingZoneOperation.updateLandingZone(
-        client,
-        landingZoneUpdateOrResetStatus.targetVersion,
-        landingZoneUpdateOrResetStatus.reason,
-        landingZoneConfiguration,
-        landingZoneDetails,
-        defaultProps.moduleName,
-      );
+      await this.setGovernedRegionsUpdatedParameter(landingZoneUpdateOrResetStatus.reason, props);
     }
+    try {
+      if (landingZoneUpdateOrResetStatus.updateRequired) {
+        return await LandingZoneOperation.updateLandingZone(
+          client,
+          landingZoneUpdateOrResetStatus.targetVersion,
+          landingZoneUpdateOrResetStatus.reason,
+          landingZoneConfiguration,
+          landingZoneDetails,
+          defaultProps.moduleName,
+        );
+      }
 
-    if (landingZoneUpdateOrResetStatus.resetRequired) {
-      return await LandingZoneOperation.resetLandingZone(
-        client,
-        landingZoneDetails.landingZoneIdentifier,
-        landingZoneUpdateOrResetStatus.reason,
-        defaultProps.moduleName,
-      );
+      if (landingZoneUpdateOrResetStatus.resetRequired) {
+        return await LandingZoneOperation.resetLandingZone(
+          client,
+          landingZoneDetails.landingZoneIdentifier,
+          landingZoneUpdateOrResetStatus.reason,
+          defaultProps.moduleName,
+        );
+      }
+    } catch (error: unknown) {
+      if (error instanceof ValidationException) {
+        if (
+          error.message.includes(
+            'AWS Control Tower cannot perform this operation because the IAM role AWSControlTowerCloudTrailRole does not exist or have sufficient permissions.',
+          )
+        ) {
+          logger.warn('AWSControlTowerCloudTrailRole role policy update needed, updating');
+          await IamRole.updateCloudTrailRolePolicy(props.partition, props.region, props.solutionId, props.credentials);
+          await delay(1);
+          logger.info('AWSControlTowerCloudTrailRole role policy updated, retrying landing zone update');
+          if (landingZoneUpdateOrResetStatus.updateRequired) {
+            return await LandingZoneOperation.updateLandingZone(
+              client,
+              landingZoneUpdateOrResetStatus.targetVersion,
+              landingZoneUpdateOrResetStatus.reason,
+              landingZoneConfiguration,
+              landingZoneDetails,
+              defaultProps.moduleName,
+            );
+          }
+
+          if (landingZoneUpdateOrResetStatus.resetRequired) {
+            return await LandingZoneOperation.resetLandingZone(
+              client,
+              landingZoneDetails.landingZoneIdentifier,
+              landingZoneUpdateOrResetStatus.reason,
+              defaultProps.moduleName,
+            );
+          }
+        }
+      }
+      throw error;
     }
 
     // When no changes required
-    return `Module "${defaultProps.moduleName}" completed successfully with status ${landingZoneUpdateOrResetStatus.reason}`;
+    return landingZoneUpdateOrResetStatus.reason;
   }
 }
 /**
@@ -330,20 +393,19 @@ abstract class LandingZoneOperation {
    * Function to deploy the landing zone
    * @param client {@link ControlTowerClient}
    * @param landingZoneConfiguration {@link ControlTowerLandingZoneConfigType}
-   * @param kmsKeyArn string
-   * @param moduleName string
+   * @param kmsKeyArns string
    * @returns operationIdentifier string
    */
   public static async createLandingZone(
     client: ControlTowerClient,
     landingZoneConfiguration: ControlTowerLandingZoneConfigType,
-    kmsKeyArn: string,
-    moduleName: string,
+    kmsKeyArns: IControlTowerKmsKeys,
   ): Promise<string> {
-    const manifestDocument = makeManifestDocument(landingZoneConfiguration, 'CREATE', 'Security', kmsKeyArn);
+    const manifestDocument = makeManifestDocument(landingZoneConfiguration, 'CREATE', kmsKeyArns);
     const param: CreateLandingZoneCommandInput = {
       version: landingZoneConfiguration.version,
       manifest: manifestDocument,
+      remediationTypes: landingZoneConfiguration.accountAutoEnrollment ? ['INHERITANCE_DRIFT'] : undefined,
     };
 
     const response = await throttlingBackOff(() => client.send(new CreateLandingZoneCommand(param)));
@@ -365,7 +427,7 @@ abstract class LandingZoneOperation {
 
     await LandingZoneOperation.waitUntilOperationCompletes(client, operationIdentifier);
 
-    return `Module "${moduleName}" The Landing Zone deployed successfully.`;
+    return `AWS Control Tower landing zone deployed successfully.`;
   }
 
   /**
@@ -422,16 +484,18 @@ abstract class LandingZoneOperation {
     moduleName: string,
   ): Promise<string> {
     logger.info(`The Landing Zone update operation will begin, because "${reason}"`);
-    if (!landingZoneDetails.securityOuName) {
-      throw new Error(`${MODULE_EXCEPTIONS.SERVICE_EXCEPTION}: GetLandingZoneCommand did not return security Ou name`);
-    }
 
     const manifestDocument = makeManifestDocument(
       landingZoneConfiguration,
       'UPDATE',
-      landingZoneDetails.securityOuName,
-      landingZoneDetails.kmsKeyArn,
-      landingZoneDetails.sandboxOuName,
+      {
+        centralizedLoggingKeyArn: landingZoneDetails.centralizedLoggingConfig?.kmsKeyArn,
+        configLoggingKeyArn:
+          (landingZoneDetails.configHubConfig?.kmsKeyArn ?? landingZoneDetails.version?.startsWith('3'))
+            ? landingZoneDetails.centralizedLoggingConfig?.kmsKeyArn
+            : undefined,
+      },
+      landingZoneDetails.manifest,
     );
 
     const response = await throttlingBackOff(() =>
@@ -439,6 +503,7 @@ abstract class LandingZoneOperation {
         new UpdateLandingZoneCommand({
           version: targetVersion,
           landingZoneIdentifier: landingZoneDetails.landingZoneIdentifier,
+          remediationTypes: landingZoneConfiguration.accountAutoEnrollment ? ['INHERITANCE_DRIFT'] : undefined,
           manifest: manifestDocument,
         }),
       ),
@@ -549,6 +614,7 @@ abstract class ControlTowerPreRequisites {
    * - Create AWS Control Tower Roles
    * - Create AWS KMS CMK to encrypt AWS Control Tower resources
    * - Create the shared accounts (LogArchive and Audit)
+   * - Create Security OU and move shared accounts (for Control Tower 4.0)
    *
    * @param props {@link ISetupLandingZoneHandlerParameter}
    * @param globalRegion string
@@ -561,11 +627,10 @@ abstract class ControlTowerPreRequisites {
     globalRegion: string,
     useExistingRole: boolean,
     landingZoneIdentifier?: string,
-  ): Promise<{ kmsKeyArn: string } | undefined> {
+  ): Promise<IControlTowerKmsKeys | undefined> {
     if (!landingZoneIdentifier) {
       await Organization.validate(
         globalRegion,
-        props.region,
         props.partition,
         {
           logArchive: props.configuration.sharedAccounts.logging.email,
@@ -602,16 +667,32 @@ abstract class ControlTowerPreRequisites {
           props.solutionId,
           props.credentials,
         );
+
+        const securityOuId = await Organization.createOu(
+          globalRegion,
+          'Security',
+          'Root',
+          props.credentials,
+          props.solutionId,
+        );
+
+        await Organization.moveAccounts(
+          globalRegion,
+          securityOuId,
+          [props.configuration.sharedAccounts.logging.email, props.configuration.sharedAccounts.audit.email],
+          props.credentials,
+          props.solutionId,
+        );
       }
 
-      const kmsKeyArn = await KmsKey.createControlTowerKey(
+      const kmsKeyArns = await KmsKey.createControlTowerKeys(
         props.partition,
         managementAccountId,
         props.region,
         props.solutionId,
         props.credentials,
       );
-      return { kmsKeyArn };
+      return kmsKeyArns;
     }
 
     return undefined;

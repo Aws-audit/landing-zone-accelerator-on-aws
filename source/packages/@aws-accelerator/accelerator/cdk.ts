@@ -23,18 +23,7 @@ import { AcceleratorToolkit } from './lib/toolkit';
   const usage = `Usage: cdk.ts <command> --stage STAGE --config-dir CONFIG_DIRECTORY [--account ACCOUNT] [--region REGION]`;
 
   const args = mri(process.argv.slice(2), {
-    boolean: ['ec2Creds'],
-    string: [
-      'require-approval',
-      'config-dir',
-      'partition',
-      'stage',
-      'account',
-      'region',
-      'app',
-      'ca-bundle-path',
-      'proxy',
-    ],
+    string: ['config-dir', 'partition', 'stage', 'account', 'region', 'app', 'ca-bundle-path', 'proxy'],
     alias: {
       c: 'config-dir',
       s: 'stage',
@@ -45,7 +34,6 @@ import { AcceleratorToolkit } from './lib/toolkit';
   });
 
   const commands = args['_'];
-  const requireApproval = args['require-approval'];
   const configDirPath = args['config-dir'];
   const partition = args['partition'];
   const stage = args['stage'];
@@ -53,9 +41,7 @@ import { AcceleratorToolkit } from './lib/toolkit';
   const region = args['region'];
   const app = args['app'];
   const caBundlePath = args['ca-bundle-path'];
-  const ec2Creds = args['ec2Creds'];
   const proxyAddress = args['proxy'];
-  const useExistingRoles = args['use-existing-roles'] ?? false;
   //
   // Validate args: must specify a command
   //
@@ -108,15 +94,54 @@ import { AcceleratorToolkit } from './lib/toolkit';
     account,
     region,
     partition,
-    requireApproval,
     app,
     caBundlePath,
-    ec2Creds,
     proxyAddress,
-    enableSingleAccountMode: enableSingleAccountMode,
-    useExistingRoles,
+    enableSingleAccountMode,
   }).catch(function (err) {
     console.log(err.message);
     process.exit(1);
   });
+
+  // Run diff after synth if synth command was executed
+  // Skip diff for stages that don't require config directory (pipeline, tester-pipeline, diagnostics-pack)
+  const allStages = [
+    AcceleratorStage.ORGANIZATIONS,
+    AcceleratorStage.KEY,
+    AcceleratorStage.CUSTOMIZATIONS,
+    AcceleratorStage.RESOURCE_POLICY_ENFORCEMENT,
+    AcceleratorStage.DEPENDENCIES,
+    AcceleratorStage.FINALIZE,
+    AcceleratorStage.IDENTITY_CENTER,
+    AcceleratorStage.LOGGING,
+    AcceleratorStage.NETWORK_ASSOCIATIONS,
+    AcceleratorStage.NETWORK_ASSOCIATIONS_GWLB,
+    AcceleratorStage.NETWORK_PREP,
+    AcceleratorStage.NETWORK_VPC,
+    AcceleratorStage.NETWORK_VPC_DNS,
+    AcceleratorStage.NETWORK_VPC_ENDPOINTS,
+    AcceleratorStage.OPERATIONS,
+    AcceleratorStage.SECURITY,
+    AcceleratorStage.SECURITY_AUDIT,
+    AcceleratorStage.SECURITY_RESOURCES,
+    AcceleratorStage.SECURITY_GUARDDUTY_S3_MALWARE,
+  ];
+
+  if (commands[0] === 'synth' && stage && allStages.includes(stage)) {
+    await Accelerator.run({
+      command: 'diff',
+      configDirPath,
+      stage,
+      account,
+      region,
+      partition,
+      app,
+      caBundlePath,
+      proxyAddress,
+      enableSingleAccountMode,
+    }).catch(function (err) {
+      console.log(err.message);
+      process.exit(1);
+    });
+  }
 })();

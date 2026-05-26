@@ -1,5 +1,5 @@
 import { AseaResourceType, VpcConfig, VpcTemplatesConfig } from '@aws-accelerator/config';
-import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
+import { getAseaVpcName, SsmResourceType } from '@aws-accelerator/utils';
 import { AseaResource, AseaResourceProps } from './resource';
 import { ImportAseaResourcesStack, LogLevel } from '../stacks/import-asea-resources-stack';
 import { AcceleratorStage } from '../accelerator-stage';
@@ -59,9 +59,7 @@ export class SharedSecurityGroups extends AseaResource {
     }
   }
   private getSecurityGroupResourceByVpc(vpcName: string) {
-    if (vpcName.includes('_vpc')) {
-      vpcName = vpcName.replace('_vpc', '');
-    }
+    const aseaConfigVpcName = getAseaVpcName(vpcName).replace('_vpc', '');
     for (const [, nestedStackResources] of Object.entries(this.scope.nestedStackResources ?? {})) {
       const stackKey = nestedStackResources.getStackKey();
       const nestedStack = this.scope.nestedStacks[stackKey];
@@ -76,13 +74,13 @@ export class SharedSecurityGroups extends AseaResource {
           return false;
         }
         const descriptionWords = description.split(' ');
-        return descriptionWords.includes(vpcName);
+        return descriptionWords.includes(aseaConfigVpcName);
       });
       if (securityGroupMatch && securityGroupMatch.length > 0) {
         return { nestedStack, nestedStackResources, stackKey };
       }
     }
-    this.scope.addLogs(LogLevel.WARN, `Could not find nested stack for ${vpcName}`);
+    this.scope.addLogs(LogLevel.WARN, `Could not find nested stack for ${aseaConfigVpcName}`);
     return;
   }
 
@@ -153,6 +151,7 @@ export class SharedSecurityGroups extends AseaResource {
                 ingressRule.logicalResourceId,
               );
             }
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
           } catch (error) {
             // continue the ref may not exits
           }
@@ -168,6 +167,7 @@ export class SharedSecurityGroups extends AseaResource {
                 ingressRule.logicalResourceId,
               );
             }
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
           } catch (error) {
             // the ref may not exist
           }
@@ -183,6 +183,7 @@ export class SharedSecurityGroups extends AseaResource {
                   egressRule.logicalResourceId,
                 );
               }
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (error) {
               // continue the ref may not exist
             }
@@ -197,6 +198,7 @@ export class SharedSecurityGroups extends AseaResource {
                   egressRule.logicalResourceId,
                 );
               }
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (error) {
               // continue the ref may not exist
             }

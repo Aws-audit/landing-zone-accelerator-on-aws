@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`NetworkPrepStack Construct(NetworkPrepStack):  Snapshot Test 1`] = `
+exports[`NetworkPrepStack > Construct(NetworkPrepStack):  Snapshot Test 1`] = `
 {
   "Parameters": {
     "SsmParameterValueacceleratorkmslambdakeyarnC96584B6F00A464EAD1953AFF4B05118Parameter": {
@@ -59,6 +59,11 @@ exports[`NetworkPrepStack Construct(NetworkPrepStack):  Snapshot Test 1`] = `
       "Type": "AWS::Route53Resolver::FirewallRuleGroup",
     },
     "AcceleratorCgwCustomerGateway56465E97": {
+      "Metadata": {
+        "lzaLookup": {
+          "cgwName": "accelerator-cgw",
+        },
+      },
       "Properties": {
         "BgpAsn": 65500,
         "IpAddress": "1.1.1.1",
@@ -66,6 +71,25 @@ exports[`NetworkPrepStack Construct(NetworkPrepStack):  Snapshot Test 1`] = `
           {
             "Key": "Name",
             "Value": "accelerator-cgw",
+          },
+        ],
+        "Type": "ipsec.1",
+      },
+      "Type": "AWS::EC2::CustomerGateway",
+    },
+    "AcceleratorCgwIpv6CustomerGateway3C91F2AE": {
+      "Metadata": {
+        "lzaLookup": {
+          "cgwName": "accelerator-cgw-ipv6",
+        },
+      },
+      "Properties": {
+        "BgpAsn": 65501,
+        "IpAddress": "2803::f800",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "accelerator-cgw-ipv6",
           },
         ],
         "Type": "ipsec.1",
@@ -104,6 +128,34 @@ exports[`NetworkPrepStack Construct(NetworkPrepStack):  Snapshot Test 1`] = `
             {
               "ResourceArn": {
                 "Ref": "DomainListGroupNetworkFirewallRuleGroup8FEBF91F",
+              },
+            },
+            {
+              "ResourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":network-firewall:us-east-1:aws-managed:stateful-rulegroup/AbusedLegitBotNetCommandAndControlDomainsActionOrder",
+                  ],
+                ],
+              },
+            },
+            {
+              "ResourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":network-firewall:us-east-1:aws-managed:stateful-rulegroup/AttackInfrastructureActionOrder",
+                  ],
+                ],
               },
             },
           ],
@@ -415,6 +467,179 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       },
       "Type": "AWS::NetworkFirewall::RuleGroup",
     },
+    "AcceleratorVpnIpv6VpnConnectionCustomResourceCustomResourceResource0B194643": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "AcceleratorVpnIpv6VpnConnectionCustomResourceframeworkonEvent992B4AB2",
+            "Arn",
+          ],
+        },
+        "amazonIpv6NetworkCidr": "::/128",
+        "customerGatewayId": {
+          "Ref": "AcceleratorCgwIpv6CustomerGateway3C91F2AE",
+        },
+        "customerIpv6NetworkCidr": "::/128",
+        "outsideIpAddressType": "Ipv6",
+        "roleName": "AWSAccelerator-CrossAccount-SiteToSiteVpn-Role",
+        "staticRoutesOnly": false,
+        "tags": [
+          {
+            "Key": "Name",
+            "Value": "accelerator-vpn-ipv6",
+          },
+        ],
+        "transitGatewayId": {
+          "Ref": "NetworkMainTransitGatewayF6473E53",
+        },
+        "tunnelInsideIpVersion": "ipv6",
+      },
+      "Type": "AWS::CloudFormation::CustomResource",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AcceleratorVpnIpv6VpnConnectionCustomResourceframeworkonEvent992B4AB2": {
+      "DependsOn": [
+        "AcceleratorVpnIpv6VpnConnectionCustomResourceframeworkonEventServiceRoleDefaultPolicy0461B6CA",
+        "AcceleratorVpnIpv6VpnConnectionCustomResourceframeworkonEventServiceRole4B655EC0",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
+          "S3Key": "REPLACED-GENERATED-NAME.zip",
+        },
+        "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkPrepStack-555555555555-us-east-1/AcceleratorVpnIpv6VpnConnection/CustomResource/Resource)",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+            "USER_ON_EVENT_FUNCTION_ARN": {
+              "Fn::GetAtt": [
+                "VpnOnEventHandler05011160",
+                "Arn",
+              ],
+            },
+          },
+        },
+        "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
+        "Role": {
+          "Fn::GetAtt": [
+            "AcceleratorVpnIpv6VpnConnectionCustomResourceframeworkonEventServiceRole4B655EC0",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "AcceleratorVpnIpv6VpnConnectionCustomResourceframeworkonEventServiceRole4B655EC0": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-IAM4",
+              "reason": "AWS Custom resource provider framework-role created by cdk.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AcceleratorVpnIpv6VpnConnectionCustomResourceframeworkonEventServiceRoleDefaultPolicy0461B6CA": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-IAM5",
+              "reason": "Allows only specific policy.",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "VpnOnEventHandler05011160",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "VpnOnEventHandler05011160",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "VpnOnEventHandler05011160",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AcceleratorVpnIpv6VpnConnectionCustomResourceframeworkonEventServiceRoleDefaultPolicy0461B6CA",
+        "Roles": [
+          {
+            "Ref": "AcceleratorVpnIpv6VpnConnectionCustomResourceframeworkonEventServiceRole4B655EC0",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
     "AcceleratorVpnVpnConnection4C6D9196": {
       "Properties": {
         "CustomerGatewayId": {
@@ -679,6 +904,32 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
                 ],
               },
               "Sid": "LogsCRUD",
+            },
+            {
+              "Action": [
+                "kms:Encrypt",
+                "kms:Decrypt",
+                "kms:GenerateDataKey",
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "kms:RequestAlias": "alias/accelerator/kms/cloudwatch/key",
+                },
+              },
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":kms:*:555555555555:key:/*",
+                  ],
+                ],
+              },
+              "Sid": "KMS",
             },
           ],
           "Version": "2012-10-17",
@@ -955,6 +1206,103 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       },
       "Type": "AWS::IAM::Role",
     },
+    "CustomDeleteDefaultVpcCustomResourceProviderHandler87E89F35": {
+      "DependsOn": [
+        "CustomDeleteDefaultVpcCustomResourceProviderRole80963EEF",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
+          "S3Key": "REPLACED-GENERATED-NAME.zip",
+        },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
+        "Handler": "__entrypoint__.handler",
+        "MemorySize": 512,
+        "Role": {
+          "Fn::GetAtt": [
+            "CustomDeleteDefaultVpcCustomResourceProviderRole80963EEF",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs22.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "CustomDeleteDefaultVpcCustomResourceProviderLogGroup4113DA48": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "CustomDeleteDefaultVpcCustomResourceProviderHandler87E89F35",
+              },
+            ],
+          ],
+        },
+        "RetentionInDays": 3653,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "CustomDeleteDefaultVpcCustomResourceProviderRole80963EEF": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Sub": "arn:\${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+          },
+        ],
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "ec2:DeleteInternetGateway",
+                    "ec2:DetachInternetGateway",
+                    "ec2:DeleteNetworkAcl",
+                    "ec2:DeleteRoute",
+                    "ec2:DeleteSecurityGroup",
+                    "ec2:DeleteSubnet",
+                    "ec2:DeleteVpc",
+                    "ec2:DescribeInternetGateways",
+                    "ec2:DescribeNetworkAcls",
+                    "ec2:DescribeRouteTables",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeVpcs",
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "Inline",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
     "CustomDirectConnectGatewayCustomResourceProviderHandler82F9382C": {
       "DependsOn": [
         "CustomDirectConnectGatewayCustomResourceProviderRole60C5A7B2",
@@ -964,15 +1312,20 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomDirectConnectGatewayCustomResourceProviderRole60C5A7B2",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1047,15 +1400,20 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomDirectConnectVirtualInterfaceCustomResourceProviderRoleD8C9D582",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1170,15 +1528,20 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
           "S3Bucket": "cdk-hnb659fds-assets-555555555555-us-east-1",
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomResolverManagedDomainListCustomResourceProviderRole33DECC65",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1251,15 +1614,20 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource provider to put cross-account ssm parameter value",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "__entrypoint__.handler",
-        "MemorySize": 128,
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "CustomSsmPutParameterValueCustomResourceProviderRole9E1F101A",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1310,6 +1678,9 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
                   "Action": [
                     "ssm:DeleteParameter",
                     "ssm:PutParameter",
+                    "ssm:GetParameters",
+                    "ssm:AddTagsToResource",
+                    "ssm:RemoveTagsFromResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -1346,6 +1717,22 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
         ],
       },
       "Type": "AWS::IAM::Role",
+    },
+    "DeleteDefaultVpc4DBAE36C": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomDeleteDefaultVpcCustomResourceProviderLogGroup4113DA48",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomDeleteDefaultVpcCustomResourceProviderHandler87E89F35",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "Custom::DeleteDefaultVpc",
+      "UpdateReplacePolicy": "Delete",
     },
     "DomainList1DomainListBF84D823": {
       "Properties": {
@@ -1406,7 +1793,7 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Type": "AWS::NetworkFirewall::RuleGroup",
     },
     "EnhancedVpnTunnel0LogGroup9B6D89BD": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "RetentionInDays": 3653,
       },
@@ -1414,7 +1801,7 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "UpdateReplacePolicy": "Retain",
     },
     "EnhancedVpnTunnel1LogGroup3967C793": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "RetentionInDays": 3653,
       },
@@ -1570,6 +1957,7 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
         "Description": "AWS CDK resource provider framework - onEvent (AWSAccelerator-NetworkPrepStack-555555555555-us-east-1/EnhancedVpnVpnConnection/CustomResource/Resource)",
         "Environment": {
           "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
             "USER_ON_EVENT_FUNCTION_ARN": {
               "Fn::GetAtt": [
                 "VpnOnEventHandler05011160",
@@ -1579,13 +1967,18 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
           },
         },
         "Handler": "framework.onEvent",
+        "LoggingConfig": {
+          "ApplicationLogLevel": "FATAL",
+          "LogFormat": "JSON",
+        },
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "EnhancedVpnVpnConnectionCustomResourceframeworkonEventServiceRole8400FDCC",
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -1670,6 +2063,16 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
                   ],
                 },
               ],
+            },
+            {
+              "Action": "lambda:GetFunction",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "VpnOnEventHandler05011160",
+                  "Arn",
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -1832,6 +2235,9 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Type": "AWS::RAM::ResourceShare",
     },
     "HomeRegionProdPoolPool04473C66": {
+      "DependsOn": [
+        "HomeRegionPoolPool16097CF6",
+      ],
       "Properties": {
         "AddressFamily": "ipv4",
         "AllocationResourceTags": [
@@ -1940,6 +2346,78 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       },
       "Type": "AWS::IAM::Role",
     },
+    "MulticastCoreTransitGatewayRouteTable713DE18B": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Multicast-Core",
+          },
+        ],
+        "TransitGatewayId": {
+          "Ref": "MutlicastTgwTransitGatewayE837D150",
+        },
+      },
+      "Type": "AWS::EC2::TransitGatewayRouteTable",
+    },
+    "MulticastIsolatedTransitGatewayRouteTable93DEC7F7": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Multicast-Isolated",
+          },
+        ],
+        "TransitGatewayId": {
+          "Ref": "MutlicastTgwTransitGatewayE837D150",
+        },
+      },
+      "Type": "AWS::EC2::TransitGatewayRouteTable",
+    },
+    "MutlicastTgwTransitGatewayE837D150": {
+      "Properties": {
+        "AmazonSideAsn": 65426,
+        "AutoAcceptSharedAttachments": "enable",
+        "DefaultRouteTableAssociation": "disable",
+        "DefaultRouteTablePropagation": "disable",
+        "DnsSupport": "enable",
+        "MulticastSupport": "enable",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MutlicastTgw",
+          },
+        ],
+        "VpnEcmpSupport": "enable",
+      },
+      "Type": "AWS::EC2::TransitGateway",
+    },
+    "MutlicastTgwTransitGatewayShareResourceShare6C69625A": {
+      "Properties": {
+        "Name": "MutlicastTgw_TransitGatewayShare",
+        "Principals": [
+          "arn:aws:organizations::111111111111:ou/o-asdf123456/ou-asdf-22222222",
+        ],
+        "ResourceArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":ec2:us-east-1:555555555555:transit-gateway/",
+                {
+                  "Ref": "MutlicastTgwTransitGatewayE837D150",
+                },
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::RAM::ResourceShare",
+    },
     "NetworkDxgwAccelratorVifVirtualInterface0F06099A": {
       "DeletionPolicy": "Delete",
       "DependsOn": [
@@ -2033,6 +2511,78 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Type": "Custom::DirectConnectGateway",
       "UpdateReplacePolicy": "Delete",
     },
+    "NetworkLoadBalancerIPAddressLookup954D57A8": {
+      "Metadata": {
+        "cdk_nag": {
+          "rules_to_suppress": [
+            {
+              "id": "AwsSolutions-IAM5",
+              "reason": "Allows only specific role arns",
+            },
+          ],
+        },
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::444444444444:root",
+                    ],
+                  ],
+                },
+              },
+            },
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":iam::555555555555:root",
+                    ],
+                  ],
+                },
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": "ec2:DescribeNetworkInterfaces",
+                  "Effect": "Allow",
+                  "Resource": "*",
+                },
+              ],
+              "Version": "2012-10-17",
+            },
+            "PolicyName": "default",
+          },
+        ],
+        "RoleName": "AWSAccelerator-NetworkLoadBalancerIPAddressLookup",
+      },
+      "Type": "AWS::IAM::Role",
+    },
     "NetworkLocalEndpointQueryLogsCwlQueryLogConfig48CF2515": {
       "Properties": {
         "DestinationArn": {
@@ -2045,7 +2595,7 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Type": "AWS::Route53Resolver::ResolverQueryLoggingConfig",
     },
     "NetworkLocalEndpointQueryLogsQueryLogsLogGroup931180D2": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "RetentionInDays": 3653,
       },
@@ -2263,6 +2813,113 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       },
       "Type": "AWS::EC2::TransitGatewayRouteTable",
     },
+    "NetworkMainFlowLogsCwLogGroup9C99F182": {
+      "DeletionPolicy": "RetainExceptOnCreate",
+      "Properties": {
+        "LogGroupName": "/aws/transitgateway/Network-Main",
+        "RetentionInDays": 180,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "NetworkMainFlowLogsCwResource2BE637B0": {
+      "Properties": {
+        "DeliverLogsPermissionArn": {
+          "Fn::GetAtt": [
+            "NetworkMainFlowLogsCwRole89A25649",
+            "Arn",
+          ],
+        },
+        "LogDestination": {
+          "Fn::GetAtt": [
+            "NetworkMainFlowLogsCwLogGroup9C99F182",
+            "Arn",
+          ],
+        },
+        "LogDestinationType": "cloud-watch-logs",
+        "LogFormat": "\${version} \${resource-type} \${account-id} \${tgw-id} \${tgw-attachment-id} \${tgw-src-vpc-account-id} \${tgw-dst-vpc-account-id} \${tgw-src-subnet-id} \${tgw-dst-subnet-id} \${protocol} \${packets} \${bytes} \${start} \${end} \${log-status} \${tcp-flags}",
+        "MaxAggregationInterval": 60,
+        "ResourceId": {
+          "Ref": "NetworkMainTransitGatewayF6473E53",
+        },
+        "ResourceType": "TransitGateway",
+      },
+      "Type": "AWS::EC2::FlowLog",
+    },
+    "NetworkMainFlowLogsCwRole89A25649": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "vpc-flow-logs.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "Description": "Transit Gateway flow logs role for Network-Main",
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "NetworkMainFlowLogsCwRoleDefaultPolicyE16F4B39": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "NetworkMainFlowLogsCwLogGroup9C99F182",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "NetworkMainFlowLogsCwRoleDefaultPolicyE16F4B39",
+        "Roles": [
+          {
+            "Ref": "NetworkMainFlowLogsCwRole89A25649",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "NetworkMainFlowLogsS3ResourceED2205F4": {
+      "Properties": {
+        "LogDestination": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":s3:::existing-central-log-bucket/tgw-flow-logs/Network-Main",
+            ],
+          ],
+        },
+        "LogDestinationType": "s3",
+        "LogFormat": "\${version} \${resource-type} \${account-id} \${tgw-id} \${tgw-attachment-id} \${tgw-src-vpc-account-id} \${tgw-dst-vpc-account-id} \${tgw-src-subnet-id} \${tgw-dst-subnet-id} \${protocol} \${packets} \${bytes} \${start} \${end} \${log-status} \${tcp-flags}",
+        "MaxAggregationInterval": 60,
+        "ResourceId": {
+          "Ref": "NetworkMainTransitGatewayF6473E53",
+        },
+        "ResourceType": "TransitGateway",
+      },
+      "Type": "AWS::EC2::FlowLog",
+    },
     "NetworkMainSegregatedTransitGatewayRouteTableFD7A15B0": {
       "Properties": {
         "Tags": [
@@ -2354,7 +3011,7 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Type": "AWS::RAM::ResourceShare",
     },
     "QueryLogsLogGroup9D69754D": {
-      "DeletionPolicy": "Retain",
+      "DeletionPolicy": "RetainExceptOnCreate",
       "Properties": {
         "RetentionInDays": 3653,
       },
@@ -2386,7 +3043,37 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NetworkPrepStack-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.12.0",
+        "Value": "1.15.0",
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamMutlicastTgwMulticastCoreTransitGatewayRouteTableId5B349951": {
+      "Properties": {
+        "Name": "/accelerator/network/transitGateways/MutlicastTgw/routeTables/Multicast-Core/id",
+        "Type": "String",
+        "Value": {
+          "Ref": "MulticastCoreTransitGatewayRouteTable713DE18B",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamMutlicastTgwMulticastIsolatedTransitGatewayRouteTableIdB77C09A9": {
+      "Properties": {
+        "Name": "/accelerator/network/transitGateways/MutlicastTgw/routeTables/Multicast-Isolated/id",
+        "Type": "String",
+        "Value": {
+          "Ref": "MulticastIsolatedTransitGatewayRouteTable93DEC7F7",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamMutlicastTgwTransitGatewayId8D796CCC": {
+      "Properties": {
+        "Name": "/accelerator/network/transitGateways/MutlicastTgw/id",
+        "Type": "String",
+        "Value": {
+          "Ref": "MutlicastTgwTransitGatewayE837D150",
+        },
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -2443,9 +3130,6 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkMain2NetworkMain2CoreTransitGatewayRouteTableIdC5E730F7": {
-      "DependsOn": [
-        "SsmParamNetworkMainNetworkMainStandaloneTransitGatewayRouteTableId81A119C5",
-      ],
       "Properties": {
         "Name": "/accelerator/network/transitGateways/Network-Main-2/routeTables/Network-Main-2-Core/id",
         "Type": "String",
@@ -2457,7 +3141,7 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
     },
     "SsmParamNetworkMain2NetworkMain2SegregatedTransitGatewayRouteTableId8571D494": {
       "DependsOn": [
-        "SsmParamNetworkMainNetworkMainStandaloneTransitGatewayRouteTableId81A119C5",
+        "SsmParamNetworkMain2NetworkMain2CoreTransitGatewayRouteTableIdC5E730F7",
       ],
       "Properties": {
         "Name": "/accelerator/network/transitGateways/Network-Main-2/routeTables/Network-Main-2-Segregated/id",
@@ -2470,7 +3154,7 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
     },
     "SsmParamNetworkMain2NetworkMain2SharedTransitGatewayRouteTableIdE9E46782": {
       "DependsOn": [
-        "SsmParamNetworkMainNetworkMainStandaloneTransitGatewayRouteTableId81A119C5",
+        "SsmParamNetworkMain2NetworkMain2CoreTransitGatewayRouteTableIdC5E730F7",
       ],
       "Properties": {
         "Name": "/accelerator/network/transitGateways/Network-Main-2/routeTables/Network-Main-2-Shared/id",
@@ -2482,6 +3166,9 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkMain2NetworkMain2StandaloneTransitGatewayRouteTableIdF641FDF1": {
+      "DependsOn": [
+        "SsmParamNetworkMain2NetworkMain2CoreTransitGatewayRouteTableIdC5E730F7",
+      ],
       "Properties": {
         "Name": "/accelerator/network/transitGateways/Network-Main-2/routeTables/Network-Main-2-Standalone/id",
         "Type": "String",
@@ -2493,7 +3180,7 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
     },
     "SsmParamNetworkMain2TransitGatewayId3D6B0437": {
       "DependsOn": [
-        "SsmParamNetworkMainNetworkMainStandaloneTransitGatewayRouteTableId81A119C5",
+        "SsmParamNetworkMainNetworkMainCoreTransitGatewayRouteTableId45D6D502",
       ],
       "Properties": {
         "Name": "/accelerator/network/transitGateways/Network-Main-2/id",
@@ -2505,9 +3192,6 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkMain3NetworkMain3CoreTransitGatewayRouteTableIdF8149237": {
-      "DependsOn": [
-        "SsmParamNetworkMain2NetworkMain2StandaloneTransitGatewayRouteTableIdF641FDF1",
-      ],
       "Properties": {
         "Name": "/accelerator/network/transitGateways/Network-Main-3/routeTables/Network-Main-3-Core/id",
         "Type": "String",
@@ -2519,7 +3203,7 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
     },
     "SsmParamNetworkMain3TransitGatewayId4CC1131B": {
       "DependsOn": [
-        "SsmParamNetworkMain2NetworkMain2StandaloneTransitGatewayRouteTableIdF641FDF1",
+        "SsmParamNetworkMain2NetworkMain2CoreTransitGatewayRouteTableIdC5E730F7",
       ],
       "Properties": {
         "Name": "/accelerator/network/transitGateways/Network-Main-3/id",
@@ -2541,6 +3225,9 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkMainNetworkMainSegregatedTransitGatewayRouteTableIdF2215D71": {
+      "DependsOn": [
+        "SsmParamNetworkMainNetworkMainCoreTransitGatewayRouteTableId45D6D502",
+      ],
       "Properties": {
         "Name": "/accelerator/network/transitGateways/Network-Main/routeTables/Network-Main-Segregated/id",
         "Type": "String",
@@ -2551,6 +3238,9 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkMainNetworkMainSharedTransitGatewayRouteTableId0C5DAACF": {
+      "DependsOn": [
+        "SsmParamNetworkMainNetworkMainCoreTransitGatewayRouteTableId45D6D502",
+      ],
       "Properties": {
         "Name": "/accelerator/network/transitGateways/Network-Main/routeTables/Network-Main-Shared/id",
         "Type": "String",
@@ -2561,6 +3251,9 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Type": "AWS::SSM::Parameter",
     },
     "SsmParamNetworkMainNetworkMainStandaloneTransitGatewayRouteTableId81A119C5": {
+      "DependsOn": [
+        "SsmParamNetworkMainNetworkMainCoreTransitGatewayRouteTableId45D6D502",
+      ],
       "Properties": {
         "Name": "/accelerator/network/transitGateways/Network-Main/routeTables/Network-Main-Standalone/id",
         "Type": "String",
@@ -2602,13 +3295,26 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
     },
     "SsmParamacceleratorCgwCustomerGateway984E0261": {
       "DependsOn": [
-        "SsmParamNetworkMain2NetworkMain2StandaloneTransitGatewayRouteTableIdF641FDF1",
+        "SsmParamNetworkMain3NetworkMain3CoreTransitGatewayRouteTableIdF8149237",
       ],
       "Properties": {
         "Name": "/accelerator/network/customerGateways/accelerator-cgw/id",
         "Type": "String",
         "Value": {
           "Ref": "AcceleratorCgwCustomerGateway56465E97",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
+    "SsmParamacceleratorCgwIpv6CustomerGateway4067F1EF": {
+      "DependsOn": [
+        "SsmParamNetworkMain3NetworkMain3CoreTransitGatewayRouteTableIdF8149237",
+      ],
+      "Properties": {
+        "Name": "/accelerator/network/customerGateways/accelerator-cgw-ipv6/id",
+        "Type": "String",
+        "Value": {
+          "Ref": "AcceleratorCgwIpv6CustomerGateway3C91F2AE",
         },
       },
       "Type": "AWS::SSM::Parameter",
@@ -2714,9 +3420,22 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       },
       "Type": "AWS::SSM::Parameter",
     },
+    "SsmParamacceleratorVpnIpv6VpnConnection7C1F581D": {
+      "DependsOn": [
+        "SsmParamNetworkMain3NetworkMain3CoreTransitGatewayRouteTableIdF8149237",
+      ],
+      "Properties": {
+        "Name": "/accelerator/network/vpnConnection/accelerator-vpn-ipv6/id",
+        "Type": "String",
+        "Value": {
+          "Ref": "AcceleratorVpnIpv6VpnConnectionCustomResourceCustomResourceResource0B194643",
+        },
+      },
+      "Type": "AWS::SSM::Parameter",
+    },
     "SsmParamacceleratorVpnVpnConnection261CAE04": {
       "DependsOn": [
-        "SsmParamNetworkMain2NetworkMain2StandaloneTransitGatewayRouteTableIdF641FDF1",
+        "SsmParamNetworkMain3NetworkMain3CoreTransitGatewayRouteTableIdF8149237",
       ],
       "Properties": {
         "Name": "/accelerator/network/vpnConnection/accelerator-vpn/id",
@@ -2946,6 +3665,11 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
           "S3Key": "REPLACED-GENERATED-NAME.zip",
         },
         "Description": "Custom resource onEvent handler for site-to-site VPN",
+        "Environment": {
+          "Variables": {
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+          },
+        },
         "Handler": "index.handler",
         "KmsKeyArn": {
           "Ref": "SsmParameterValueacceleratorkmslambdakeyarnC96584B6F00A464EAD1953AFF4B05118Parameter",
@@ -2957,7 +3681,7 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
             "Arn",
           ],
         },
-        "Runtime": "nodejs20.x",
+        "Runtime": "nodejs22.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -3129,6 +3853,9 @@ drop http $HOME_NET any -> $EXTERNAL_NET any (http.host; content:"example.com"; 
       "Type": "AWS::RAM::ResourceShare",
     },
     "WestRegionPoolPoolB2DED4AA": {
+      "DependsOn": [
+        "HomeRegionProdPoolPool04473C66",
+      ],
       "Properties": {
         "AddressFamily": "ipv4",
         "Description": "Pool for us-west-2",

@@ -23,7 +23,7 @@ import {
   ResolverFirewallDomainListType,
   ResolverFirewallRuleGroup,
 } from '@aws-accelerator/constructs';
-import { SsmResourceType } from '@aws-accelerator/utils/lib/ssm-parameter-path';
+import { SsmResourceType } from '@aws-accelerator/utils';
 import * as cdk from 'aws-cdk-lib';
 import { pascalCase } from 'pascal-case';
 import path from 'path';
@@ -185,6 +185,7 @@ export class ResolverResources {
       if (ruleItem.customDomainList) {
         try {
           domainListName = path.basename(ruleItem.customDomainList, path.extname(ruleItem.customDomainList));
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (e) {
           this.stack.addLogs(LogLevel.ERROR, `Error parsing list name from ${ruleItem.customDomainList}`);
           throw new Error(`Configuration validation failed at runtime.`);
@@ -249,6 +250,7 @@ export class ResolverResources {
         const logGroup = new cdk.aws_logs.LogGroup(this.stack, 'QueryLogsLogGroup', {
           encryptionKey: this.stack.cloudwatchKey,
           retention: this.stack.logRetention,
+          removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
         });
 
         const cwlQueryLogConfig = this.createQueryLogItem(logItem, logGroup, props.partition, orgId);
@@ -284,6 +286,7 @@ export class ResolverResources {
           const logGroup = new cdk.aws_logs.LogGroup(this.stack, pascalCase(`${queryLogName}QueryLogsLogGroup`), {
             encryptionKey: this.stack.cloudwatchKey,
             retention: this.stack.logRetention,
+            removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
           });
 
           const cwlQueryLogConfig = this.createQueryLogItem(
