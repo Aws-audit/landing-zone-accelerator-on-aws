@@ -76,6 +76,7 @@ export class LoadAcceleratorConfigTable extends Construct {
       runtime: cdk.CustomResourceProviderRuntime.NODEJS_16_X,
       timeout: cdk.Duration.minutes(15),
       memorySize: cdk.Size.mebibytes(1024),
+      description: 'AWSAccelerator-PrepareSta-CustomLoadAcceleratorCon',
       policyStatements: [
         {
           Sid: 'organizations',
