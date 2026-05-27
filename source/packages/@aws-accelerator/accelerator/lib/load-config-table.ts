@@ -75,6 +75,7 @@ export class LoadAcceleratorConfigTable extends Construct {
       codeDirectory: path.join(__dirname, 'lambdas/load-config-table/dist'),
       runtime: cdk.CustomResourceProviderRuntime.NODEJS_16_X,
       timeout: cdk.Duration.minutes(15),
+      memorySize: cdk.Size.mebibytes(1024),
       policyStatements: [
         {
           Sid: 'organizations',
