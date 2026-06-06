@@ -276,6 +276,31 @@ export class BootstrapStack extends AcceleratorStack {
     cloudFormationExecutionRole.addManagedPolicy(
       cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('AdministratorAccess'),
     );
+    // Add SSO permissions for Identity Center management
+    cloudFormationExecutionRole.addToPolicy(
+      new cdk.aws_iam.PolicyStatement({
+        sid: 'SSOPermissions',
+        effect: cdk.aws_iam.Effect.ALLOW,
+        actions: [
+          'sso:CreatePermissionSet',
+          'sso:UpdatePermissionSet',
+          'sso:DeletePermissionSet',
+          'sso:DescribePermissionSet',
+          'sso:ListPermissionSets',
+          'sso:AttachManagedPolicyToPermissionSet',
+          'sso:DetachManagedPolicyFromPermissionSet',
+          'sso:ListManagedPoliciesInPermissionSet',
+          'sso:PutInlinePolicyToPermissionSet',
+          'sso:GetInlinePolicyForPermissionSet',
+          'sso:DeleteInlinePolicyFromPermissionSet',
+          'sso:ProvisionPermissionSet',
+          'sso:CreateAccountAssignment',
+          'sso:DeleteAccountAssignment',
+          'sso:ListAccountAssignments',
+        ],
+        resources: ['*'],
+      }),
+    );
     // Override logical Id
     const cfnCloudFormationExecutionRole = cloudFormationExecutionRole.node.defaultChild as cdk.aws_iam.CfnRole;
     cfnCloudFormationExecutionRole.overrideLogicalId('CloudFormationExecutionRole');
