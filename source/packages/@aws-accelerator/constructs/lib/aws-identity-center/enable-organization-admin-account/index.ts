@@ -94,6 +94,13 @@ export async function handler(event: AWSLambda.CloudFormationCustomResourceEvent
       }
 
       if (isDelegatedAdminDeregistered) {
+        // Skip registration if delegated admin is management account
+        const callerIdentity = await new AWS.STS().getCallerIdentity().promise();
+        const managementAccountId = callerIdentity.Account;
+        if (newIdentityCenterDelegatedAdminAccount === managementAccountId) {
+          console.log('delegatedAdminAccount is Management account - skipping Delegated Admin registration');
+          return { Status: 'Success', StatusCode: 200 };
+        }
         console.log('Registering Delegated Administrator for Identity Center');
         await throttlingBackOff(() =>
           organizationsClient
