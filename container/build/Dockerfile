@@ -6,10 +6,13 @@ RUN dnf update -y
 RUN dnf install -y nodejs22 awscli zip tar gzip
 RUN npm -g install yarn
 
-# Extract source if provided as tarball
-RUN mkdir -p /landing-zone-accelerator-on-aws/source && \
+# Copy source and scripts from staging.
+RUN mkdir -p /landing-zone-accelerator-on-aws && \
     if [ -f /landing-zone-accelerator-on-aws-staging/source.tar.gz ]; then \
-      tar -xzf /landing-zone-accelerator-on-aws-staging/source.tar.gz -C /landing-zone-accelerator-on-aws/source/; \
+      mkdir -p /landing-zone-accelerator-on-aws/source && \
+      tar -xzf /landing-zone-accelerator-on-aws-staging/source.tar.gz -C /landing-zone-accelerator-on-aws/source; \
+    else \
+      cp -r /landing-zone-accelerator-on-aws-staging/source /landing-zone-accelerator-on-aws/source; \
     fi && \
     cp -r /landing-zone-accelerator-on-aws-staging/scripts /landing-zone-accelerator-on-aws/
 

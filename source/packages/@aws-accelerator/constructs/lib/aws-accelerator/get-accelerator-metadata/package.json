@@ -19,19 +19,14 @@
     "test": "vitest run --coverage --passWithNoTests",
     "build-prod": "esbuild --minify --bundle --outfile=./dist/index.js --platform=node index.ts"
   },
-  "resolutions": {
-    "fast-xml-parser": "5.3.8",
-    "minimatch": "3.1.5",
-    "ajv": "6.14.0"
-  },
   "dependencies": {
-    "@aws-sdk/client-codecommit": "3.835.0",
-    "@aws-sdk/client-codepipeline": "3.835.0",
-    "@aws-sdk/client-s3": "3.835.0",
-    "@aws-sdk/client-sts": "3.835.0",
-    "@aws-sdk/client-kms": "3.835.0",
-    "@aws-sdk/client-ssm": "3.835.0",
-    "@aws-sdk/client-organizations": "3.835.0"
+    "@aws-sdk/client-codecommit": "3.1041.0",
+    "@aws-sdk/client-codepipeline": "3.1041.0",
+    "@aws-sdk/client-s3": "3.1041.0",
+    "@aws-sdk/client-sts": "3.1041.0",
+    "@aws-sdk/client-kms": "3.1041.0",
+    "@aws-sdk/client-ssm": "3.1041.0",
+    "@aws-sdk/client-organizations": "3.1041.0"
   },
   "devDependencies": {
     "@types/node": "18.19.50",
@@ -43,7 +38,7 @@
     "eslint-plugin-license-header": "0.8.0",
     "eslint-plugin-prettier": "5.5.4",
     "prettier": "3.6.2",
-    "vitest": "3.2.4",
+    "vitest": "4.1.8",
     "typescript": "5.8.3"
   }
 }

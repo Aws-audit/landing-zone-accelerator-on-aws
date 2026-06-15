@@ -447,7 +447,7 @@ exports[`NewCloudWatchLogEvent > Construct(NewCloudWatchLogEvent):  Snapshot Tes
               ],
             },
             "LogSubscriptionType": "ACCOUNT",
-            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.5",
           },
         },
         "Handler": "index.handler",
@@ -562,6 +562,7 @@ exports[`NewCloudWatchLogEvent > Construct(NewCloudWatchLogEvent):  Snapshot Tes
                 "kms:Encrypt",
                 "kms:Decrypt",
                 "kms:GenerateDataKey",
+                "kms:DescribeKey",
               ],
               "Effect": "Allow",
               "Resource": {
@@ -932,7 +933,7 @@ exports[`NewCloudWatchLogEvent > Construct(NewCloudWatchLogEvent):  Snapshot Tes
             "LogRetention": "731",
             "LogSubscriptionRole": "testString",
             "LogSubscriptionType": "LOG_GROUP",
-            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.5",
           },
         },
         "Handler": "index.handler",
@@ -1078,6 +1079,7 @@ exports[`NewCloudWatchLogEvent > Construct(NewCloudWatchLogEvent):  Snapshot Tes
                 "kms:Encrypt",
                 "kms:Decrypt",
                 "kms:GenerateDataKey",
+                "kms:DescribeKey",
               ],
               "Effect": "Allow",
               "Resource": {

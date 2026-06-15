@@ -163,7 +163,7 @@ exports[`NetworkVpcV2Stacks > Construct(LbStack-Network-us-east-1-Network-Second
         "Description": "Custom resource provider to put cross-account ssm parameter value",
         "Environment": {
           "Variables": {
-            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.5",
           },
         },
         "Handler": "__entrypoint__.handler",
@@ -228,6 +228,7 @@ exports[`NetworkVpcV2Stacks > Construct(LbStack-Network-us-east-1-Network-Second
                     "ssm:GetParameters",
                     "ssm:AddTagsToResource",
                     "ssm:RemoveTagsFromResource",
+                    "ssm:ListTagsForResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -289,7 +290,7 @@ exports[`NetworkVpcV2Stacks > Construct(LbStack-Network-us-east-1-Network-Second
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-LoadBalancersStack-Network-Secondary-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -327,7 +328,7 @@ exports[`NetworkVpcV2Stacks > Construct(LbStack-Network-us-east-1-Network-Second
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-LoadBalancersStack-Network-Secondary-V2-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -1267,7 +1268,7 @@ exports[`NetworkVpcV2Stacks > Construct(NackStack-Network-us-east-1-Network-Seco
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NaclsStack-Network-Secondary-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -2086,7 +2087,7 @@ exports[`NetworkVpcV2Stacks > Construct(NackStack-Network-us-east-1-Network-Seco
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-NaclsStack-Network-Secondary-V2-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -2153,7 +2154,7 @@ exports[`NetworkVpcV2Stacks > Construct(RouteEntriesStack-Network-us-east-1-Netw
         },
         "Environment": {
           "Variables": {
-            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.5",
           },
         },
         "Handler": "__entrypoint__.handler",
@@ -2221,7 +2222,7 @@ exports[`NetworkVpcV2Stacks > Construct(RouteEntriesStack-Network-us-east-1-Netw
         },
         "Environment": {
           "Variables": {
-            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.5",
           },
         },
         "Handler": "__entrypoint__.handler",
@@ -2419,7 +2420,7 @@ exports[`NetworkVpcV2Stacks > Construct(RouteEntriesStack-Network-us-east-1-Netw
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-RouteEntriesStack-Network-Inspection-V2-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -2508,7 +2509,7 @@ exports[`NetworkVpcV2Stacks > Construct(RouteEntriesStack-Network-us-east-1-Netw
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-RouteEntriesStack-Network-Secondary-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -2597,7 +2598,7 @@ exports[`NetworkVpcV2Stacks > Construct(RouteEntriesStack-Network-us-east-1-Netw
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-RouteEntriesStack-Network-Secondary-V2-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -2760,7 +2761,7 @@ exports[`NetworkVpcV2Stacks > Construct(RouteTableStack-Network-us-east-1-Networ
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-RouteTablesStack-Network-Secondary-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -2948,7 +2949,7 @@ exports[`NetworkVpcV2Stacks > Construct(RouteTableStack-Network-us-east-1-Networ
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-RouteTablesStack-Network-Secondary-V2-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -3026,7 +3027,7 @@ exports[`NetworkVpcV2Stacks > Construct(SecurityGroupStack-Network-us-east-1-Net
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SecurityGroupsStack-Network-Secondary-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -3064,7 +3065,7 @@ exports[`NetworkVpcV2Stacks > Construct(SecurityGroupStack-Network-us-east-1-Net
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SecurityGroupsStack-Network-Secondary-V2-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -3102,7 +3103,7 @@ exports[`NetworkVpcV2Stacks > Construct(SubnetShareStack-Network-us-east-1-Netwo
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SubnetsShareStack-Network-Secondary-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -3152,7 +3153,7 @@ exports[`NetworkVpcV2Stacks > Construct(SubnetShareStack-Network-us-east-1-Netwo
         "Description": "Custom resource provider to put cross-account ssm parameter value",
         "Environment": {
           "Variables": {
-            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.5",
           },
         },
         "Handler": "__entrypoint__.handler",
@@ -3217,6 +3218,7 @@ exports[`NetworkVpcV2Stacks > Construct(SubnetShareStack-Network-us-east-1-Netwo
                     "ssm:GetParameters",
                     "ssm:AddTagsToResource",
                     "ssm:RemoveTagsFromResource",
+                    "ssm:ListTagsForResource",
                   ],
                   "Effect": "Allow",
                   "Resource": [
@@ -3307,15 +3309,42 @@ exports[`NetworkVpcV2Stacks > Construct(SubnetShareStack-Network-us-east-1-Netwo
         ],
         "parameters": [
           {
-            "name": "/accelerator/network/vpc/Network-Secondary-V2/id",
-            "value": {
-              "Ref": "SsmParameterValueacceleratornetworkvpcNetworkSecondaryV2idC96584B6F00A464EAD1953AFF4B05118Parameter",
-            },
-          },
-          {
             "name": "/accelerator/network/vpc/Network-Secondary-V2/subnet/Network-Secondary-Share/id",
             "value": {
               "Ref": "SsmParameterValueacceleratornetworkvpcNetworkSecondaryV2subnetNetworkSecondaryShareidC96584B6F00A464EAD1953AFF4B05118Parameter",
+            },
+          },
+        ],
+        "region": "us-east-1",
+        "roleName": "AWSAccelerator-CrossAccountSsmParameterShare",
+        "uuid": "REPLACED-UUID",
+      },
+      "Type": "Custom::SsmPutParameterValue",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "NetworkSecondaryV2VpcSharedParameters8F28811A": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "CustomSsmPutParameterValueCustomResourceProviderLogGroupB0109C68",
+        "NetworkSecondaryShareSubnetShareResourceShare7960C54A",
+        "NetworkSecondaryV2NetworkSecondaryShareVpcSharedSubnetParameters0AE0C402",
+      ],
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomSsmPutParameterValueCustomResourceProviderHandler2A0BDE7F",
+            "Arn",
+          ],
+        },
+        "invokingAccountId": "555555555555",
+        "parameterAccountIds": [
+          "444444444444",
+        ],
+        "parameters": [
+          {
+            "name": "/accelerator/network/vpc/Network-Secondary-V2/id",
+            "value": {
+              "Ref": "SsmParameterValueacceleratornetworkvpcNetworkSecondaryV2idC96584B6F00A464EAD1953AFF4B05118Parameter",
             },
           },
         ],
@@ -3330,7 +3359,7 @@ exports[`NetworkVpcV2Stacks > Construct(SubnetShareStack-Network-us-east-1-Netwo
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SubnetsShareStack-Network-Secondary-V2-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -3391,7 +3420,7 @@ exports[`NetworkVpcV2Stacks > Construct(SubnetStack-Network-us-east-1-Network-Se
         },
         "Environment": {
           "Variables": {
-            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.5",
           },
         },
         "Handler": "__entrypoint__.handler",
@@ -4110,7 +4139,7 @@ exports[`NetworkVpcV2Stacks > Construct(SubnetStack-Network-us-east-1-Network-Se
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SubnetsStack-Network-Secondary-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -4419,7 +4448,7 @@ exports[`NetworkVpcV2Stacks > Construct(SubnetStack-Network-us-east-1-Network-Se
         },
         "Environment": {
           "Variables": {
-            "SOLUTION_ID": "AwsSolution/SO0199/1.15.0",
+            "SOLUTION_ID": "AwsSolution/SO0199/1.15.5",
           },
         },
         "Handler": "__entrypoint__.handler",
@@ -5078,7 +5107,7 @@ exports[`NetworkVpcV2Stacks > Construct(SubnetStack-Network-us-east-1-Network-Se
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SubnetsStack-Network-Secondary-V2-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -5570,7 +5599,7 @@ exports[`NetworkVpcV2Stacks > Construct(SubnetStack-SharedServices-us-east-1-Sha
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-SubnetsStack-SharedServices-Main-V2-444444444444-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -5930,7 +5959,7 @@ exports[`NetworkVpcV2Stacks > Construct(VpcStack-Network-us-east-1-Network-Secon
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-VpcStack-Network-Secondary-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },
@@ -6239,7 +6268,7 @@ exports[`NetworkVpcV2Stacks > Construct(VpcStack-Network-us-east-1-Network-Secon
       "Properties": {
         "Name": "/accelerator/AWSAccelerator-VpcStack-Network-Secondary-V2-555555555555-us-east-1/version",
         "Type": "String",
-        "Value": "1.15.0",
+        "Value": "1.15.5",
       },
       "Type": "AWS::SSM::Parameter",
     },

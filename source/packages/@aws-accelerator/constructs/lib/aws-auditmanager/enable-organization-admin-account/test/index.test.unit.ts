@@ -73,23 +73,23 @@ describe('enable-organization-admin-account', () => {
       EnabledServicePrincipals: [],
     };
 
-    (AuditManagerClient as any).mockImplementation(() => ({
+    (AuditManagerClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof GetAccountStatusCommand) {
           return Promise.resolve(mockGetAccountStatus);
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
-    (OrganizationsClient as any).mockImplementation(() => ({
+    (OrganizationsClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof ListAWSServiceAccessForOrganizationCommand) {
           return Promise.resolve(mockListServiceAccess);
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
 
@@ -125,7 +125,7 @@ describe('enable-organization-admin-account', () => {
       },
     };
 
-    (AuditManagerClient as any).mockImplementation(() => ({
+    (AuditManagerClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof GetAccountStatusCommand) {
           return Promise.resolve(mockGetAccountStatus);
@@ -138,7 +138,7 @@ describe('enable-organization-admin-account', () => {
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
 
@@ -161,7 +161,7 @@ describe('enable-organization-admin-account', () => {
 
     const existingAdminId = '222222222222';
 
-    (AuditManagerClient as any).mockImplementation(() => ({
+    (AuditManagerClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof GetAccountStatusCommand) {
           return Promise.resolve({ status: AccountStatus.ACTIVE });
@@ -171,7 +171,7 @@ describe('enable-organization-admin-account', () => {
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
 
@@ -216,7 +216,7 @@ describe('enable-organization-admin-account', () => {
 
     mockEvent.ResourceProperties.adminAccountId = mockEvent.ResourceProperties.managementAccountId;
 
-    (AuditManagerClient as any).mockImplementation(() => ({
+    (AuditManagerClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof GetAccountStatusCommand) {
           return Promise.resolve({ status: AccountStatus.ACTIVE });
@@ -226,7 +226,7 @@ describe('enable-organization-admin-account', () => {
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute & Verify
 
@@ -240,7 +240,7 @@ describe('enable-organization-admin-account', () => {
 
     const existingAdminId = '333333333333';
 
-    (AuditManagerClient as any).mockImplementation(() => ({
+    (AuditManagerClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof GetAccountStatusCommand) {
           return Promise.resolve({ status: AccountStatus.ACTIVE });
@@ -250,7 +250,7 @@ describe('enable-organization-admin-account', () => {
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
 
@@ -271,7 +271,7 @@ describe('enable-organization-admin-account', () => {
 
     const existingKmsKey = 'arn:aws:kms:us-east-1:111111111111:key/1234abcd'; // Same as mockEvent.ResourceProperties.kmsKeyArn
 
-    (AuditManagerClient as any).mockImplementation(() => ({
+    (AuditManagerClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof GetAccountStatusCommand) {
           return Promise.resolve({ status: AccountStatus.ACTIVE });
@@ -285,7 +285,7 @@ describe('enable-organization-admin-account', () => {
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
 
@@ -312,7 +312,7 @@ describe('enable-organization-admin-account', () => {
 
     const existingKmsKey = 'arn:aws:kms:us-east-1:111111111111:key/different-key';
 
-    (AuditManagerClient as any).mockImplementation(() => ({
+    (AuditManagerClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof GetAccountStatusCommand) {
           return Promise.resolve({ status: AccountStatus.ACTIVE });
@@ -326,7 +326,7 @@ describe('enable-organization-admin-account', () => {
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
 
@@ -360,14 +360,14 @@ describe('enable-organization-admin-account', () => {
       ],
     };
 
-    (OrganizationsClient as any).mockImplementation(() => ({
+    (OrganizationsClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof ListAWSServiceAccessForOrganizationCommand) {
           return Promise.resolve(mockListServiceAccess);
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
 
@@ -390,14 +390,14 @@ describe('enable-organization-admin-account', () => {
       ],
     };
 
-    (OrganizationsClient as any).mockImplementation(() => ({
+    (OrganizationsClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof ListAWSServiceAccessForOrganizationCommand) {
           return Promise.resolve(mockListServiceAccess);
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
 
@@ -417,14 +417,14 @@ describe('enable-organization-admin-account', () => {
       EnabledServicePrincipals: [],
     };
 
-    (OrganizationsClient as any).mockImplementation(() => ({
+    (OrganizationsClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof ListAWSServiceAccessForOrganizationCommand) {
           return Promise.resolve(mockListServiceAccess);
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
 
@@ -444,14 +444,14 @@ describe('enable-organization-admin-account', () => {
       EnabledServicePrincipals: undefined,
     };
 
-    (OrganizationsClient as any).mockImplementation(() => ({
+    (OrganizationsClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof ListAWSServiceAccessForOrganizationCommand) {
           return Promise.resolve(mockListServiceAccess);
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
 
@@ -468,7 +468,7 @@ describe('enable-organization-admin-account', () => {
     // When
     delete mockEvent.ResourceProperties.kmsKeyArn;
 
-    (AuditManagerClient as any).mockImplementation(() => ({
+    (AuditManagerClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof GetAccountStatusCommand) {
           return Promise.resolve({ status: AccountStatus.ACTIVE });
@@ -482,7 +482,7 @@ describe('enable-organization-admin-account', () => {
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
     const response = await handler(mockEvent);
@@ -498,7 +498,7 @@ describe('enable-organization-admin-account', () => {
     // When
     mockEvent.ResourceProperties.kmsKeyArn = undefined;
 
-    (AuditManagerClient as any).mockImplementation(() => ({
+    (AuditManagerClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof GetAccountStatusCommand) {
           return Promise.resolve({ status: AccountStatus.ACTIVE });
@@ -512,7 +512,7 @@ describe('enable-organization-admin-account', () => {
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
     const response = await handler(mockEvent);
@@ -528,7 +528,7 @@ describe('enable-organization-admin-account', () => {
     // When
     mockEvent.ResourceProperties.kmsKeyArn = null;
 
-    (AuditManagerClient as any).mockImplementation(() => ({
+    (AuditManagerClient as any).mockImplementation(function() { return {
       send: vi.fn().mockImplementation(command => {
         if (command instanceof GetAccountStatusCommand) {
           return Promise.resolve({ status: AccountStatus.ACTIVE });
@@ -542,7 +542,7 @@ describe('enable-organization-admin-account', () => {
         }
         return Promise.resolve({});
       }),
-    }));
+    }; });
 
     // Execute
     const response = await handler(mockEvent);

@@ -119,6 +119,10 @@ For more information on Amazon ECR:
 - [Private repositories and images](https://docs.aws.amazon.com/AmazonECR/latest/userguide/Repositories.html)
 - [Public repositories and images](https://docs.aws.amazon.com/AmazonECR/latest/public/public-repositories.html)
 
+**Building the image locally for development:**
+
+If you are contributing to the solution and need to build the image from source, see [Building the Container Image Locally](https://awslabs.github.io/landing-zone-accelerator-on-aws/latest/developer-guide/container-build/) in the Developer Guide. Locally built images are for development and testing only and are not suitable for running in Amazon ECS — use the public image referenced above for deployments.
+
 
 ### Deploy the Solution
 
@@ -151,7 +155,7 @@ To deploy the solution, complete the following steps:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | **Source Configuration** |||
-| ImageUri | `public.ecr.aws/aws-solutions/landing-zone-accelerator-on-aws:1.15.0` | The Amazon Elastic Container Registry (Amazon ECR) repository, where Landing Zone Accelerator on AWS code is present. |
+| ImageUri | `public.ecr.aws/aws-solutions/landing-zone-accelerator-on-aws:v1.15.5` | The Amazon Elastic Container Registry (Amazon ECR) repository, where Landing Zone Accelerator on AWS code is present. |
 | **Mandatory Accounts Configuration** |||
 | ManagementAccountEmail | `<requires input>` | The management (primary) account email - NOTE: This must match the address of the management account email as listed in AWS Organizations > AWS accounts. |
 | LogArchiveAccountEmail | `<requires input>` | The log archive account email. |
@@ -167,8 +171,7 @@ To deploy the solution, complete the following steps:
 | ExistingConfigBucketName | `<optional input>` | The name of an existing LZA configuration bucket hosting the accelerator configuration. |
 | ExistingConfigBucketKey | `<optional input>` | Specify the branch name of the existing LZA configuration bucket key to pull the accelerator configuration from. |
 | **Network Configuration** |||
-| VpcCidr | `10.0.0.0/16` | The CIDR block for the VPC (used when UseExistingVpc is No). |
-| UseExistingVpc | `No` | Select Yes to use an existing VPC. If Yes, provide existing subnet and security group IDs. |
+| UseExistingVpc | `No` | Select Yes to use an existing VPC. If Yes, provide existing subnet and security group ID. If No, a VPC with CIDR `10.0.0.0/16` will be created across 2 availability zones. |
 | ExistingVpcId | `<optional input>` | The ID of an existing VPC (required when UseExistingVpc is Yes). |
 | ExistingSubnetId | `<optional input>` | The ID of an existing subnet (required when UseExistingVpc is Yes). |
 | ExistingSecurityGroupId | `<optional input>` | The ID of an existing security group (required when UseExistingVpc is Yes). |
